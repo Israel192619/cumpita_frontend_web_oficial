@@ -1,0 +1,25 @@
+<div class="dialog-container">
+
+  <!-- Header -->
+  <div class="dialog-header">
+    <span class="icon"></span>
+    <h2 mat-dialog-title>{{ data.title }}</h2>
+  </div>
+
+  <!-- Content -->
+  <mat-dialog-content class="content">
+    <p>{{ data.message }}</p>
+  </mat-dialog-content>
+
+  <!-- Actions -->
+  <mat-dialog-actions align="end" class="actions">
+    <button mat-stroked-button (click)="onCancel()" class="btn btn-light">
+      Cancelar
+    </button>
+
+    <button mat-flat-button color="warn" (click)="onConfirm()" class="btn btn-danger">
+      Eliminar
+    </button>
+  </mat-dialog-actions>
+
+</div>

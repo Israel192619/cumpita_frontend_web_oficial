@@ -1,0 +1,34 @@
+<div class="input-group">
+  <label *ngIf="label">{{ label }}</label>
+
+  <input *ngIf="type !== 'file'" [type]="type" [formControl]="control" [placeholder]="placeholder">
+  <div *ngIf="type === 'file'" class="file-wrapper">
+
+    <img *ngIf="preview" [src]="preview" class="avatar-preview">
+
+    <div *ngIf="!preview" class="avatar-placeholder">
+      Sin imagen
+    </div>
+
+    <div class="file-actions">
+      <input #fileInput type="file" (change)="onFileChange($event)" class="file-input-hidden">
+
+      <button type="button" (click)="fileInput.click()" class="btn-upload">
+        Seleccionar
+      </button>
+
+      <button *ngIf="preview" type="button" (click)="clearImage(fileInput)" class="btn-clear">
+        Quitar
+      </button>
+    </div>
+
+  </div>
+
+  <div *ngIf="control.invalid && control.touched" class="error">
+    <small *ngIf="control.errors?.['required']">Este campo es obligatorio</small>
+    <small *ngIf="control.errors?.['email']">Correo inválido</small>
+    <small *ngIf="control.errors?.['minlength']">
+      Mínimo {{ control.errors?.['minlength']?.requiredLength }} caracteres
+    </small>
+  </div>
+</div>

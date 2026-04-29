@@ -1,0 +1,59 @@
+<div class="navbar-wrapper">
+    <div class="m-header">
+        <a href="#" class="b-brand text-primary">
+            <img src="images/logo-dark.svg" alt class="logo logo-lg" />
+        </a>
+    </div>
+    <div class="navbar-content">
+        <ul class="pc-navbar">
+            <li class="pc-item pc-caption">
+                <label>Dashboard</label>
+                <i class="ti ti-dashboard"></i>
+            </li>
+            <li class="pc-item" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+                <a [routerLink]="['/app']" class="pc-link">
+                    <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
+                    <span class="pc-mtext">Dashboard</span>
+                </a>
+            </li>
+            <li class="pc-item pc-caption">
+                <label>Paginas</label>
+                <i class="ti ti-news"></i>
+            </li>
+            <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger">
+                <a href="javascript:void(0);" class="pc-link"><span class="pc-micon"><i
+                            class="ti ti-users"></i></span><span class="pc-mtext">USERS</span><span class="pc-arrow"><i
+                            data-feather="chevron-right"></i></span></a>
+                <ul class="pc-submenu">
+                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
+                        <a [routerLink]="['/app/users/list']" class="pc-link">Ver Usuarios</a>
+                        <ul></ul>
+                    </li>
+                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
+                        <a [routerLink]="['/app/user/create']" class="pc-link">Crear Usuario</a>
+                        <ul></ul>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="pc-item pc-hasmenu">
+                <a href="javascript:void(0);" class="pc-link"><span class="pc-micon"><i
+                            class="ti ti-key"></i></span><span class="pc-mtext">Authentication</span><span
+                        class="pc-arrow"><i data-feather="chevron-right"></i></span></a>
+                <ul class="pc-submenu">
+                    <li class="pc-item pc-hasmenu">
+                        <a href="javascript:void(0);" class="pc-link">Authentication 1<span class="pc-arrow"><i
+                                    data-feather="chevron-right"></i></span></a>
+                        <ul class="pc-submenu">
+                            <li class="pc-item"><a class="pc-link" href="javascript:void(0);">Login</a></li>
+                            <li class="pc-item"><a class="pc-link" href="javascript:void(0);">Register</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+        <div class="w-100 text-center">
+            <div class="badge theme-version badge rounded-pill bg-light text-dark f-12"></div>
+        </div>
+    </div>
+</div>

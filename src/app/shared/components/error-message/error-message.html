@@ -1,0 +1,4 @@
+<div *ngIf="message" class="error-box">
+    {{ message }}
+    <a *ngIf="linkRedireccion" [routerLink]="linkRedireccion" class="error-link">{{ linkTexto }}</a>
+</div>

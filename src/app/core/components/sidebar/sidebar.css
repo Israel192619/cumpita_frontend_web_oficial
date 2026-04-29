@@ -1,0 +1,23 @@
+/* 1. Ocultamos todos los submenús por defecto */
+.pc-submenu {
+    display: none !important;
+    visibility: hidden;
+}
+
+/* 2. Cuando el padre tiene 'pc-trigger', MOSTRAR el submenú */
+.pc-item.pc-trigger > .pc-submenu {
+    display: block !important;
+    visibility: visible;
+}
+
+/* 3. Animación de la flecha */
+.pc-item.pc-trigger .pc-arrow i {
+    transform: rotate(90deg);
+    display: inline-block;
+    transition: transform 0.2s ease-in-out;
+}
+
+.pc-arrow i {
+    display: inline-block;
+    transition: transform 0.2s ease-in-out;
+}

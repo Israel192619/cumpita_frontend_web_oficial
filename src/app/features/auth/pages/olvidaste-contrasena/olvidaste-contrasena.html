@@ -1,0 +1,33 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="brand">
+      <img src="images/logo-white.svg" alt="Logo" (error)="$event.target.style.display='none'" />
+      <h1>{{ nombreApp }}</h1>
+      <p class="subtitle">Ingrese su correo para restablecer su contraseña</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+      <div class="field">
+        <label for="email">Correo</label>
+        <input id="email" type="email" formControlName="email" placeholder="tu@correo.com" />
+        <div class="hint" *ngIf="form.controls['email'].touched && form.controls['email'].invalid">
+          <small *ngIf="form.controls['email'].errors?.['required']">El correo es requerido.</small>
+          <small *ngIf="form.controls['email'].errors?.['email']">Correo inválido.</small>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="submit" class="btn-primary" [disabled]="loading">
+          <span *ngIf="!loading">ENVIAR</span>
+          <span *ngIf="loading" class="loader"></span>
+        </button>
+      </div>
+
+      <div class="error" *ngIf="error"><small>{{ error }}</small></div>
+    </form>
+
+    <div class="iniciar-sesion">
+        <a [routerLink]="['/login']" >Iniciar Sesión</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,22 @@
+<div class="card">
+
+  <div class="form-header">
+    <h2>{{ title }}</h2>
+  </div>
+
+  <form [formGroup]="form">
+
+    <div class="form-body">
+      <ng-content></ng-content>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        <span *ngIf="!esEdicion">Guardar</span>
+        <span *ngIf="esEdicion">Editar</span>
+      </button>
+      <button *ngIf="mostrarGuardarYAgregarOtro" type="button" class="btn btn-warning" (click)="onGuardarYAgregarOtro()">Guardar y agregar otro</button>
+      <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancelar</button>
+    </div>
+  </form>
+</div>

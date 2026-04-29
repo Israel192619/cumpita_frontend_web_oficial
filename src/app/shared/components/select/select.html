@@ -1,0 +1,15 @@
+<div class="input-group">
+  <label *ngIf="label">{{ label }}</label>
+
+  <select [formControl]="control">
+    <option [ngValue]="null" disabled >Seleccione...</option>
+
+    <option *ngFor="let op of options" [ngValue]="op.value">
+      {{ op.label }}
+    </option>
+  </select>
+
+  <div *ngIf="control.invalid && control.touched" class="error">
+    <small *ngIf="control.errors?.['required']">Seleccione una opción</small>
+  </div>
+</div>

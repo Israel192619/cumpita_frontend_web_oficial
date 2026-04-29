@@ -1,0 +1,101 @@
+.card {
+  background: var(--card-bg);
+  padding: 22px;
+  border-radius: 10px;
+  color: var(--card-text);
+  box-shadow: var(--card-shadow);
+}
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.form-header h2 {
+  margin: 0;
+  color: var(--header-title);
+  font-weight: 700;
+}
+
+.form-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.form-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* .btn-primary {
+  background: var(--btn-primary-bg);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+}
+
+.btn-secondary {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+} */
+
+.form-card .btn-primary {
+  --bs-btn-border-radius: 10px;
+  --bs-btn-padding-y: 10px;
+  --bs-btn-padding-x: 16px;
+}
+.form-card .btn-secondary {
+  --bs-btn-border-radius: 10px;
+  --bs-btn-padding-y: 10px;
+  --bs-btn-padding-x: 16px;
+}
+.form-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .form-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .form-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .form-actions button {
+    flex: 1;
+    font-size: 14px;
+    padding: 10px;
+  }
+}
+
+
+@media (max-width: 480px) {
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+}

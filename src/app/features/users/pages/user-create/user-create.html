@@ -1,0 +1,27 @@
+<app-form-card [form]="form" title="Crear Usuario" [mostrarGuardarYAgregarOtro]="true" (submit)="crearUsuario()"
+  (cancel)="cancelar()" (guardarYAgregarOtro)="guardarYagregarOtro()">
+
+  <app-input-form label="Nombre" [control]="getControl('name')" placeholder="Ingresa tu nombre">
+  </app-input-form>
+
+  <app-input-form label="Dirección" [control]="getControl('direccion')" placeholder="Av.">
+  </app-input-form>
+
+  <app-input-form label="Numero de celular" type="number" [control]="getControl('numero_celular')" placeholder="Ej. 65784***">
+  </app-input-form>
+
+  <app-input-form label="Avatar" type="file" [control]="getControl('avatar')">
+  </app-input-form>
+
+  <app-select label="Rol" [control]="getControl('role_id')" [options]="roles">
+  </app-select>
+
+  <app-input-form label="Correo" [control]="getControl('email')" placeholder="ejemplo@gmail.com">
+  </app-input-form>
+
+  <app-input-form label="Contraseña" type="password" [control]="getControl('password')" placeholder="********">
+  </app-input-form>
+
+</app-form-card>
+
+<app-error-message [message]="error"></app-error-message>

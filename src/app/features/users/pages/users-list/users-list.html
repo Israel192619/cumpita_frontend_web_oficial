@@ -1,0 +1,21 @@
+<app-data-table
+  title="Usuarios"
+  [data]="users()"
+  [columns]="[
+    { key: 'perfil_usuarios.avatar_url', label: '', type: 'image' },
+    { key: 'name', label: 'Nombre' },
+    { key: 'email', label: 'Correo' },
+    { key: 'perfil_usuarios.direccion', label: 'Direccion' },
+    { key: 'perfil_usuarios.numero_celular', label: 'Numero de celular' },
+    { key: 'created_at', label: 'Creado', type: 'date' }
+  ]"
+  [loading]="isloading()"
+  [error]="error()"
+  [errorMessageLink]="errorMessageLink()"
+  [errorMessageText]="errorMessageText()"
+
+  createLink="/app/user/create"
+  (refresh)="obtenerUsuarios()"
+  (action)="handleAction($event)"
+>
+</app-data-table>

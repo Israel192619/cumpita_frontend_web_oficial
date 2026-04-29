@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+//import { ScriptLoaderService } from './core/services/script-loader-service';
 
 @Component({
   selector: 'app-root',
@@ -9,4 +10,13 @@ import { RouterOutlet } from '@angular/router';
 })
 export class App {
   protected readonly title = signal('frontend');
+
+  // constructor(private scriptLoader: ScriptLoaderService) {}
+
+  // ngAfterViewInit() {
+  //   this.scriptLoader.loadAll()
+  //     .then(() => {})
+  //     .catch(() => {});
+  // }
+
 }
