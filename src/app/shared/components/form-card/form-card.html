@@ -11,12 +11,29 @@
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary">
-        <span *ngIf="!esEdicion">Guardar</span>
-        <span *ngIf="esEdicion">Editar</span>
-      </button>
-      <button *ngIf="mostrarGuardarYAgregarOtro" type="button" class="btn btn-warning" (click)="onGuardarYAgregarOtro()">Guardar y agregar otro</button>
-      <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancelar</button>
+      <app-button 
+        [type]="'submit'" 
+        [text]="esEdicion ? 'Editar' : 'Guardar'"
+        color="primary"
+        [loading]="loading"
+        size="medium">
+      </app-button>
+      <app-button 
+        *ngIf="mostrarGuardarYAgregarOtro" 
+        type="button" 
+        text="Guardar y agregar otro"
+        color="warning"
+        [loading]="loading"
+        size="medium"
+        (click)="onGuardarYAgregarOtro()">
+      </app-button>
+      <app-button 
+        type="button" 
+        text="Cancelar"
+        color="secondary"
+        size="medium"
+        (click)="onCancel()">
+      </app-button>
     </div>
   </form>
 </div>

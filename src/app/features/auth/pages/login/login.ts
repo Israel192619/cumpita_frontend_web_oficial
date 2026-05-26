@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component } from '@angular/core';
+import { ChangeDetectorRef, Component, signal } from '@angular/core';
 import { FormGroup, FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth-service';
@@ -20,11 +20,11 @@ export class Login {
   form: FormGroup;
 
   nombreApp = environment.nombreApp;
-  loading = false;
-  error: string | null = null;
-  showPassword = false;
+  loading = signal(false);
+  error = signal<string | null>(null);
+  showPassword = signal(false);
 
-  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private cd: ChangeDetectorRef) {
+  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router) {
     this.form = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
@@ -33,8 +33,8 @@ export class Login {
 
   submit() {
     if (this.form.invalid) return;
-    this.loading = true;
-    this.error = null;
+    this.loading.set(true);
+    this.error.set(null);
     const value = this.form.value;
     const creds: { email: string; password: string } = {
       email: (value.email as string) ?? '',
@@ -42,25 +42,23 @@ export class Login {
     };
     this.auth.login(creds). subscribe({
       next: () => {
-        this.loading = false;
-        this.cd.detectChanges();
+        this.loading.set(false);
         this.router.navigateByUrl('/app');
       },
       error: (err) => {
         if (err.status === 0) {
-          this.error = 'No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.';
+          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
         } else if (err.name === 'TimeoutError') {
-          this.error = 'Tiempo de espera agotado';
+          this.error.set('Tiempo de espera agotado');
         } else {
-          this.error = err?.error?.message || 'Error inesperado';
+          this.error.set(err?.error?.message || 'Error inesperado');
         }
-        this.loading = false;
-        this.cd.detectChanges();
+        this.loading.set(false);
       }
     });
   }
 
   toggleShowPassword() {
-    this.showPassword = !this.showPassword;
+    this.showPassword.set(!this.showPassword());
   }
 }

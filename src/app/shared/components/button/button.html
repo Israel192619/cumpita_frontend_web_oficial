@@ -1,0 +1,30 @@
+<button
+  *ngIf="!link"
+  [ngClass]="buttonClasses"
+  [type]="type"
+  [disabled]="isDisabled"
+  (click)="onButtonClick()"
+  class="button-wrapper"
+>
+  <span class="button-loader" *ngIf="loading">
+    <span class="loader"></span>
+  </span>
+  <span class="button-text" [style.opacity]="loading ? 0.5 : 1">
+    {{ text }}
+  </span>
+</button>
+
+<a
+  *ngIf="link"
+  [routerLink]="link"
+  [ngClass]="buttonClasses"
+  class="button-wrapper button-link"
+  [class.disabled]="isDisabled"
+>
+  <span class="button-loader" *ngIf="loading">
+    <span class="loader"></span>
+  </span>
+  <span class="button-text" [style.opacity]="loading ? 0.5 : 1">
+    {{ text }}
+  </span>
+</a>

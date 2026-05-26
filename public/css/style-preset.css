@@ -50,14 +50,31 @@ body {
 }
 
 [data-pc-preset=preset-1] .bg-primary-dark {
+    background: #FF0000;
+    color: #FF0000
+}
+/* [data-pc-preset=preset-1] .bg-primary-dark {
     background: #1c76da;
     color: #1c76da
-}
+} */
 
 [data-pc-preset=preset-1] .bg-secondary-dark {
+    background: #FF4500;
+    color: #FF4500
+}
+/* [data-pc-preset=preset-1] .bg-secondary-dark {
     background: #542ca7;
     color: #542ca7
+} */
+[data-pc-preset=preset-1] .bg-Tsecondary-dark {
+    background: #FF9D00;
+    color: #FF9D00
 }
+[data-pc-preset=preset-1] .bg-Fsecondary-dark {
+    background: #1A1A1A;
+    color: #1A1A1A
+}
+
 
 [data-pc-preset=preset-1] .pc-sidebar .pc-item.active>.pc-link,
 [data-pc-preset=preset-1] .pc-sidebar .pc-item:focus>.pc-link,

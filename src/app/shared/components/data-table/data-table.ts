@@ -1,13 +1,13 @@
 import { Component, EventEmitter, Input, Output, SimpleChanges } from '@angular/core';
 import { Loader } from '../loader/loader';
 import { ErrorMessage } from '../error-message/error-message';
+import { Button } from '../button/button';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-data-table',
   imports: [
-    Loader, ErrorMessage, CommonModule, RouterLink
+    Loader, ErrorMessage, Button, CommonModule
   ],
   templateUrl: './data-table.html',
   styleUrl: './data-table.css',
@@ -21,6 +21,9 @@ export class DataTable {
     label: string,
     type?: string
   }[] = [];
+  ngOnChanges(changes: SimpleChanges): void {
+    console.log('Current data:', this.data);
+  }
 
   @Input() loading: boolean = false;
   @Input() error: string | null = null;
@@ -33,6 +36,6 @@ export class DataTable {
   @Output() action = new EventEmitter<{ type: string, item: any }>();
 
   getValue(item: any, path: string) {
-  return path.split('.').reduce((acc, key) => acc?.[key], item);
-}
+    return path.split('.').reduce((acc, key) => acc?.[key], item);
+  }
 }

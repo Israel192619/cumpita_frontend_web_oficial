@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { Button } from '../button/button';
 
 @Component({
   selector: 'app-form-card',
   imports: [
-    ReactiveFormsModule, CommonModule
+    ReactiveFormsModule, CommonModule, Button
   ],
   templateUrl: './form-card.html',
   styleUrl: './form-card.css',
@@ -15,6 +16,7 @@ export class FormCard {
   @Input() title: string = '';
   @Input() mostrarGuardarYAgregarOtro: boolean = false;
   @Input() esEdicion: Boolean = false;
+  @Input() loading: boolean = false;
 
   @Output() submit = new EventEmitter<any>();
   @Output() cancel = new EventEmitter<void>();

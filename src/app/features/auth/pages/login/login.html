@@ -1,7 +1,7 @@
 <div class="login-page">
   <div class="login-card">
     <div class="brand">
-      <img src="images/logo-white.svg" alt="Logo" (error)="$event.target.style.display='none'" />
+      <img src="images/logoSvgWhite2.svg" alt="Logo" (error)="$event.target.style.display='none'" />
       <h1>{{ nombreApp }}</h1>
       <p class="subtitle">Accede a tu cuenta</p>
     </div>
@@ -19,9 +19,11 @@
       <div class="field">
         <label for="password">Contraseña</label>
         <div class="password-row">
-          <input id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="********" />
-          <button type="button" class="btn-toggle" (click)="toggleShowPassword()" aria-label="Mostrar contraseña">
-            {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+          <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password"
+            placeholder="********" />
+          <button type="button" class="btn-toggle" (click)="toggleShowPassword()">
+            <i class="fa-solid" [ngClass]="showPassword() ? 'fa fa-eye-slash' : 'fa fa-eye'">
+            </i>
           </button>
         </div>
         <div class="hint" *ngIf="form.controls['password'].touched && form.controls['password'].invalid">
@@ -38,17 +40,17 @@
 
 
       <div class="submit-row">
-        <button type="submit" class="btn-primary" [disabled]="loading">
-          <span *ngIf="!loading">INGRESAR</span>
-          <span *ngIf="loading" class="loader"></span>
+        <button type="submit" class="btn-primary" [disabled]="loading()">
+          <span *ngIf="!loading()">INGRESAR</span>
+          <span *ngIf="loading()" class="loader"></span>
         </button>
       </div>
 
-      <div class="error" *ngIf="error"><small>{{ error }}</small></div>
+      <div class="error" *ngIf="error()"><small>{{ error() }}</small></div>
     </form>
 
     <div class="reestablecer-contrasena">
-        <a [routerLink]="['/olvidaste-contrasena']" >¿Olvidaste tu contraseña?</a>
+      <a [routerLink]="['/olvidaste-contrasena']">¿Olvidaste tu contraseña?</a>
     </div>
   </div>
 </div>

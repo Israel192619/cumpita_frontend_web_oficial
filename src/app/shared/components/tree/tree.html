@@ -1,0 +1,132 @@
+<div class="card">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h2>{{ title }}</h2>
+
+    <div class="actions">
+      <app-button 
+        *ngIf="createLink"
+        [link]="createLink"
+        text="+ Crear"
+        color="success">
+      </app-button>
+
+      <app-button 
+        text="Recargar"
+        color="info"
+        (click)="refresh.emit()">
+      </app-button>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <app-loader [loading]="loading"></app-loader>
+
+  <!-- ERROR -->
+  <app-error-message 
+    *ngIf="!loading"
+    [message]="error"
+    [linkRedireccion]="errorMessageLink"
+    [linkTexto]="errorMessageText">
+  </app-error-message>
+
+  <!-- TABLE -->
+  <div class="table-container">
+
+    <table *ngIf="!loading && flatData.length && !error" class="table">
+
+      <!-- HEAD -->
+      <thead>
+        <tr>
+          <th *ngFor="let col of columns">
+            {{ col.label }}
+          </th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+
+      <!-- BODY -->
+      <tbody>
+
+        <ng-container *ngFor="let item of flatData">
+          <tr *ngIf="isVisible(item)">
+
+            <td *ngFor="let col of columns">
+
+              <!-- 🌳 SOLO nombre -->
+              <ng-container *ngIf="col.key === 'nombre'; else normalCell">
+
+                <div 
+                  class="tree-cell"
+                  [style.padding-left.px]="item.level * 20"
+                >
+
+                  <!-- toggle -->
+                  <span 
+                    *ngIf="item.children?.length"
+                    (click)="toggle(item.id)"
+                    class="toggle"
+                  >
+                    {{ isExpanded(item.id) ? '▼' : '▶' }}
+                  </span>
+
+                  <span 
+                    *ngIf="!item.children?.length"
+                    class="toggle-placeholder">
+                  </span>
+
+                  {{ item.children?.length ? '' : '' }}
+                  {{ item.nombre }}
+
+                </div>
+
+              </ng-container>
+
+              <!-- 📄 columnas normales -->
+              <ng-template #normalCell>
+
+                <!-- fecha -->
+                <span *ngIf="col.type === 'date'">
+                  {{ getValue(item, col.key) | date:'short' }}
+                </span>
+
+                <!-- texto -->
+                <span *ngIf="!col.type">
+                  {{ getValue(item, col.key) }}
+                </span>
+
+              </ng-template>
+
+            </td>
+
+            <!-- acciones -->
+            <td class="actions-cell">
+              <button class="action-btn action-btn--edit" (click)="nodeAction.emit({type:'edit', node: item})"
+                title="Editar">
+                <i class="ti ti-edit"></i>
+            </button>
+
+              <button 
+                class="action-btn action-btn--delete"
+                (click)="nodeAction.emit({type:'delete', node: item})"
+                title="Eliminar">
+                <i class="ti ti-trash"></i>
+              </button>
+            </td>
+
+          </tr>
+        </ng-container>
+
+      </tbody>
+
+    </table>
+
+    <!-- EMPTY -->
+    <div *ngIf="!loading && !flatData.length && !error" class="sinDatos">
+      No hay datos
+    </div>
+
+  </div>
+
+</div>

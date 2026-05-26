@@ -1,0 +1,33 @@
+<app-form-card [form]="form" [loading]="loading()" title="Crear Categoría" [mostrarGuardarYAgregarOtro]="true" (submit)="crearCategoria()"
+  (cancel)="cancelar()" (guardarYAgregarOtro)="guardarYagregarOtro()">
+
+  <app-input-form label="Nombre" [control]="getControl('nombre')" placeholder="Ej. Bebidas">
+  </app-input-form>
+
+  <app-input-form label="Descripción" [control]="getControl('descripcion')" placeholder="Describe la categoría">
+  </app-input-form>
+
+  <!-- Checkbox para subcategoría -->
+  <div class="checkbox-wrapper">
+    <label class="checkbox-container">
+      <input 
+        type="checkbox" 
+        [checked]="isSubcategoria()" 
+        (change)="isSubcategoria.set($any($event.target).checked); onIsSubcategoriaChange()">
+      <span class="checkmark"></span>
+      <span class="label-text">Es una subcategoría</span>
+    </label>
+  </div>
+
+  <!-- Select de categoría padre (visible solo si es subcategoría) -->
+  <div *ngIf="isSubcategoria()" class="subcategoria-select">
+    <app-select 
+      label="Categoría Principal" 
+      [control]="getControl('parent_id')" 
+      [options]="categoriasPadreOptions()">
+    </app-select>
+  </div>
+
+</app-form-card>
+
+<app-error-message [message]="error()"></app-error-message>

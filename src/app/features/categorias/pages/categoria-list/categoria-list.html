@@ -1,0 +1,31 @@
+<!-- <app-data-table
+  title="Categorías"
+  [data]="categorias()"
+  [columns]="[
+    { key: 'nombre', label: 'Nombre' },
+    { key: 'descripcion', label: 'Descripción' },
+    { key: 'created_at', label: 'Creado', type: 'date' }
+  ]"
+  [loading]="isloading()"
+  [error]="error()"
+  [errorMessageLink]="errorMessageLink()"
+  [errorMessageText]="errorMessageText()"
+
+  createLink="/app/categorias/create"
+  (refresh)="obtenerCategorias()"
+  (action)="handleAction($event)"
+>
+</app-data-table> -->
+
+<app-tree
+  title="Categorías"
+  [data]="categorias()"
+  [loading]="isloading()"
+  [error]="error()"
+  [errorMessageLink]="errorMessageLink()"
+  [errorMessageText]="errorMessageText()"
+  createLink="/app/categorias/create"
+  (refresh)="obtenerCategorias()"
+  (nodeAction)="handleTreeAction($event)"
+>
+</app-tree>

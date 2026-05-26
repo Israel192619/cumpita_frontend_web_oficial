@@ -1,9 +1,20 @@
 <div class="card">
     <div class="header">
-        <h2>Usuarios</h2>
+        <h2>{{ title }}</h2>
         <div class="actions">
-            <a *ngIf="createLink" [routerLink]="createLink" class="btn-create">Crear usuario</a>
-            <button class="btn-refresh" (click)="refresh.emit()">Recargar</button>
+            <app-button 
+                *ngIf="createLink" 
+                [link]="createLink" 
+                text="+ Crear"
+                color="primary"
+                size="medium">
+            </app-button>
+            <app-button 
+                text="Recargar"
+                color="dark"
+                size="medium"
+                (click)="refresh.emit()">
+            </app-button>
         </div>
     </div>
     <app-loader [loading]="loading"></app-loader>
@@ -39,21 +50,23 @@
 
                         </ng-container>
                     </td>
-                    <td>
-                        <button class="action-btn action-btn--edit" (click)="action.emit({type:'edit', item})"
-                            title="Editar">
-                            <i class="ti ti-edit"></i>
-                        </button>
+                    <td class="actions-cell">
+                        <div class="actions-buttons">
+                            <button class="action-btn action-btn--edit" (click)="action.emit({type:'edit', item})"
+                                title="Editar">
+                                <i class="ti ti-edit"></i>
+                            </button>
 
-                        <button class="action-btn action-btn--view" (click)="action.emit({type:'view', item})"
-                            title="Ver">
-                            <i class="ti ti-eye"></i>
-                        </button>
+                            <button class="action-btn action-btn--view" (click)="action.emit({type:'view', item})"
+                                title="Ver">
+                                <i class="ti ti-eye"></i>
+                            </button>
 
-                        <button class="action-btn action-btn--delete" (click)="action.emit({type:'delete', item})"
-                            title="Eliminar">
-                            <i class="ti ti-trash"></i>
-                        </button>
+                            <button class="action-btn action-btn--delete" (click)="action.emit({type:'delete', item})"
+                                title="Eliminar">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             </tbody>

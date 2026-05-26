@@ -4,5 +4,5 @@ export const environment = {
   imageBaseUrl: 'http://localhost:8000/storage/',
   // apiUrl: 'http://192.168.1.17:8000/api',
   // imageBaseUrl: 'http://192.168.1.17:8000/storage/',
-  nombreApp: 'Cumpita'
+  nombreApp: 'Restaurante Toñito'
 };

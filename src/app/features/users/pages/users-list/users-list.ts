@@ -3,10 +3,10 @@ import { User } from '../../../../core/models/user';
 import { UserService } from '../../services/user-service';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { DataTable } from '../../../../shared/components/data-table/data-table';
 import { timeout } from 'rxjs/internal/operators/timeout';
 import { ToastrService } from 'ngx-toastr';
 import { ConfirmDialogService } from '../../../../shared/services/confirm-dialog-service';
+import { DataTable } from '../../../../shared/components';
 
 @Component({
   selector: 'app-users-list',
@@ -24,7 +24,7 @@ export class UsersList {
   errorMessageLink = signal<string | null>(null);
   errorMessageText = signal<string | null>(null);
 
-  constructor(private userService: UserService, private router: Router, private cd: ChangeDetectorRef, private toastr: ToastrService, private confirmDialog: ConfirmDialogService) { }
+  constructor(private userService: UserService, private router: Router, private toastr: ToastrService, private confirmDialog: ConfirmDialogService) { }
   ngOnInit(): void {
     this.obtenerUsuarios();
   }
@@ -37,7 +37,7 @@ export class UsersList {
     this.userService.listarUsuarios().pipe(timeout(10000)).subscribe({
       next: (data) => {
         this.users.set(data);
-        console.log(data);
+        //console.log(data);
         this.isloading.set(false);
       },
       error: (err) => {
@@ -45,7 +45,7 @@ export class UsersList {
         if (err.status === 0) {
           this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
         } else if (err?.status === 404) {
-          this.error = err?.error?.message || 'No se encontró el endpoint de usuarios en el backend.';
+          this.error.set(err?.error?.message || 'No se encontró el endpoint de usuarios en el backend.');
         } else if (err?.status === 401) {
           this.error.set('No autorizado. Inicia sesión.');
           this.errorMessageText.set('Ir a Login');
@@ -61,7 +61,7 @@ export class UsersList {
     const { type, item } = event;
 
     if (type === 'edit') {
-      this.router.navigate(['/app/user/edit', item.id]);
+      this.router.navigate(['/app/users/edit', item.id]);
     }
 
     if (type === 'view') {
@@ -81,7 +81,7 @@ export class UsersList {
       if (result) {
         this.userService.eliminarUsuario(id).subscribe({
           next: () => {
-            this.obtenerUsuarios();
+            this.users.update(users => users.filter(u => u.id !== id));
             this.toastr.success('Usuario eliminado correctamente');
           },
           error: () => {

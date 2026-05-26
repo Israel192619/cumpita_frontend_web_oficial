@@ -46,30 +46,85 @@ export const routes: Routes = [
           import('./features/dashboard/pages/dashboard/dashboard').then(m => m.Dashboard)
       },
       {
-        path: 'users/list',
-        loadComponent: () =>
-          import('./features/users/pages/users-list/users-list').then(m => m.UsersList)
+        path: 'users',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/users/pages/users-list/users-list').then(m => m.UsersList)
+          },
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/users/pages/user-create/user-create').then(m => m.UserCreate)
+          },
+          {
+            path: 'edit/:id',
+            loadComponent: () =>
+              import('./features/users/pages/user-edit/user-edit').then(m => m.UserEdit)
+          }
+        ]
       },
       {
-        path: 'user/create',
-        loadComponent: () =>
-          import('./features/users/pages/user-create/user-create').then(m => m.UserCreate)
+        path: 'categorias',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/categorias/pages/categoria-list/categoria-list').then(m => m.CategoriaList)
+          },
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/categorias/pages/categoria-create/categoria-create').then(m => m.CategoriaCreate)
+          },
+          {
+            path: 'edit/:id',
+            loadComponent: () =>
+              import('./features/categorias/pages/categoria-edit/categoria-edit').then(m => m.CategoriaEdit)
+          }
+        ]
       },
       {
-        path: 'user/edit/:id',
-        loadComponent: () =>
-          import('./features/users/pages/user-edit/user-edit').then(m => m.UserEdit)
+        path: 'productos',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/productos/pages/productos-list/productos-list').then(m => m.ProductosList)
+          },
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/productos/pages/producto-create/producto-create').then(m => m.ProductoCreate)
+          },
+          {
+            path: 'edit/:id',
+            loadComponent: () =>
+              import('./features/productos/pages/producto-edit/producto-edit').then(m => m.ProductoEdit)
+          }
+        ]
+      },
+      {
+        path: 'modificadores',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/modificadores/pages/modificadores-list/modificadores-list').then(m => m.ModificadoresList)
+          },
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/modificadores/pages/modificador-create/modificador-create').then(m => m.ModificadorCreate)
+          },
+          {
+            path: 'edit/:id',
+            loadComponent: () =>
+              import('./features/modificadores/pages/modificador-edit/modificador-edit').then(m => m.ModificadorEdit)
+          }
+        ]
       }
-      //    {
-      //      path: 'orders',
-      //      loadComponent: () =>
-      //        import('./features/orders/pages/order-list/order-list.component')
-      //    },
-      //    {
-      //      path: 'kitchen',
-      //      loadComponent: () =>
-      //        import('./features/kitchen/pages/kitchen-board/kitchen-board.component')
-      //    },
     ]
   },
 

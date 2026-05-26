@@ -1,13 +1,10 @@
-import { ChangeDetectorRef, Component } from '@angular/core';
-import { FormCard } from '../../../../shared/components/form-card/form-card';
+import { ChangeDetectorRef, Component, signal } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
-import { InputForm } from '../../../../shared/components/input-form/input-form';
-import { Select } from '../../../../shared/components/select/select';
 import { UserService } from '../../services/user-service';
-import { ErrorMessage } from '../../../../shared/components/error-message/error-message';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { UpdateUser, User } from '../../../../core/models/user';
+import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/components';
 
 @Component({
   selector: 'app-user-edit',
@@ -19,11 +16,12 @@ import { UpdateUser, User } from '../../../../core/models/user';
 })
 export class UserEdit {
   form: FormGroup;
-  error: string | null = null;
-  roles: { label: string, value: any }[] = [];
-  user: User | null = null;
+  error = signal<string | null>(null);
+  roles = signal<{ label: string, value: any }[]>([]);
+  user = signal<User | null>(null);
+  loading = signal(false);
 
-  constructor(private fb: FormBuilder, private userService: UserService, private cd: ChangeDetectorRef, private router: Router, private route: ActivatedRoute, private toastr: ToastrService) {
+  constructor(private fb: FormBuilder, private userService: UserService, private router: Router, private route: ActivatedRoute, private toastr: ToastrService) {
     this.form = this.fb.group({
       name: ['', Validators.required],
       direccion: ['', Validators.required],
@@ -36,30 +34,28 @@ export class UserEdit {
   }
 
   ngOnInit(): void {
-    this.error = null;
+    this.error.set(null);
     const id = parseInt(this.route.snapshot.paramMap.get('id')!);
     this.userService.getRoles().subscribe({
       next: (roles) => {
-        this.roles = roles.map(role => ({ label: role.nombre, value: role.id }));
-        this.cd.detectChanges();
+        this.roles.set(roles.map(role => ({ label: role.nombre, value: role.id })));
       },
       error: (err) => {
         if (err.status == 0) {
-          this.error = 'No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.'
+          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.')
         } else if (err?.staatus == 401) {
-          this.error = 'No autorizado. Inicia sesión.';
+          this.error.set('No autorizado. Inicia sesión.');
         } else {
-          this.error = 'Error al cargar roles.'
+          this.error.set('Error al cargar roles.')
         }
-        this.cd.detectChanges();
       }
     });
 
     if (id) {
       this.userService.getUsuarioPorId(id).subscribe({
         next: (user) => {
-          this.user = user;
-          console.log(user);
+          this.user.set(user);
+          //console.log(user);
           this.form.patchValue({
             name: user.name,
             direccion: user.perfil_usuarios?.direccion || '',
@@ -71,11 +67,11 @@ export class UserEdit {
         },
         error: (err) => {
           if (err.status === 0) {
-            this.error = 'No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.';
+            this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
           } else if (err.status === 404) {
-            this.error = 'Usuario no encontrado';
+            this.error.set('Usuario no encontrado');
           } else {
-            this.error = 'Error al cargar el usuario';
+            this.error.set('Error al cargar el usuario');
           }
         }
       });
@@ -100,7 +96,7 @@ export class UserEdit {
     // if (password && password.trim() !== '') {
     //   data.password = password;
     // }
-    this.error = null;
+    this.error.set(null);
     const formData = new FormData();
 
     Object.keys(this.form.value).forEach(key => {
@@ -120,28 +116,26 @@ export class UserEdit {
     this.userService.editarUsuario(id, formData).subscribe({
       next: () => {
         this.toastr.success('Usuario editado correctamente');
-        this.error = null;
-        this.router.navigate(['/app/users/list']);
-        this.cd.detectChanges();
+        this.error.set(null);
+        this.router.navigate(['/app/users']);
       },
       error: (err) => {
         this.toastr.error('Error al editar usuario');
         if (err.status === 0) {
-          this.error = 'No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.';
+          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
         } else if (err.status === 422) {
           const errors = err?.error?.errors;
 
-          this.error = Object.values(errors)
+          this.error.set(Object.values(errors)
             .flat()
-            .join(' | ');
+            .join(' | '));
         } else {
-          this.error = 'Error al editar usuario.';
+          this.error.set('Error al editar usuario.');
         }
-        this.cd.detectChanges();
       }
     });
   }
   cancelar() {
-    this.router.navigate(['/app/users/list']);
+    this.router.navigate(['/app/users']);
   }
 }
