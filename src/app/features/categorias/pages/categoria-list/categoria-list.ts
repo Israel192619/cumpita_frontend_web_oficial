@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { Categoria } from '../../../../core/models/categoria';
 import { CategoriaService } from '../../services/categoria-service';
 import { Router } from '@angular/router';
@@ -23,7 +23,7 @@ export class CategoriaList {
   errorMessageLink = signal<string | null>(null);
   errorMessageText = signal<string | null>(null);
 
-  constructor(private categoriaService: CategoriaService, private router: Router, private cd: ChangeDetectorRef, private toastr: ToastrService, private confirmDialog: ConfirmDialogService) { }
+  constructor(private categoriaService: CategoriaService, private router: Router, private toastr: ToastrService, private confirmDialog: ConfirmDialogService) { }
 
   ngOnInit(): void {
     this.obtenerCategorias();
@@ -36,23 +36,13 @@ export class CategoriaList {
     this.errorMessageText.set(null);
     this.categoriaService.listarCategorias().pipe(timeout(10000)).subscribe({
       next: (data) => {
+        //console.log('Categorías cargadas:', data);
         this.categorias.set(data);
-        //console.log(data);
         this.isloading.set(false);
       },
-      error: (err) => {
+      error: () => {
         this.isloading.set(false);
-        if (err.status === 0) {
-          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
-        } else if (err?.status === 404) {
-          this.error.set(err?.error?.message || 'No se encontró el endpoint de categorías en el backend.');
-        } else if (err?.status === 401) {
-          this.error.set('No autorizado. Inicia sesión.');
-          this.errorMessageText.set('Ir a Login');
-          this.errorMessageLink.set('/login');
-        } else {
-          this.error.set('Error al cargar categorías.');
-        }
+        this.error.set('Error al cargar categorías');
       }
     });
   }
@@ -81,14 +71,10 @@ export class CategoriaList {
       if (result) {
         this.categoriaService.eliminarCategoria(id).subscribe({
           next: () => {
-            //this.categorias.update(categorias => categorias.filter(c => c.id !== id));
             this.categorias.update(categorias =>
               this.removeNode(categorias, id)
             );
             this.toastr.success('Categoría eliminada correctamente');
-          },
-          error: () => {
-            this.toastr.error('No se pudo eliminar la categoría');
           }
         });
       }

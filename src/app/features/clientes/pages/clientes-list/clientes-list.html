@@ -1,0 +1,17 @@
+<app-data-table
+  title="Clientes"
+  [data]="clientes()"
+  [columns]="[
+    { key: 'nombre', label: 'Nombre' },
+    { key: 'telefono', label: 'Teléfono' },
+    { key: 'created_at', label: 'Creado', type: 'date' }
+  ]"
+  [loading]="isloading()"
+  [error]="error()"
+  [errorMessageLink]="errorMessageLink()"
+  [errorMessageText]="errorMessageText()"
+  createLink="/app/clientes/create"
+  (refresh)="obtenerClientes()"
+  (action)="handleAction($event)"
+>
+</app-data-table>

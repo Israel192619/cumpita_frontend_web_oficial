@@ -6,7 +6,7 @@
     "outDir": "./out-tsc/app",
     "types": [],
     //aumento
-    "rootDir": "./src"
+    "rootDir": "./src",
     // finaumento
   },
   "include": [

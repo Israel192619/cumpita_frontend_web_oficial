@@ -1,0 +1,79 @@
+<div class="pos-container">
+  <!-- Error Message -->
+  <div *ngIf="error()" class="error-banner">
+    <p>{{ error() }}</p>
+    <button type="button" class="btn-close-error" (click)="error.set(null)">✕</button>
+  </div>
+
+  <!-- Edit Mode Indicator -->
+  <div *ngIf="isEditingOrder()" class="edit-mode-banner">
+    <div class="edit-mode-content">
+      <span class="edit-mode-icon">✎</span>
+      <span class="edit-mode-text">Editando Orden #{{ editingOrderId() }}</span>
+      <button type="button" class="btn-exit-edit" (click)="isEditingOrder.set(false); editingOrderId.set(null); carrito.set([])">Nueva orden</button>
+    </div>
+  </div>
+
+  <!-- Main Layout: Izquierda (Header + Productos) | Derecha (Carrito) -->
+  <div class="pos-layout">
+    <!-- Left Column: Header + Productos -->
+    <div class="pos-left-column">
+      <!-- Header: Categorías + Búsqueda + Marca -->
+      <div class="pos-header-section">
+        <app-category-bar
+          [categorias]="categorias()"
+          [selectedCategoryId]="selectedCategoryId()"
+          [selectedSubcategoryId]="selectedSubcategoryId()"
+          [isLoading]="isLoadingProductos()"
+          (categorySelected)="onCategorySelected($event)"
+          (subcategorySelected)="onSubcategorySelected($event)"
+        />
+      </div>
+
+      <!-- Productos -->
+      <div class="pos-section products-section">
+        <app-product-grid
+          [productos]="productos()"
+          [isLoading]="isLoadingProductos()"
+          (productAdded)="onProductAdded($event)"
+        />
+      </div>
+    </div>
+
+    <!-- Right Column: Carrito (ocupa toda la altura) -->
+    <div class="pos-section cart-section">
+      <app-cart-panel
+        [items]="carrito()"
+        [subtotal]="subtotal()"
+        [total]="total()"
+        [isProcessing]="isProcessingCheckout()"
+        [orderTypeInput]="orderType()"
+        [selectedClienteInput]="selectedCliente()"
+        [selectedMesaInput]="selectedMesa()"
+        (quantityChanged)="onQuantityChanged($event)"
+        (itemRemoved)="onItemRemoved($event)"  
+        (checkoutRequested)="onCheckoutRequested()"
+        (payLaterRequested)="onPayLaterRequested()"
+        (cartCleared)="onCartCleared()"
+        (itemModifiersChanged)="onItemModifiersChanged($event)"
+        (orderTypeChanged)="onOrderTypeChanged($event)" 
+        (clienteSelected)="selectedCliente.set($event)"
+        (mesaSelected)="selectedMesa.set($event)"
+      />
+    </div>
+  </div>
+
+  <!-- Checkout Modal -->
+  <app-checkout-modal
+    [items]="carrito()"
+    [total]="total()"
+    [isOpen]="isCheckoutModalOpen()"
+    [isProcessing]="isProcessingCheckout()"
+    [orderType]="orderType()"
+    [clienteId]="selectedCliente()?.id ?? null"
+    [mesaId]="selectedMesa()?.id ?? null"
+    (checkoutConfirmed)="onCheckoutConfirmed($event)"
+    (checkoutCancelled)="onCheckoutCancelled()"
+  />
+</div>
+

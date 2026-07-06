@@ -1,1 +1,116 @@
-<p>producto-create works!</p>
+<app-form-card [form]="form" title="Crear Producto" [loading]="isloading()" (submit)="crearProducto()" (cancelar)="cancelar()">
+  <!-- Nombre -->
+  <app-input-form label="Nombre *" [control]="getControl('nombre')" placeholder="Nombre del producto">
+  </app-input-form>
+
+  <!-- Descripción -->
+  <app-input-form label="Descripción" [control]="getControl('descripcion')" placeholder="Descripción del producto"
+    type="textarea">
+  </app-input-form>
+
+  <!-- Categoría Principal -->
+  <app-select label="Categoría Principal *" [options]="categorias()" [control]="getControl('categoria_principal')">
+  </app-select>
+
+  <!-- Subcategoría (solo si hay categoría principal seleccionada) -->
+  <div *ngIf="getControl('categoria_principal').value">
+
+    <app-select *ngIf="subcategorias().length > 0" label="Subcategoría *" [options]="subcategorias()"
+      [control]="getControl('categoria_id')">
+    </app-select>
+
+    <small *ngIf="subcategorias().length === 0">
+      Esta categoría no tiene subcategorías
+    </small>
+
+  </div>
+
+
+  <!-- Precio -->
+  <app-input-form label="Precio *" [control]="getControl('precio')" placeholder="0.00" type="number" step="0.01">
+  </app-input-form>
+
+  <!-- Imagen -->
+  <app-input-form label="Imagen" type="file" [control]="getControl('imagen')">
+  </app-input-form>
+
+  <!-- Checkboxes Mejorados -->
+  <div class="checkbox-wrapper">
+    <label class="checkbox-container">
+      <input type="checkbox" [formControl]="getControl('activo')" class="custom-checkbox">
+      <span class="checkmark"></span>
+      <span class="label-text">Activo</span>
+    </label>
+  </div>
+
+  <div class="checkbox-wrapper">
+    <label class="checkbox-container">
+      <input type="checkbox" [formControl]="getControl('maneja_stock')" class="custom-checkbox">
+      <span class="checkmark"></span>
+      <span class="label-text">Gestionar Stock</span>
+    </label>
+  </div>
+
+  <!-- Stock (conditional) -->
+  <div *ngIf="getControl('maneja_stock').value">
+    <app-input-form label="Stock *" [control]="getControl('stock')" placeholder="0" type="number">
+    </app-input-form>
+
+    <app-input-form label="Stock Mínimo *" [control]="getControl('stock_minimo')" placeholder="0" type="number">
+    </app-input-form>
+  </div>
+
+  <!-- Separador -->
+  <div class="separator-full"></div>
+
+  <!-- Título de Modificadores -->
+  <h3 class="section-title">Modificadores del Producto</h3>
+
+  <!-- Selector de Modificadores -->
+  <div class="modificador-selector">
+    <label>Agregar Modificador</label>
+    <select (change)="agregarModificador($any($event.target).value)" class="selector">
+      <option value="">-- Seleccionar modificador --</option>
+      <option *ngFor="let mod of modificadores()" [value]="mod.id">
+        {{ mod.nombre }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Modificadores Seleccionados -->
+  <div class="modificadores-list">
+    <div *ngFor="let mod of modificadoresSeleccionados()" class="modificador-item">
+      <div class="modificador-header">
+        <h4>{{ mod.nombre }}</h4>
+        <button type="button" (click)="eliminarModificador(mod.modificador_id)" class="btn-remove">
+          ✕ Remover
+        </button>
+      </div>
+
+      <!-- Opciones del Modificador -->
+      <div class="opciones-list">
+        <div *ngIf="mod.opciones.length === 0" class="no-opciones">
+          No hay opciones disponibles
+        </div>
+
+        <div *ngFor="let opcion of mod.opciones" class="opcion-item">
+          <label class="opcion-checkbox-container">
+            <input type="checkbox" [checked]="opcion.predeterminado"
+              (change)="toggleOpcion(mod.modificador_id, opcion.id)" class="custom-checkbox-opcion">
+            <span class="checkmark-opcion"></span>
+            <span class="opcion-nombre">{{ opcion.nombre }}</span>
+            <span class="opcion-precio" *ngIf="opcion.precio_extra > 0">
+              +{{ opcion.precio_extra | currency }}
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="modificadoresSeleccionados().length === 0" class="empty-message">
+    No hay modificadores agregados
+  </div>
+</app-form-card>
+<!-- Error message -->
+<app-error-message [message]="error()"></app-error-message>

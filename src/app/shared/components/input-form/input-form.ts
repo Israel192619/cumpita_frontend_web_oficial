@@ -23,11 +23,11 @@ export class InputForm {
   @Input() initialPreview: string | null = null;
 
   ngOnChanges(): void {
-  if (this.initialPreview && !this.preview) {
-    this.preview = this.initialPreview;
-    //this.cd.detectChanges();
+    if (this.initialPreview && !this.preview) {
+      this.preview = this.initialPreview;
+      //this.cd.detectChanges();
+    }
   }
-}
 
   preview: string | null = null;
   onFileChange(event: Event) {

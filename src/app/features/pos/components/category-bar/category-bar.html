@@ -1,0 +1,79 @@
+<div class="pos-header">
+  <!-- ==================== NIVEL SUPERIOR: Marca + Búsqueda ==================== -->
+  <div class="header-top">
+    <!-- Sección de Marca (Izquierda) -->
+    <div class="brand-section">
+      <h1 class="brand-title">POS</h1>
+      <p class="brand-date">{{ currentDate() | date: 'EEEE, MMMM d, yyyy' }}</p>
+    </div>
+
+    <!-- Sección de Búsqueda (Derecha) -->
+    <app-button
+    text="Volver"
+    color="secondary"
+    [link]="'/app/pedidos'"
+    > 
+    </app-button>
+    
+    <div class="search-section">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+      <input 
+        type="text" 
+        class="search-input" 
+        placeholder="Search for food, coffee, etc.."
+        [(ngModel)]="searchQuery"
+        (input)="onSearchInput($event)"
+        [disabled]="isLoading()"
+      >
+    </div>
+  </div>
+
+  <!-- ==================== NIVEL INFERIOR: Categorías ==================== -->
+  <div class="categories-bar">
+    <!-- Botón "Todos" -->
+    <button
+      class="category-tab"
+      [class.active]="selectedCategoryId() === null && selectedSubcategoryId() === null"
+      (click)="onSelectCategory(null)"
+      [disabled]="isLoading()"
+      title="Ver todas las categorías"
+    >
+      <span>Todos</span>
+    </button>
+
+    <!-- Categorías Padre -->
+    <button
+      *ngFor="let cat of parentCategorias(); trackBy: trackByCategory"
+      class="category-tab"
+      [class.active]="selectedCategoryId() === cat.id && selectedSubcategoryId() === null"
+      (click)="onSelectCategory(cat.id)"
+      [disabled]="isLoading()"
+    >
+      <span>{{ cat.nombre }}</span>
+    </button>
+
+    <!-- Línea divisoria inferior -->
+    <div class="category-divider"></div>
+  </div>
+
+  <!-- ==================== SUBCATEGORÍAS EXPANDIBLES ==================== -->
+  <div 
+    *ngIf="expandedCategoryId() !== null && hasVisibleSubcategories()"
+    class="subcategories-bar"
+    [@expandAnimation]
+  >
+    <button
+      *ngFor="let subcat of visibleSubcategories(); trackBy: trackByCategory"
+      class="subcategory-tab"
+      [class.active]="selectedSubcategoryId() === subcat.id"
+      (click)="onSelectSubcategory(subcat.id)"
+      [disabled]="isLoading()"
+    >
+      <span class="subcat-indicator">●</span>
+      {{ subcat.nombre }}
+    </button>
+  </div>
+</div>

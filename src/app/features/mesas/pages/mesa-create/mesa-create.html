@@ -1,0 +1,15 @@
+<app-form-card [form]="form" title="Crear Mesa" [mostrarGuardarYAgregarOtro]="true" (submit)="crearMesa()"
+  (cancelar)="cancelar()" (guardarYAgregarOtro)="guardarYagregarOtra()">
+
+  <app-input-form label="Número de Mesa" [control]="getControl('numero')" placeholder="Ej. A1, B2, etc.">
+  </app-input-form>
+
+  <app-input-form label="Capacidad" type="number" [control]="getControl('capacidad')" placeholder="Ej. 4">
+  </app-input-form>
+
+  <app-select label="Estado" [control]="getControl('estado')" [options]="estadoOptions()">
+  </app-select>
+
+</app-form-card>
+
+<app-error-message [message]="error()"></app-error-message>

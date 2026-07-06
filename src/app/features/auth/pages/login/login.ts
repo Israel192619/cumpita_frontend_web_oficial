@@ -18,7 +18,6 @@ import { environment } from '../../../../../environments/environment';
 export class Login {
 
   form: FormGroup;
-
   nombreApp = environment.nombreApp;
   loading = signal(false);
   error = signal<string | null>(null);
@@ -26,8 +25,8 @@ export class Login {
 
   constructor(private fb: FormBuilder, private auth: AuthService, private router: Router) {
     this.form = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(8)]],
+      email: ['admin@gmail.com', [Validators.required, Validators.email]],
+      password: ['Admin2026***', [Validators.required, Validators.minLength(8)]],
     });
   }
 

@@ -1,0 +1,52 @@
+<div class="product-grid-container">
+  <!-- Grid de productos -->
+  <div class="product-grid">
+    <button
+      *ngFor="let prod of productos(); trackBy: trackByProducto"
+      class="product-card"
+      [class.disabled]="!isProductAvailable(prod)"
+      [disabled]="!isProductAvailable(prod) || isLoading()"
+      (click)="onAddProduct(prod)"
+    >
+      <!-- Imagen circular flotante -->
+      <div class="product-image-wrapper">
+        <img 
+          class="product-image" 
+          [src]="getProductImage(prod)" 
+          [alt]="prod.nombre"
+        />
+        <div 
+          *ngIf="prod.maneja_stock && prod.stock !== undefined" 
+          class="stock-badge"
+        >
+          {{ prod.stock }}
+        </div>
+      </div>
+
+      <!-- Contenido -->
+      <div class="product-content">
+        <h3 class="product-name">{{ prod.nombre }}</h3>
+        <p *ngIf="prod.descripcion" class="product-desc">{{ prod.descripcion }}</p>
+        <span *ngIf="isProductAvailable(prod)" class="product-availability">
+          {{ prod.maneja_stock ? (prod.stock || 0) + ' disponibles' : 'En stock' }}
+        </span>
+        <span *ngIf="!isProductAvailable(prod)" class="product-unavailable">
+          No disponible
+        </span>
+        <div class="product-footer">
+          <span class="product-price">{{ formatPrice(prod.precio) }}</span>
+        </div>
+      </div>
+    </button>
+  </div>
+
+  <!-- Sin productos -->
+  <div *ngIf="productos().length === 0 && !isLoading()" class="empty-state">
+    <p>No hay productos disponibles</p>
+  </div>
+
+  <!-- Cargando -->
+  <div *ngIf="isLoading()" class="loading-state">
+    <p>Cargando productos...</p>
+  </div>
+</div>

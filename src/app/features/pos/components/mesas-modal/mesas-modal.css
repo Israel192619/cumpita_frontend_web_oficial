@@ -1,0 +1,45 @@
+.mesas-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1200;
+}
+
+.mesas-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1201;
+}
+
+.mesas-modal-content {
+  background: var(--bg-surface);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  width: min(90vw, 720px);
+}
+
+.mesas-modal-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom: 0.75rem;
+}
+
+.mesas-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+}
+
+.mesa-btn {
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-main);
+  cursor: pointer;
+}
+
+.mesa-number { font-weight:700; font-size:1.1rem; }
+.mesa-capacity { font-size:0.8rem; opacity:0.8 }

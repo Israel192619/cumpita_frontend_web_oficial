@@ -19,7 +19,7 @@ export class FormCard {
   @Input() loading: boolean = false;
 
   @Output() submit = new EventEmitter<any>();
-  @Output() cancel = new EventEmitter<void>();
+  @Output() cancelar = new EventEmitter<void>();
   @Output() guardarYAgregarOtro = new EventEmitter<void>();
 
   onGuardarYAgregarOtro() {
@@ -27,6 +27,6 @@ export class FormCard {
   }
 
   onCancel() {
-    this.cancel.emit();
+    this.cancelar.emit();
   }
 }

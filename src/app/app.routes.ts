@@ -66,6 +66,26 @@ export const routes: Routes = [
         ]
       },
       {
+        path: 'clientes',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/clientes/pages/clientes-list/clientes-list').then(m => m.ClientesList)
+          },
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/clientes/pages/cliente-create/cliente-create').then(m => m.ClienteCreate)
+          },
+          {
+            path: 'edit/:id',
+            loadComponent: () =>
+              import('./features/clientes/pages/cliente-edit/cliente-edit').then(m => m.ClienteEdit)
+          }
+        ]
+      },
+      {
         path: 'categorias',
         children: [
           {
@@ -124,9 +144,51 @@ export const routes: Routes = [
               import('./features/modificadores/pages/modificador-edit/modificador-edit').then(m => m.ModificadorEdit)
           }
         ]
+      },{
+        path: 'pedidos',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/ordenes/pages/ordenes-list/ordenes-list').then(m => m.OrdenesList)
+          }
+        ]
+      },
+      {
+        path: 'mesas',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/mesas/pages/mesas-list/mesas-list').then(m => m.MesasList)
+          },
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/mesas/pages/mesa-create/mesa-create').then(m => m.MesaCreate)
+          },
+          {
+            path: 'edit/:id',
+            loadComponent: () =>
+              import('./features/mesas/pages/mesa-edit/mesa-edit').then(m => m.MesaEdit)
+          }
+        ]
       }
     ]
   },
+  {
+    path: 'pos',
+    loadComponent: () => import('./layout/pos-layout/pos-layout').then(m => m.PosLayout),
+    canActivate: [authGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/pos/pages/pos-home/pos-home').then(m => m.PosHome)
+      }
+    ]
+  },
+  
 
   //Ruta no encontrada
   {

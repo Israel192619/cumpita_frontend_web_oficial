@@ -1,1 +1,18 @@
-<p>productos-list works!</p>
+<app-data-table
+  title="Productos"
+  [data]="productos()"
+  [columns]="[
+    { key: 'imagen_url', label: 'Imagen', type: 'image' },
+    { key: 'nombre', label: 'Nombre' },
+    { key: 'categoria.nombre', label: 'Categoría' },
+    { key: 'precio', label: 'Precio', type: 'currency' },
+    { key: 'activo', label: 'Activo', type: 'boolean' },
+    { key: 'maneja_stock', label: 'Gestión Stock', type: 'boolean' }
+  ]"
+  [loading]="isloading()"
+  [error]="error()"
+  createLink="/app/productos/create"
+  (refresh)="obtenerProductos()"
+  (action)="handleAction($event)"
+>
+</app-data-table>

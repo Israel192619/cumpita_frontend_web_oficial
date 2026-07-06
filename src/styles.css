@@ -1,1 +1,59 @@
-/* You can add global styles to this file, and also import other style files */
+/* ========================================
+   SISTEMA DE DISEÑO - VARIABLES CSS
+   ======================================== */
+
+:root {
+  /* Colores principales */
+  --bg-main: #1F1D2B;
+  --bg-surface: #252836;
+  --color-accent: #EA7C69;
+  --color-danger: #FF7B7B;
+  --text-primary: #FFFFFF;
+  --text-muted: #ABBBC2;
+  --border-color: #393C49;
+  
+  /* Border Radius */
+  --radius-lg: 16px;
+  --radius-md: 8px;
+  
+  /* Sombras */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ========================================
+   ESTILOS GLOBALES
+   ======================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}

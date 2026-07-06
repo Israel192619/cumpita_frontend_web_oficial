@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormCard } from '../../../../shared/components/form-card/form-card';
 import { InputForm } from '../../../../shared/components/input-form/input-form';
 import { Select } from '../../../../shared/components/select/select';
@@ -52,9 +52,6 @@ export class CategoriaCreate {
             value: c.id
           }))
         );
-      },
-      error: (err) => {
-        console.error('Error al cargar categorías padre', err);
       }
     });
   }
@@ -85,21 +82,6 @@ export class CategoriaCreate {
         this.error.set(null);
         this.loading.set(false);
         onSuccess();
-      },
-      error: (err) => {
-        this.toastr.error('Error al crear categoría');
-        this.loading.set(false);
-        if (err.status === 0) {
-          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
-        } else if (err.status === 422) {
-          //console.error(err);
-          const errors = err?.error?.errors;
-          this.error.set(Object.values(errors)
-            .flat()
-            .join(' | '));
-        } else {
-          this.error.set(err?.error?.message || 'Error al crear categoría.');
-        }
       }
     });
   }

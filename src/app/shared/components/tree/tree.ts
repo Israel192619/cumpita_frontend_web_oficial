@@ -31,14 +31,12 @@ export class Tree {
   @Output() refresh = new EventEmitter<void>();
   @Output() nodeAction = new EventEmitter<{ type: string; node: TreeNode }>();
 
-  // 🔥 columnas básicas
   columns = [
     { key: 'nombre', label: 'Nombre' },
     { key: 'descripcion', label: 'Descripción' },
     { key: 'created_at', label: 'Creado', type: 'date' }
   ];
 
-  // 🔥 data transformada
   flatData: any[] = [];
 
   expanded = signal<Set<number>>(new Set());

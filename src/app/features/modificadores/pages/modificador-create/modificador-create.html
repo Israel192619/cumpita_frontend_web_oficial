@@ -1,1 +1,99 @@
-<p>modificador-create works!</p>
+<app-form-card 
+  [form]="form" 
+  [loading]="loading()" 
+  title="Crear Modificador" 
+  [mostrarGuardarYAgregarOtro]="true"
+  (submit)="crearModificador()"
+  (cancelar)="cancelar()" 
+  (guardarYAgregarOtro)="guardarYagregarOtro()">
+
+  <app-input-form 
+    label="Nombre" 
+    [control]="getControl('nombre')" 
+    placeholder="Ej. Tamaño, Aderezo">
+  </app-input-form>
+
+  <app-select 
+    label="Tipo" 
+    [control]="getControl('tipo')" 
+    [options]="[
+      { label: 'Única opción', value: 'unico' },
+      { label: 'Múltiples opciones', value: 'multiple' }
+    ]">
+  </app-select>
+
+  <!-- Checkboxes -->
+  <div class="checkbox-container">
+    <label class="checkbox-item">
+      <input 
+        type="checkbox" 
+        [formControl]="getControl('requerido')"
+        class="w-4 h-4">
+      <span>Requerido</span>
+    </label>
+    <label class="checkbox-item">
+      <input 
+        type="checkbox" 
+        [formControl]="getControl('activo')"
+        class="w-4 h-4">
+      <span>Activo</span>
+    </label>
+  </div>
+
+  <!-- Opciones FormArray -->
+  <div class="opciones-section">
+    <h3 class="text-lg font-semibold mb-4">Opciones</h3>
+    
+    <div *ngIf="opcionesForm.length === 0" class="text-center py-4">
+      <p class="text-gray-500">Sin opciones</p>
+    </div>
+
+    <div [formArray]="opcionesForm" class="space-y-4">
+      <div *ngFor="let opcion of opcionesForm.controls; let i = index" 
+           [formGroupName]="i" 
+           class="border rounded-lg p-4 bg-gray-50">
+        
+        <div class="flex justify-between items-center mb-3">
+          <span class="font-medium">Opción {{ i + 1 }}</span>
+          <button 
+            type="button"
+            (click)="eliminarOpcion(i)"
+            class="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
+            Eliminar
+          </button>
+        </div>
+
+        <app-input-form 
+          label="Nombre" 
+          [control]="getOpcionControl(i, 'nombre')" 
+          placeholder="Ej. Grande, Extra queso">
+        </app-input-form>
+
+        <app-input-form 
+          label="Precio Extra" 
+          type="number"
+          [control]="getOpcionControl(i, 'precio_extra')" 
+          placeholder="0.00">
+        </app-input-form>
+
+        <label class="checkbox-item">
+          <input 
+            type="checkbox" 
+            [formControl]="getOpcionControl(i, 'activo')"
+            class="w-4 h-4">
+          <span>Activo</span>
+        </label>
+      </div>
+    </div>
+
+    <button 
+      type="button"
+      (click)="agregarOpcion()"
+      class="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+      + Agregar Opción
+    </button>
+  </div>
+
+</app-form-card>
+
+<app-error-message [message]="error()"></app-error-message>

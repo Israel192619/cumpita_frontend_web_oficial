@@ -1,1 +1,21 @@
-<p>modificadores-list works!</p>
+<app-data-table
+  title="Modificadores"
+  [data]="modificadores().map(m => ({
+    ...m,
+    requerido: m.requerido ? 'Sí' : 'No',
+    activo: m.activo ? 'Activo' : 'Inactivo'
+  }))"
+  [columns]="[
+    { key: 'nombre', label: 'Nombre' },
+    { key: 'tipo', label: 'Tipo' },
+    { key: 'requerido', label: 'Requerido', type: 'boolean' },
+    { key: 'activo', label: 'Estado', type: 'boolean' },
+    { key: 'opciones_count', label: 'Opciones' }
+  ]"
+  [loading]="isloading()"
+  [error]="error()"
+  createLink="/app/modificadores/create"
+  (refresh)="obtenerModificadores()"
+  (action)="handleAction($event)"
+>
+</app-data-table>

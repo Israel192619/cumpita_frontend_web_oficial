@@ -1,0 +1,75 @@
+<!-- Modal Backdrop -->
+<div *ngIf="isOpen()" class="checkout-modal-backdrop" (click)="onCancel()"></div>
+
+<!-- Modal -->
+<div *ngIf="isOpen()" class="checkout-modal">
+  <div class="checkout-modal-content" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="checkout-modal-header">
+      <h2>Confirmar Venta</h2>
+      <button type="button" class="btn-close" (click)="onCancel()" [disabled]="isProcessing()">
+        ✕
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="modal-body">
+      <!-- Resumen de Compra -->
+      <div class="section">
+        <h3>Resumen</h3>
+        <div class="items-summary">
+          <div *ngFor="let item of items(); trackBy: trackByItem" class="summary-item">
+            <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
+            <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
+          </div>
+        </div>
+        <div class="summary-total">
+          {{ formatPrice(total()) }}
+        </div>
+      </div>
+
+      
+      <!-- Mesas handled in Cart Panel modal -->
+
+      
+
+      <!-- Método de Pago -->
+      <div class="section">
+        <h3>Método de Pago</h3>
+        <div class="payment-methods" [formGroup]="form">
+          <button
+            *ngFor="let method of paymentMethods"
+            type="button"
+            class="payment-btn"
+            [class.active]="selectedPaymentMethod() === method.id"
+            (click)="onSelectPaymentMethod(method.id)"
+            [disabled]="isProcessing()"
+          >
+            <span class="payment-icon">{{ method.icon }}</span>
+            <span class="payment-name">{{ method.nombre }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button
+        type="button"
+        class="btn btn-cancel"
+        (click)="onCancel()"
+        [disabled]="isProcessing()"
+      >
+        Cancelar
+      </button>
+      <button
+        type="button"
+        class="btn btn-confirm"
+        (click)="onConfirm()"
+        [disabled]="!selectedPaymentMethod() || isProcessing()"
+      >
+        {{ isProcessing() ? 'Procesando...' : 'Confirmar Venta' }}
+      </button>
+    </div>
+  </div>
+</div>

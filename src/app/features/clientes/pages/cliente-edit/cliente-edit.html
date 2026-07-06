@@ -1,0 +1,12 @@
+<app-form-card [form]="form" title="Editar Cliente" [loading]="loading()" (submit)="editarCliente()"
+  (cancelar)="cancelar()">
+
+  <app-input-form label="Nombre" [control]="getControl('nombre')" placeholder="Ej. Juan Pérez">
+  </app-input-form>
+
+  <app-input-form label="Teléfono" type="tel" [control]="getControl('telefono')" placeholder="Ej. +591 6578****">
+  </app-input-form>
+
+</app-form-card>
+
+<app-error-message [message]="error()"></app-error-message>

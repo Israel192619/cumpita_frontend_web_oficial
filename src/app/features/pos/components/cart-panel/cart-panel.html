@@ -1,0 +1,309 @@
+<div class="cart-panel">
+  <!-- Header -->
+  <div class="cart-header">
+    <h2>Carrito</h2>
+    <span class="item-badge">{{ items().length }}</span>
+  </div>
+  <!-- Cliente quick-select -->
+  <div class="client-area">
+    <!-- show mesa label even when no cliente selected -->
+    <div *ngIf="!selectedCliente() && selectedMesa()" class="mesa-only" style="padding-bottom:0.5rem;">
+      <span class="mesa-label">Mesa: {{ selectedMesa()?.numero }}</span>
+    </div>
+
+    <div *ngIf="selectedCliente()" class="selected-cliente">
+      <div>
+        <p>{{ selectedCliente()?.nombre }}</p>
+        <small *ngIf="selectedCliente()?.telefono">{{ selectedCliente()?.telefono }}</small>
+      </div>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <span *ngIf="selectedMesa()" class="mesa-label">Mesa: {{ selectedMesa()?.numero }}</span>
+        <button type="button" class="btn btn-secondary btn-small" (click)="removeCliente()">Cambiar</button>
+      </div>
+    </div>
+
+    <div *ngIf="!selectedCliente()" class="search-container">
+      <div class="form-group">
+        <input
+          class="form-input"
+          type="text"
+          [value]="searchQuery()"
+          (input)="onSearchCliente($any($event.target).value)"
+          placeholder="Buscar cliente por nombre o teléfono"
+        />
+        <button type="button" class="btn btn-secondary" (click)="onCreateCliente()" [disabled]="!searchQuery().trim() || isCreatingCliente()">+</button>
+      </div>
+
+      <div *ngIf="isLoadingClientes()" class="loading">Buscando clientes...</div>
+      <div *ngIf="!isLoadingClientes() && clientesResults().length > 0" class="search-results">
+        <button *ngFor="let cliente of clientesResults()" type="button" class="result-item" (click)="selectCliente(cliente)">
+          <strong>{{ cliente.nombre }}</strong>
+          <small *ngIf="cliente.telefono">{{ cliente.telefono }}</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  
+  <!-- Order Type Selector -->
+  <div class="order-type-selector">
+    <button
+      type="button"
+      class="order-type-btn"
+      [class.active]="orderType() === 'dine-in'"
+      (click)="onChangeOrderType('dine-in')"
+      (mousedown)="startLongPress()"
+      (mouseup)="stopLongPress()"
+      (mouseleave)="stopLongPress()"
+      (touchstart)="startLongPress()"
+      (touchend)="stopLongPress()"
+      [disabled]="isProcessing()"
+      title="Comer en el restaurante (mantener 1s para seleccionar mesa)"
+    >
+    
+      <span>Mesa</span>
+    </button>
+    <button
+      type="button"
+      class="order-type-btn"
+      [class.active]="orderType() === 'to-go'"
+      (click)="onChangeOrderType('to-go')"
+      [disabled]="isProcessing()"
+      title="Llevar"
+    >
+    <span>Llevar</span>
+    </button>
+    <button
+      type="button"
+      class="order-type-btn"
+      [class.active]="orderType() === 'delivery'"
+      (click)="onChangeOrderType('delivery')"
+      [disabled]="isProcessing()"
+      title="Envío a domicilio"
+    >
+      <span>Delivery</span>
+    </button>
+  </div>
+
+  <!-- Table Header -->
+  <div class="cart-table-header">
+    <div class="col-item">Producto</div>
+    <div class="col-qty">Cantidad</div>
+    <div class="col-price">Precio</div>
+  </div>
+
+  <!-- Items Container -->
+  <div class="cart-items-container">
+    <!-- Empty State -->
+    <div *ngIf="items().length === 0" class="empty-state">
+      <p class="empty-title">Carrito vacío</p>
+      <p class="empty-subtitle">Selecciona productos para comenzar</p>
+    </div>
+
+    <!-- Cart Items -->
+    <div *ngFor="let item of items(); trackBy: trackByItem" class="cart-item-block">
+      <!-- Item Header Row -->
+      <div class="item-header-row">
+        <div class="item-left">
+          <!-- <img
+            class="item-image"
+            [src]="getProductImage(item.producto)"
+            [alt]="item.producto.nombre"
+            onerror="this.src='/images/no-image.png'"
+          /> -->
+          <img
+            class="item-image"
+            [src]="getProductImage(item.producto)"
+            [alt]="item.producto.nombre"
+          />
+          <div class="item-details">
+            <h4 class="item-name">{{ item.producto.nombre }}</h4>
+            <span class="item-unit-price">{{ formatPrice(item.precio_unitario) }}</span>
+          </div>
+        </div>
+
+        <div class="item-right">
+          <div class="qty-container">
+            <button
+              type="button"
+              class="qty-btn qty-btn-minus"
+              (click)="onDecreaseQuantity(item)"
+              [disabled]="isProcessing()"
+              title="Disminuir cantidad"
+              aria-label="Disminuir cantidad"
+            >
+              −
+            </button>
+            <span class="qty-label">{{ item.cantidad }}</span>
+            <button
+              type="button"
+              class="qty-btn qty-btn-plus"
+              (click)="onIncreaseQuantity(item)"
+              [disabled]="isProcessing()"
+              title="Aumentar cantidad"
+              aria-label="Aumentar cantidad"
+            >
+              +
+            </button>
+          </div>
+          <span class="item-total-price">{{ formatPrice(getItemSubtotal(item)) }}</span>
+        </div>
+      </div>
+
+      <!-- Modificadores seleccionados -->
+      <div class="item-modifier-controls">
+        <div class="modifier-tags" *ngIf="(item.modificadores || []).length > 0; else noModifiers">
+          <span class="modifier-chip" *ngFor="let mod of item.modificadores">
+            {{ mod.opcion_nombre }}
+            <span class="modifier-price" *ngIf="mod.precio_extra > 0">+{{ formatPrice(mod.precio_extra) }}</span>
+          </span>
+        </div>
+        <ng-template #noModifiers>
+          <span class="modifier-empty">Sin adicionales</span>
+        </ng-template>
+        <button
+          type="button"
+          class="modifier-edit-btn"
+          (click)="openModifierModal(item)"
+          title="Editar modificadores"
+          aria-label="Editar modificadores"
+        >
+          ✎
+        </button>
+      </div>
+
+      <!-- Item Footer Row: Notes Input + Delete Button -->
+      <div class="item-footer-row">
+        <input
+          type="text"
+          class="order-note-input"
+          [value]="getItemNote(item.id)"
+          (input)="setItemNote(item.id, $any($event.target).value)"
+          placeholder="Order note..."
+          [disabled]="isProcessing()"
+          maxlength="100"
+        />
+        <button
+          type="button"
+          class="btn-delete"
+          (click)="onRemoveItem(item.id)"
+          [disabled]="isProcessing()"
+          title="Eliminar producto"
+          aria-label="Eliminar producto del carrito"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="trash-icon"
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mesas Modal -->
+  <app-mesas-modal
+    [isOpen]="openMesasModal()"
+    [mesas]="mesas()"
+    (mesaSelected)="onMesaChosen($event)"
+    (closed)="openMesasModal.set(false)"
+  ></app-mesas-modal>
+
+  <div class="modifier-modal-backdrop" *ngIf="modifierModalOpen()" (click)="closeModifierModal()">
+    <div class="modifier-modal" (click)="$event.stopPropagation()">
+      <div class="modifier-modal-header">
+        <div>
+          <h3>Modificadores</h3>
+          <p>{{ modifierModalItem()?.producto?.nombre }}</p>
+        </div>
+        <button type="button" class="modifier-modal-close" (click)="closeModifierModal()">✕</button>
+      </div>
+
+      <div class="modifier-modal-body">
+        <div class="modifier-group" *ngFor="let group of modifierGroups()">
+          <div class="modifier-group-title">
+            <strong>{{ group.nombre || 'Opciones' }}</strong>
+            <span class="modifier-badge multiple" *ngIf="group.tipo === 'multiple'">Puedes elegir varias</span>
+            <span class="modifier-badge unico" *ngIf="group.tipo === 'unico'">Elige una opción</span>
+          </div>
+
+          <div class="modifier-options">
+            <button
+              type="button"
+              class="modifier-option-btn"
+              *ngFor="let option of group.opciones || []"
+              [class.active]="isModifierSelected(group, option)"
+              (click)="toggleModifierOption(group, option)"
+            >
+              <span>{{ option.nombre }}</span>
+              <small *ngIf="option.precio_extra > 0">+{{ formatPrice(option.precio_extra) }}</small>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modifier-modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModifierModal()">Cancelar</button>
+        <button type="button" class="btn-continue-payment" (click)="saveModifierSelection()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer: Totals and Checkout Button -->
+  <div class="cart-footer">
+    <div class="totals-section">
+      <div class="total-row">
+        <span class="total-label">Descuento</span>
+        <span class="total-value">$0</span>
+      </div>
+      <div class="total-row">
+        <span class="total-label">Subtotal</span>
+        <span class="total-value">{{ formatPrice(subtotal()) }}</span>
+      </div>
+      <div class="total-row total-main">
+        <span class="total-label">TOTAL</span>
+        <span class="total-value">{{ formatPrice(total()) }}</span>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button
+        type="button"
+        class="btn-continue-payment"
+        (click)="onCheckout()"
+        [disabled]="items().length === 0 || isProcessing()"
+      >
+        {{ isProcessing() ? 'Procesando...' : 'Cobrar' }}
+      </button>
+      <button
+        type="button"
+        class="btn-pay-later"
+        (click)="onPayLater()"
+        [disabled]="items().length === 0 || isProcessing()"
+        title="Crear orden como adeudado (sin pago)"
+      >
+        Pagar Después
+      </button>
+    </div>
+
+    <button
+      type="button"
+      class="btn-cancel-order"
+      (click)="onCancelOrder()"
+      [disabled]="isProcessing()"
+      title="Limpiar carrito y empezar de nuevo"
+    >
+      Cancelar
+    </button>
+  </div>
+</div>

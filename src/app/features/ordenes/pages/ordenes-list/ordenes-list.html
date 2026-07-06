@@ -1,0 +1,20 @@
+<app-data-table
+  title="Órdenes"
+  [data]="ordenes()"
+  [columns]="[
+    { key: 'id', label: 'ID' },
+    { key: 'numero_orden', label: 'Número' },
+    { key: 'cliente_nombre', label: 'Cliente' },
+    { key: 'tipo_orden', label: 'Tipo' },
+    { key: 'total', label: 'Total' },
+    { key: 'estado', label: 'Estado' },
+    { key: 'created_at', label: 'Creado', type: 'date' }
+  ]"
+  [loading]="isLoading()"
+  [error]="error()"
+  [errorMessageLink]="errorMessageLink()"
+  [errorMessageText]="errorMessageText()"
+  (refresh)="obtenerOrdenes()"
+  (action)="handleAction($event)"
+>
+</app-data-table>

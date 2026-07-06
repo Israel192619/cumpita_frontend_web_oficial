@@ -1,7 +1,7 @@
-import { ChangeDetectorRef, Component, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { User } from '../../../../core/models/user';
 import { UserService } from '../../services/user-service';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { timeout } from 'rxjs/internal/operators/timeout';
 import { ToastrService } from 'ngx-toastr';
@@ -37,22 +37,11 @@ export class UsersList {
     this.userService.listarUsuarios().pipe(timeout(10000)).subscribe({
       next: (data) => {
         this.users.set(data);
-        //console.log(data);
         this.isloading.set(false);
       },
-      error: (err) => {
+      error: () => {
         this.isloading.set(false);
-        if (err.status === 0) {
-          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
-        } else if (err?.status === 404) {
-          this.error.set(err?.error?.message || 'No se encontró el endpoint de usuarios en el backend.');
-        } else if (err?.status === 401) {
-          this.error.set('No autorizado. Inicia sesión.');
-          this.errorMessageText.set('Ir a Login');
-          this.errorMessageLink.set('/login');
-        } else {
-          this.error.set('Error al cargar usuarios.');
-        }
+        this.error.set('Error al cargar usuarios');
       }
     });
   }
@@ -83,9 +72,6 @@ export class UsersList {
           next: () => {
             this.users.update(users => users.filter(u => u.id !== id));
             this.toastr.success('Usuario eliminado correctamente');
-          },
-          error: () => {
-            this.toastr.error('No se pudo eliminar el usuario');
           }
         });
       }

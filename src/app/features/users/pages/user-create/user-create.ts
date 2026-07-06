@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { UserService } from '../../services/user-service';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -18,8 +18,9 @@ export class UserCreate {
   form: FormGroup;
   error = signal<string | null>(null);
   roles = signal<{ label: string; value: any }[]>([]);
+  isloading = signal(false);
 
-  constructor(private userService: UserService, private cd: ChangeDetectorRef, private fb: FormBuilder, private toastr: ToastrService, private router: Router) {
+  constructor(private userService: UserService, private fb: FormBuilder, private toastr: ToastrService, private router: Router) {
     this.form = this.fb.group({
       name: ['', Validators.required],
       direccion: ['', Validators.required],
@@ -38,16 +39,6 @@ export class UserCreate {
         this.roles.set(
           roles.map(role => ({ label: role.nombre, value: role.id }))
         );
-      },
-      error: (err) => {
-        if (err.status === 0) {
-          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
-        } else if (err?.status === 401) {
-          this.error.set('No autorizado. Inicia sesión.');
-        }
-        else {
-          this.error.set('Error al cargar roles.');
-        }
       }
     });
   }
@@ -59,6 +50,7 @@ export class UserCreate {
       this.form.markAllAsTouched();
       return;
     }
+    this.isloading.set(true);
     this.error.set(null);
     const formData = new FormData();
 
@@ -76,18 +68,7 @@ export class UserCreate {
         onSuccess();
       },
       error: (err) => {
-        this.toastr.error('Error al crear usuario');
-        if (err.status === 0) {
-          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
-        } else if (err.status === 422) {
-          const errors = err?.error?.errors;
-
-          this.error.set(Object.values(errors)
-            .flat()
-            .join(' | '));
-        } else {
-          this.error.set('Error al crear usuario.');
-        }
+        this.isloading.set(false);
       }
     });
 

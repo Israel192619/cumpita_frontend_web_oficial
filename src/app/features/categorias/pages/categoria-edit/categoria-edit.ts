@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormCard } from '../../../../shared/components/form-card/form-card';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { InputForm } from '../../../../shared/components/input-form/input-form';
@@ -7,7 +7,7 @@ import { CategoriaService } from '../../services/categoria-service';
 import { ErrorMessage } from '../../../../shared/components/error-message/error-message';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { UpdateCategoria, Categoria } from '../../../../core/models/categoria';
+import { Categoria, UpdateCategoria } from '../../../../core/models/categoria';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -26,7 +26,7 @@ export class CategoriaEdit {
   categoriasPadre = signal<Categoria[]>([]);
   categoriasPadreOptions = signal<any[]>([]);
 
-  constructor(private fb: FormBuilder, private categoriaService: CategoriaService, private cd: ChangeDetectorRef, private router: Router, private route: ActivatedRoute, private toastr: ToastrService) {
+  constructor(private fb: FormBuilder, private categoriaService: CategoriaService, private router: Router, private route: ActivatedRoute, private toastr: ToastrService) {
     this.form = this.fb.group({
       nombre: ['', Validators.required],
       descripcion: ['', ],
@@ -49,7 +49,6 @@ export class CategoriaEdit {
       next: (categoria) => {
         this.categoria = categoria;
         
-        // Determinar si es subcategoría
         const esSubcategoria = !!categoria.parent_id;
         this.isSubcategoria.set(esSubcategoria);
 
@@ -58,15 +57,6 @@ export class CategoriaEdit {
           descripcion: categoria.descripcion || '',
           parent_id: categoria.parent_id || null
         });
-      },
-      error: (err) => {
-        if (err.status === 0) {
-          this.error = 'No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.';
-        } else if (err.status === 404) {
-          this.error = 'Categoría no encontrada';
-        } else {
-          this.error = 'Error al cargar la categoría';
-        }
       }
     });
   }
@@ -75,7 +65,6 @@ export class CategoriaEdit {
     this.categoriaService.getCategoriasPadre().subscribe({
       next: (categorias) => {
         const id = this.categoria?.id;
-        // Filtrar la categoría actual para no permitir que sea su propia padre
         const categoriasFiltradas = categorias.filter(c => c.id !== id);
         this.categoriasPadre.set(categoriasFiltradas);
         this.categoriasPadreOptions.set(
@@ -84,9 +73,6 @@ export class CategoriaEdit {
             value: c.id
           }))
         );
-      },
-      error: (err) => {
-        console.error('Error al cargar categorías padre', err);
       }
     });
   }
@@ -120,21 +106,6 @@ export class CategoriaEdit {
         this.toastr.success('Categoría editada correctamente');
         this.error = null;
         this.router.navigate(['/app/categorias']);
-        this.cd.detectChanges();
-      },
-      error: (err) => {
-        this.toastr.error('Error al editar categoría');
-        if (err.status === 0) {
-          this.error = 'No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.';
-        } else if (err.status === 422) {
-          const errors = err?.error?.errors;
-          this.error = Object.values(errors)
-            .flat()
-            .join(' | ');
-        } else {
-          this.error = 'Error al editar categoría.';
-        }
-        this.cd.detectChanges();
       }
     });
   }

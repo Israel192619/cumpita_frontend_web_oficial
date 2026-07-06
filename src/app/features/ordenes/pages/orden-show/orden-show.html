@@ -1,0 +1,112 @@
+<div class="orden-modal">
+  <!-- Header -->
+  <div class="modal-header">
+    <div class="header-content">
+      <h2 class="modal-title">Orden #{{ orden()?.id }}</h2>
+      <button (click)="onClose()" class="close-btn">✕</button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading()" class="loading-container">
+    <div class="spinner"></div>
+    <p>Cargando orden...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error() && !isLoading()" class="error-container">
+    <p class="error-message">{{ error() }}</p>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="orden() && !isLoading() && !error()" class="modal-content">
+    <!-- Info Section -->
+    <div class="info-section">
+      <div class="info-grid">
+        <div class="info-item">
+          <label>Cliente</label>
+          <p class="info-value">{{ orden()?.cliente_nombre || 'Sin cliente' }}</p>
+        </div>
+        <div class="info-item">
+          <label>Tipo de Orden</label>
+          <p class="info-value">
+            <span class="badge" [ngClass]="'tipo-' + orden()?.tipo_orden">
+              {{ orden()?.tipo_orden | titlecase }}
+            </span>
+          </p>
+        </div>
+        <div class="info-item">
+          <label>Estado</label>
+          <p class="info-value">
+            <span class="badge" [ngClass]="'estado-' + orden()?.estado">
+              {{ orden()?.estado | titlecase }}
+            </span>
+          </p>
+        </div>
+        <div class="info-item">
+          <label>Método de Pago</label>
+          <p class="info-value">{{ orden()?.metodo_pago | titlecase }}</p>
+        </div>
+        <div class="info-item">
+          <label>Fecha</label>
+          <p class="info-value">{{ orden()?.created_at | date:'short' }}</p>
+        </div>
+        <div class="info-item">
+          <label>Total</label>
+          <p class="info-value total-highlight">$ {{ orden()?.total | number:'1.2-2' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items Section -->
+    <div class="items-section">
+      <h3 class="section-title">Detalles de Orden</h3>
+      <div class="items-table">
+        <div class="table-header">
+          <div class="col-producto">Producto</div>
+          <div class="col-cantidad">Cantidad</div>
+          <div class="col-precio">Precio Unitario</div>
+          <div class="col-subtotal">Subtotal</div>
+        </div>
+        <div *ngFor="let detalle of orden()?.items" class="table-row">
+          <div class="col-producto">
+            <p class="producto-nombre">{{ detalle.producto.nombre }}</p>
+            <div *ngIf="detalle.modificadores && detalle.modificadores.length" class="modificadores-list">
+              <small *ngFor="let mod of detalle.modificadores" class="modificador-item">
+                • {{ mod.opcion_nombre }} <span class="mod-precio">+$ {{ mod.precio_extra | number:'1.2-2' }}</span>
+              </small>
+            </div>
+          </div>
+          <div class="col-cantidad">{{ detalle.cantidad }}</div>
+          <div class="col-precio">$ {{ detalle.precio_unitario | number:'1.2-2' }}</div>
+          <div class="col-subtotal">$ {{ calcularSubtotalDetalle(detalle.cantidad, detalle.precio_unitario) | number:'1.2-2' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="summary-section">
+      <div class="summary-row">
+        <span>Subtotal:</span>
+        <span>$ {{ orden()?.subtotal | number:'1.2-2' }}</span>
+      </div>
+      <!-- <div *ngIf="orden()?.descuento && orden()!.descuento > 0" class="summary-row">
+        <span>Descuento:</span>
+        <span>-$ {{ orden()?.descuento | number:'1.2-2' }}</span>
+      </div>
+      <div *ngIf="orden()?.impuesto && orden()!.impuesto > 0" class="summary-row">
+        <span>Impuesto:</span>
+        <span>$ {{ orden()?.impuesto | number:'1.2-2' }}</span>
+      </div> -->
+      <div class="summary-row total">
+        <span>Total:</span>
+        <span>$ {{ orden()?.total | number:'1.2-2' }}</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button (click)="onClose()" class="btn btn-secondary">Cerrar</button>
+    </div>
+  </div>
+</div>

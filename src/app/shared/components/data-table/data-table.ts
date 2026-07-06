@@ -21,9 +21,6 @@ export class DataTable {
     label: string,
     type?: string
   }[] = [];
-  ngOnChanges(changes: SimpleChanges): void {
-    console.log('Current data:', this.data);
-  }
 
   @Input() loading: boolean = false;
   @Input() error: string | null = null;

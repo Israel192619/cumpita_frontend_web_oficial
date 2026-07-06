@@ -1,5 +1,5 @@
-<app-form-card [form]="form" title="Crear Usuario" [mostrarGuardarYAgregarOtro]="true" (submit)="crearUsuario()"
-  (cancel)="cancelar()" (guardarYAgregarOtro)="guardarYagregarOtro()">
+<app-form-card [form]="form" title="Crear Usuario" [loading]="isloading()" [mostrarGuardarYAgregarOtro]="true" (submit)="crearUsuario()"
+  (cancelar)="cancelar()" (guardarYAgregarOtro)="guardarYagregarOtro()">
 
   <app-input-form label="Nombre" [control]="getControl('name')" placeholder="Ingresa tu nombre">
   </app-input-form>

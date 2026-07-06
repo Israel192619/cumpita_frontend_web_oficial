@@ -1,0 +1,23 @@
+<div *ngIf="isOpen()" class="mesas-modal-backdrop" (click)="close()"></div>
+
+<div *ngIf="isOpen()" class="mesas-modal">
+  <div class="mesas-modal-content" (click)="$event.stopPropagation()">
+    <div class="mesas-modal-header">
+      <h3>Seleccionar Mesa</h3>
+      <button type="button" class="btn-close" (click)="close()"></button>
+    </div>
+
+    <div class="mesas-grid">
+      <button
+        *ngFor="let mesa of mesas()"
+        type="button"
+        class="mesa-btn"
+        (click)="selectMesa(mesa)"
+        [title]="'Mesa ' + mesa.numero + ' - Cap: ' + mesa.capacidad"
+      >
+        <div class="mesa-number">{{ mesa.numero }}</div>
+        <div class="mesa-capacity">Cap: {{ mesa.capacidad }}</div>
+      </button>
+    </div>
+  </div>
+</div>

@@ -3,6 +3,7 @@ export interface Categoria {
   nombre: string;
   descripcion?: string;
   parent_id?: number | null;
+  children?: Categoria[];
   created_at?: string;
   updated_at?: string;
 }

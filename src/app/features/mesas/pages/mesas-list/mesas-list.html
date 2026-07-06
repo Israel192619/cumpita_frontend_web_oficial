@@ -1,0 +1,18 @@
+<app-data-table
+  title="Mesas"
+  [data]="mesas()"
+  [columns]="[
+    { key: 'numero', label: 'Número' },
+    { key: 'capacidad', label: 'Capacidad' },
+    { key: 'estado', label: 'Estado' },
+    { key: 'created_at', label: 'Creado', type: 'date' }
+  ]"
+  [loading]="isloading()"
+  [error]="error()"
+  [errorMessageLink]="errorMessageLink()"
+  [errorMessageText]="errorMessageText()"
+  createLink="/app/mesas/create"
+  (refresh)="obtenerMesas()"
+  (action)="handleAction($event)"
+>
+</app-data-table>

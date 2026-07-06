@@ -59,6 +59,36 @@
 
                 </ul>
             </li>
+            <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger" [routerLinkActiveOptions]="{ exact: false }">
+                <a class="pc-link"><span class="pc-micon"><i
+                            class="ti ti-clipboard-list"></i></span><span class="pc-mtext">PEDIDOS</span><span class="pc-arrow"><i
+                            data-feather="chevron-right"></i></span></a>
+                <ul class="pc-submenu">
+                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
+                        <a [routerLink]="['/app/pedidos']" class="pc-link">pedidos</a>
+                        <ul></ul>
+                    </li>
+                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
+                        <a [routerLink]="['/pos']" class="pc-link">POS</a>
+                        <ul></ul>
+                    </li>
+                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
+                        <a [routerLink]="['/app/mesas']" class="pc-link">mesas</a>
+                        <ul></ul>
+                    </li>
+                </ul>
+            </li>
+            <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger" [routerLinkActiveOptions]="{ exact: false }">
+                <a class="pc-link"><span class="pc-micon"><i
+                            class="ti ti-clipboard-list"></i></span><span class="pc-mtext">CONTACTOS</span><span class="pc-arrow"><i
+                            data-feather="chevron-right"></i></span></a>
+                <ul class="pc-submenu">
+                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
+                        <a [routerLink]="['/app/clientes']" class="pc-link">clientes</a>
+                        <ul></ul>
+                    </li>
+                </ul>
+            </li>
         </ul>
         <div class="w-100 text-center">
             <div class="badge theme-version badge rounded-pill bg-light text-dark f-12"></div>

@@ -1,9 +1,9 @@
-import { ChangeDetectorRef, Component, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { UserService } from '../../services/user-service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { UpdateUser, User } from '../../../../core/models/user';
+import { User } from '../../../../core/models/user';
 import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/components';
 
 @Component({
@@ -36,18 +36,10 @@ export class UserEdit {
   ngOnInit(): void {
     this.error.set(null);
     const id = parseInt(this.route.snapshot.paramMap.get('id')!);
+    
     this.userService.getRoles().subscribe({
       next: (roles) => {
         this.roles.set(roles.map(role => ({ label: role.nombre, value: role.id })));
-      },
-      error: (err) => {
-        if (err.status == 0) {
-          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.')
-        } else if (err?.staatus == 401) {
-          this.error.set('No autorizado. Inicia sesión.');
-        } else {
-          this.error.set('Error al cargar roles.')
-        }
       }
     });
 
@@ -55,7 +47,6 @@ export class UserEdit {
       this.userService.getUsuarioPorId(id).subscribe({
         next: (user) => {
           this.user.set(user);
-          //console.log(user);
           this.form.patchValue({
             name: user.name,
             direccion: user.perfil_usuarios?.direccion || '',
@@ -64,15 +55,6 @@ export class UserEdit {
             email: user.email,
             role_id: user.role_id
           });
-        },
-        error: (err) => {
-          if (err.status === 0) {
-            this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
-          } else if (err.status === 404) {
-            this.error.set('Usuario no encontrado');
-          } else {
-            this.error.set('Error al cargar el usuario');
-          }
         }
       });
     }
@@ -118,20 +100,6 @@ export class UserEdit {
         this.toastr.success('Usuario editado correctamente');
         this.error.set(null);
         this.router.navigate(['/app/users']);
-      },
-      error: (err) => {
-        this.toastr.error('Error al editar usuario');
-        if (err.status === 0) {
-          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
-        } else if (err.status === 422) {
-          const errors = err?.error?.errors;
-
-          this.error.set(Object.values(errors)
-            .flat()
-            .join(' | '));
-        } else {
-          this.error.set('Error al editar usuario.');
-        }
       }
     });
   }
