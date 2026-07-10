@@ -19,9 +19,11 @@ export class CategoryBarComponent implements OnInit {
 
   categorySelected = output<number | null>();
   subcategorySelected = output<number | null>();
+  searchChanged = output<string>();
 
   expandedCategoryId = signal<number | null>(null);
   searchQuery = signal<string>('');
+  searchText = '';
   currentDate = signal<Date>(new Date());
 
   // Categorías padre (sin parent_id)
@@ -72,8 +74,9 @@ export class CategoryBarComponent implements OnInit {
 
   onSearchInput(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
+    this.searchText = value;
     this.searchQuery.set(value);
-    // TODO: Implementar filtrado de productos por búsqueda
+    this.searchChanged.emit(value);
   }
 
   trackByCategory = (index: number, cat: Categoria) => cat.id;

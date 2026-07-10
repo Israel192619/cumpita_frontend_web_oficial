@@ -33,6 +33,24 @@
   gap: 0.5rem;
 }
 
+@media (max-width: 1024px) {
+  .mesas-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .mesas-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 540px) {
+  .mesas-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .mesa-btn {
   padding: 1rem;
   border-radius: var(--radius-sm);

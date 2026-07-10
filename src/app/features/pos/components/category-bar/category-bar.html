@@ -23,8 +23,8 @@
       <input 
         type="text" 
         class="search-input" 
-        placeholder="Search for food, coffee, etc.."
-        [(ngModel)]="searchQuery"
+        placeholder="Buscar productos"
+        [(ngModel)]="searchText"
         (input)="onSearchInput($event)"
         [disabled]="isLoading()"
       >

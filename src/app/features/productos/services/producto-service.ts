@@ -48,5 +48,9 @@ export class ProductoService {
   eliminarProducto(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/productos/${id}`);
   }
+
+  ajustarStock(id: number, cantidad: number): Observable<{ producto: Producto }> {
+    return this.http.post<{ producto: Producto }>(`${this.apiUrl}/productos/${id}/stock-adjust`, { cantidad });
+  }
 }
 

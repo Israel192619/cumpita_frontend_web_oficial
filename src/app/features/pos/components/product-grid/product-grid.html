@@ -1,12 +1,12 @@
 <div class="product-grid-container">
   <!-- Grid de productos -->
   <div class="product-grid">
-    <button
+    <div
       *ngFor="let prod of productos(); trackBy: trackByProducto"
       class="product-card"
       [class.disabled]="!isProductAvailable(prod)"
-      [disabled]="!isProductAvailable(prod) || isLoading()"
-      (click)="onAddProduct(prod)"
+      [attr.aria-disabled]="!isProductAvailable(prod) || isLoading()"
+      (click)="isProductAvailable(prod) && !isLoading() ? onAddProduct(prod) : null"
     >
       <!-- Imagen circular flotante -->
       <div class="product-image-wrapper">
@@ -18,6 +18,11 @@
         <div 
           *ngIf="prod.maneja_stock && prod.stock !== undefined" 
           class="stock-badge"
+          [ngClass]="{
+            'stock-badge-warning': getStockState(prod) === 'warning',
+            'stock-badge-empty': getStockState(prod) === 'empty',
+            'stock-badge-ok': getStockState(prod) === 'ok'
+          }"
         >
           {{ prod.stock }}
         </div>
@@ -31,13 +36,30 @@
           {{ prod.maneja_stock ? (prod.stock || 0) + ' disponibles' : 'En stock' }}
         </span>
         <span *ngIf="!isProductAvailable(prod)" class="product-unavailable">
-          No disponible
+          Falta stock
         </span>
+        <div *ngIf="isOutOfStock(prod)" class="restock-controls">
+          <input
+            type="number"
+            class="restock-input"
+            min="1"
+            [value]="getRestockQuantity(prod)"
+            (input)="setRestockQuantity(prod, $any($event.target).value)"
+            (click)="$event.stopPropagation()"
+          />
+          <button
+            type="button"
+            class="restock-btn"
+            (click)="$event.stopPropagation(); onRestockProduct(prod)"
+          >
+            Reabastecer
+          </button>
+        </div>
         <div class="product-footer">
           <span class="product-price">{{ formatPrice(prod.precio) }}</span>
         </div>
       </div>
-    </button>
+    </div>
   </div>
 
   <!-- Sin productos -->

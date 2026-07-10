@@ -23,6 +23,7 @@
   gap: 2rem;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
 }
 
 /* Sección de Marca */
@@ -63,6 +64,7 @@
   width: 280px;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .search-section:focus-within {
@@ -192,7 +194,7 @@
   gap: 0;
   padding: 0 2rem;
   background: rgba(0, 0, 0, 0.15);
-  height: 48px;
+  min-height: 48px;
   overflow-x: auto;
   overflow-y: hidden;
   border-bottom: 1px solid var(--border-color);
@@ -258,6 +260,17 @@
     }
   }
 
+  @media (max-width: 1024px) {
+    padding: 0 1rem;
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 640px) {
+    padding: 0 0.8rem;
+    font-size: 0.78rem;
+    height: 44px;
+  }
+
   &.active {
     color: var(--color-accent);
     font-weight: 500;
@@ -305,12 +318,10 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .header-top {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1rem 1rem;
-    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    gap: 1.5rem;
   }
 
   .search-section {
@@ -324,10 +335,48 @@
 
   .category-tab,
   .subcategory-tab {
-    padding: 0 0.75rem;
+    padding: 0 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-top {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem 1rem;
+    gap: 1rem;
+  }
+
+  .search-section {
+    width: 100%;
+  }
+
+  .categories-bar,
+  .subcategories-bar {
+    padding: 0 0.8rem;
+  }
+
+  .category-tab,
+  .subcategory-tab {
+    padding: 0 0.65rem;
+    font-size: 0.82rem;
   }
 
   .brand-title {
     font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 540px) {
+  .header-top {
+    padding: 0.85rem 0.85rem;
+  }
+
+  .brand-title {
+    font-size: 1.1rem;
+  }
+
+  .search-section {
+    padding: 0.65rem 0.9rem;
   }
 }

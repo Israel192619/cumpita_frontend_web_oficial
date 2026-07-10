@@ -10,7 +10,7 @@
     <div class="edit-mode-content">
       <span class="edit-mode-icon">✎</span>
       <span class="edit-mode-text">Editando Orden #{{ editingOrderId() }}</span>
-      <button type="button" class="btn-exit-edit" (click)="isEditingOrder.set(false); editingOrderId.set(null); carrito.set([])">Nueva orden</button>
+      <button type="button" class="btn-exit-edit" (click)="onCancelEditMode()">Cancelar</button>
     </div>
   </div>
 
@@ -27,15 +27,17 @@
           [isLoading]="isLoadingProductos()"
           (categorySelected)="onCategorySelected($event)"
           (subcategorySelected)="onSubcategorySelected($event)"
+          (searchChanged)="onProductSearchChanged($event)"
         />
       </div>
 
       <!-- Productos -->
       <div class="pos-section products-section">
         <app-product-grid
-          [productos]="productos()"
+          [productos]="visibleProductos()"
           [isLoading]="isLoadingProductos()"
           (productAdded)="onProductAdded($event)"
+          (stockAdjusted)="onStockAdjusted()"
         />
       </div>
     </div>
@@ -50,13 +52,19 @@
         [orderTypeInput]="orderType()"
         [selectedClienteInput]="selectedCliente()"
         [selectedMesaInput]="selectedMesa()"
+        [orderDateInput]="orderDate()"
+        [stockByProductId]="productStockById()"
         (quantityChanged)="onQuantityChanged($event)"
         (itemRemoved)="onItemRemoved($event)"  
         (checkoutRequested)="onCheckoutRequested()"
         (payLaterRequested)="onPayLaterRequested()"
         (cartCleared)="onCartCleared()"
         (itemModifiersChanged)="onItemModifiersChanged($event)"
-        (orderTypeChanged)="onOrderTypeChanged($event)" 
+        (modifierBatchApplied)="onModifierBatchApplied($event)"
+        (modifierModalClosed)="onModifierModalClosed()"
+        (itemNoteChanged)="onItemNoteChanged($event)"
+        (orderTypeChanged)="onOrderTypeChanged($event)"
+        (orderDateChanged)="onOrderDateChanged($event)"
         (clienteSelected)="selectedCliente.set($event)"
         (mesaSelected)="selectedMesa.set($event)"
       />

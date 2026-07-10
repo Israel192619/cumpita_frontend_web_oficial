@@ -14,6 +14,9 @@ export interface CartItem {
   precio_unitario: number;
   subtotal: number;
   modificadores?: CartItemModificador[];
+  nota?: string;
+  isModifierVariant?: boolean;
+  parentItemId?: number;
 }
 
 export interface CartItemModificador {
@@ -46,6 +49,7 @@ export interface Order {
   cliente_id?: number;
   tipo_orden?: 'dine-in' | 'to-go' | 'delivery';
   mesa_id?: number;
+  fecha_orden?: string | null;
   items: CartItem[];
   subtotal: number;
   impuesto?: number;
@@ -57,11 +61,12 @@ export interface Order {
 }
 
 export interface OrderPayload {
-  // cliente_nombre?: string;
-  // cliente_telefono?: string;
   cliente_id?: number | null;
+  cliente_nombre?: string | null;
+  cliente_telefono?: string | null;
   tipo_orden?: 'dine-in' | 'to-go' | 'delivery';
   mesa_id?: number | null;
+  fecha_orden?: string | null;
   items: OrderItem[];
   subtotal: number;
   descuento?: number;
@@ -75,6 +80,7 @@ export interface OrderItem {
   cantidad: number;
   precio_unitario: number;
   modificadores?: OrderItemModificador[];
+  nota?: string | null;
 }
 
 export interface OrderItemModificador {
@@ -109,7 +115,7 @@ export class PosService {
     return this.http.get<{ orden: Order }>(`${this.apiUrl}/ordenes/${id}`);
   }
 
-  actualizarOrden(id: number, data: { estado?: string; metodo_pago?: string; observaciones?: string }): Observable<any> {
+  actualizarOrden(id: number, data: OrderPayload): Observable<any> {
     return this.http.put(`${this.apiUrl}/ordenes/${id}`, data);
   }
 
@@ -145,29 +151,38 @@ export class PosService {
   /**
    * Mapea un Order (del frontend) a OrderPayload (para el backend)
    */
-  private mapOrderToPayload(order: Order): OrderPayload {
+  public mapOrderToPayload(order: Order): OrderPayload {
     return {
-      cliente_id: order.cliente_id || null, // Asegura null en vez de undefined
-      mesa_id: order.mesa_id || null,       // Asegura null en vez de undefined
-      //cliente_nombre: order.cliente_nombre || null,
-      //cliente_telefono: order.cliente_telefono || null,
+      cliente_id: order.cliente_id || null,
+      cliente_nombre: order.cliente_nombre || null,
+      cliente_telefono: order.cliente_telefono || null,
+      mesa_id: order.mesa_id || null,
       tipo_orden: order.tipo_orden || 'dine-in',
+      fecha_orden: order.fecha_orden ?? null,
       subtotal: order.subtotal,
       descuento: order.descuento || 0,
       total: order.total,
       metodo_pago: order.metodo_pago,
       observaciones: order.cliente_nombre ? `Cliente: ${order.cliente_nombre}` : undefined,
-      
       items: order.items.map(item => ({
         producto_id: item.producto.id,
         cantidad: item.cantidad,
         precio_unitario: item.precio_unitario,
+        nota: item.nota?.trim() || null,
         modificadores: (item.modificadores || []).map(mod => ({
           modificador_opcion_id: mod.opcion_id,
           precio_extra: mod.precio_extra,
         })),
       })),
     };
+  }
+
+  private getTodayDateString(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }
 

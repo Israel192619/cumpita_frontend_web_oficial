@@ -45,8 +45,8 @@
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-  width: 90vw;
-  max-width: 500px;
+  width: min(95vw, 560px);
+  max-width: 560px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
