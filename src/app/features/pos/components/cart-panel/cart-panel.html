@@ -354,6 +354,14 @@
         <span class="total-label">Subtotal</span>
         <span class="total-value">{{ formatPrice(subtotal()) }}</span>
       </div>
+      <div class="total-row" *ngIf="isEditing()">
+        <span class="total-label">Pagado</span>
+        <span class="total-value">{{ formatPrice(paidAmount()) }}</span>
+      </div>
+      <div class="total-row" *ngIf="isEditing()">
+        <span class="total-label">Saldo pendiente</span>
+        <span class="total-value">{{ formatPrice(remainingAmount()) }}</span>
+      </div>
       <div class="total-row total-main">
         <span class="total-label">TOTAL</span>
         <span class="total-value">{{ formatPrice(total()) }}</span>
@@ -364,12 +372,14 @@
       <button
         type="button"
         class="btn-continue-payment"
-        (click)="onCheckout()"
+        (click)="onPrimaryAction()"
         [disabled]="items().length === 0 || isProcessing()"
       >
-        {{ isProcessing() ? 'Procesando...' : 'Cobrar' }}
+        {{ isProcessing() ? 'Procesando...' : getPrimaryActionLabel() }}
       </button>
+
       <button
+        *ngIf="shouldShowPayLater()"
         type="button"
         class="btn-pay-later"
         (click)="onPayLater()"
@@ -378,9 +388,40 @@
       >
         Pagar Después
       </button>
+
+      <button
+        *ngIf="isEditing() && hasPaymentHistory()"
+        type="button"
+        class="btn-secondary"
+        (click)="onViewHistory()"
+        [disabled]="isProcessing()"
+      >
+        Ver historial
+      </button>
+
+      <button
+        *ngIf="isEditing() && total() < paidAmount()"
+        type="button"
+        class="btn-secondary"
+        (click)="onRefundRequested()"
+        [disabled]="isProcessing()"
+      >
+        Devolver
+      </button>
+
+      <button
+        *ngIf="isEditing()"
+        type="button"
+        class="btn-secondary"
+        (click)="onEditAction()"
+        [disabled]="isProcessing()"
+      >
+        Editar orden
+      </button>
     </div>
 
     <button
+      *ngIf="!isEditing()"
       type="button"
       class="btn-cancel-order"
       (click)="onCancelOrder()"

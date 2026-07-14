@@ -28,10 +28,49 @@
         </div>
       </div>
 
-      
-      <!-- Mesas handled in Cart Panel modal -->
-
-      
+      <!-- Input de Monto (Solo para Efectivo) -->
+      <div class="section" *ngIf="selectedPaymentMethod() === 'efectivo'">
+        <h3>Monto a Recibir</h3>
+        <div class="payment-amount-section">
+          <div class="amount-input-wrapper">
+            <input
+              type="number"
+              class="amount-input"
+              [value]="montoRecibido()"
+              (change)="onMontoChange($event)"
+              placeholder="0"
+              [disabled]="isProcessing()"
+              min="0"
+              step="1"
+            />
+            <span class="currency-symbol">COP</span>
+          </div>
+          
+          <!-- Total a Pagar -->
+          <div class="amount-info">
+            <div class="info-row">
+              <span class="info-label">Total a Pagar:</span>
+              <span class="info-value">{{ formatPrice(total()) }}</span>
+            </div>
+            
+            <!-- Estado y Cambio/Diferencia -->
+            <div class="info-row" [ngClass]="getPaymentStatusClass()">
+              <span class="info-label">{{ getPaymentStatusText() }}</span>
+              <span class="info-value">
+                <span *ngIf="estadoPago() === 'insufficient'">
+                  {{ formatPrice(total() - montoRecibido()) }}
+                </span>
+                <span *ngIf="estadoPago() === 'excess'">
+                  {{ formatPrice(cambio()) }}
+                </span>
+                <span *ngIf="estadoPago() === 'exact'">
+                  Perfecto
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Método de Pago -->
       <div class="section">
@@ -66,7 +105,7 @@
         type="button"
         class="btn btn-confirm"
         (click)="onConfirm()"
-        [disabled]="!selectedPaymentMethod() || isProcessing()"
+        [disabled]="!selectedPaymentMethod() || isProcessing() || (selectedPaymentMethod() === 'efectivo' && estadoPago() === 'insufficient')"
       >
         {{ isProcessing() ? 'Procesando...' : 'Confirmar Venta' }}
       </button>

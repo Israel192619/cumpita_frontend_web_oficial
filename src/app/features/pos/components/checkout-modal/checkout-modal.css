@@ -624,3 +624,128 @@
     opacity: 0.3;
   }
 }
+
+/* Payment Amount Section */
+.payment-amount-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg-main);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.amount-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.amount-input {
+  flex: 1;
+  font-size: 2rem;
+  font-weight: 700;
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--color-accent);
+  text-align: right;
+  transition: all 0.2s ease;
+
+  &::placeholder {
+    color: var(--text-muted);
+    opacity: 0.3;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px rgba(234, 124, 105, 0.1);
+    background: rgba(234, 124, 105, 0.02);
+  }
+
+  &:disabled {
+    background: var(--bg-main);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  /* Remove spinner from number input */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  &[type=number] {
+    -moz-appearance: textfield;
+  }
+}
+
+.currency-symbol {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.amount-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--border-color);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  &.status-insufficient {
+    border-left-color: #f44336;
+    color: #f44336;
+
+    .info-label,
+    .info-value {
+      color: #f44336;
+    }
+  }
+
+  &.status-exact {
+    border-left-color: #4CAF50;
+    color: #4CAF50;
+
+    .info-label,
+    .info-value {
+      color: #4CAF50;
+    }
+  }
+
+  &.status-excess {
+    border-left-color: #2196F3;
+    color: #2196F3;
+
+    .info-label,
+    .info-value {
+      color: #2196F3;
+    }
+  }
+
+  .info-label {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .info-value {
+    font-weight: 700;
+    font-size: 1rem;
+  }
+}

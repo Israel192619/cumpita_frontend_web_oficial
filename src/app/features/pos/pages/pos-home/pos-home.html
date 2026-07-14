@@ -54,6 +54,12 @@
         [selectedMesaInput]="selectedMesa()"
         [orderDateInput]="orderDate()"
         [stockByProductId]="productStockById()"
+        [isEditing]="isEditingOrder()"
+        [paidAmount]="pagosTotales()"
+        [remainingAmount]="saldoPendiente()"
+        [hasPaymentHistory]="orderPayments().length > 0"
+        [showHistoryButton]="shouldShowHistoryButton()"
+        [isFullyPaid]="isCompletePaidOrder()"
         (quantityChanged)="onQuantityChanged($event)"
         (itemRemoved)="onItemRemoved($event)"  
         (checkoutRequested)="onCheckoutRequested()"
@@ -67,7 +73,38 @@
         (orderDateChanged)="onOrderDateChanged($event)"
         (clienteSelected)="selectedCliente.set($event)"
         (mesaSelected)="selectedMesa.set($event)"
+        (viewHistoryRequested)="onViewPaymentHistory()"
+        (editRequested)="onEditRequested()"
       />
+
+  <div *ngIf="isPaymentHistoryOpen()" class="payment-history-backdrop" (click)="closePaymentHistory()">
+    <div class="payment-history-modal" (click)="$event.stopPropagation()">
+      <div class="payment-history-header">
+        <h2>Historial de pagos</h2>
+        <button type="button" class="btn-close" (click)="closePaymentHistory()">✕</button>
+      </div>
+      <div class="payment-history-body">
+        <div *ngIf="orderPayments().length === 0" class="empty-state">
+          <p>No hay pagos registrados para esta orden.</p>
+        </div>
+        <div *ngIf="orderPayments().length > 0" class="payments-list">
+          <div *ngFor="let pago of orderPayments()" class="payment-row">
+            <div>
+              <strong>{{ pago.metodo_pago | uppercase }}</strong> · {{ pago.tipo_pago }}
+              <div class="payment-meta">{{ pago.fecha_pago | date:'short' }}</div>
+            </div>
+            <div class="payment-amounts">
+              <span>{{ formatPrice(pago.monto_pagado) }}</span>
+              <small *ngIf="pago.cambio_devuelto > 0">Cambio {{ formatPrice(pago.cambio_devuelto) }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="payment-history-footer">
+        <button type="button" class="btn btn-confirm" (click)="closePaymentHistory()">Cerrar</button>
+      </div>
+    </div>
+  </div>
     </div>
   </div>
 

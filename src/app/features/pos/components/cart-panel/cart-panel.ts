@@ -22,12 +22,21 @@ export class CartPanelComponent {
   selectedMesaInput = input<Mesa | null>(null);
   orderDateInput = input<string | null>(null);
   stockByProductId = input<Record<number, number>>({});
+  isEditing = input<boolean>(false);
+  paidAmount = input<number>(0);
+  remainingAmount = input<number>(0);
+  hasPaymentHistory = input<boolean>(false);
+  showHistoryButton = input<boolean>(false);
+  isFullyPaid = input<boolean>(false);
 
   quantityChanged = output<{ itemId: number; cantidad: number }>();
   itemRemoved = output<number>();
   checkoutRequested = output<void>();
   payLaterRequested = output<void>();
+  refundRequested = output<void>();
   cartCleared = output<void>();
+  viewHistoryRequested = output<void>();
+  editRequested = output<void>();
   orderTypeChanged = output<'dine-in' | 'to-go' | 'delivery'>();
   orderDateChanged = output<string | null>();
   clienteSelected = output<ClienteSearch | null>();
@@ -118,12 +127,91 @@ export class CartPanelComponent {
   }
 
   onCheckout(): void {
+    this.searchQuery.set('');
     this.checkoutRequested.emit();
+  }
+
+  onPrimaryAction(): void {
+    const action = this.getPrimaryActionType();
+
+    switch (action) {
+      case 'checkout':
+        this.onCheckout();
+        break;
+      case 'refund':
+        this.onRefundRequested();
+        break;
+      case 'history':
+        this.onViewHistory();
+        break;
+      case 'edit':
+        this.onEditAction();
+        break;
+      default:
+        this.onCheckout();
+    }
+  }
+
+  onViewHistory(): void {
+    this.viewHistoryRequested.emit();
+  }
+
+  onEditAction(): void {
+    this.editRequested.emit();
+  }
+
+  onRefundRequested(): void {
+    this.refundRequested.emit();
   }
 
   onPayLater(): void {
     this.payLaterRequested.emit();
   }
+
+  getPrimaryActionLabel(): string {
+    if (!this.isEditing()) {
+      return 'Cobrar';
+    }
+
+    if (this.total() < this.paidAmount()) {
+      return 'Devolver';
+    }
+
+    if (this.remainingAmount() > 0) {
+      return `Cobrar ${this.formatPrice(this.remainingAmount())}`;
+    }
+
+    if (this.isFullyPaid() && this.showHistoryButton()) {
+      return 'Ver historial';
+    }
+
+    return 'Editar';
+  }
+
+  getPrimaryActionType(): 'checkout' | 'refund' | 'history' | 'edit' {
+    if (!this.isEditing()) {
+      return 'checkout';
+    }
+
+    if (this.total() < this.paidAmount()) {
+      return 'refund';
+    }
+
+    if (this.remainingAmount() > 0) {
+      return 'checkout';
+    }
+
+    if (this.isFullyPaid() && this.showHistoryButton()) {
+      return 'history';
+    }
+
+    return 'edit';
+  }
+
+  shouldShowPayLater(): boolean {
+    return !this.isEditing() || (this.isEditing() && this.remainingAmount() > 0);
+  }
+
   onCancelOrder() {
     this.confirmDialog.confirm({
       title: 'Cancelar orden',

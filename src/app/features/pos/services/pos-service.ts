@@ -56,6 +56,7 @@ export interface Order {
   descuento?: number;
   total: number;
   metodo_pago: 'efectivo' | 'qr' | 'tarjeta';
+  montoRecibido?: number;
   estado?: string;
   created_at?: string;
 }
@@ -92,6 +93,19 @@ export interface PaymentMethodOption {
   id: string;
   nombre: string;
   icon?: string;
+}
+
+export interface PagoOrden {
+  id: number;
+  id_orden: number;
+  monto_recibido: number;
+  monto_pagado: number;
+  cambio_devuelto: number;
+  metodo_pago: 'efectivo' | 'qr' | 'tarjeta';
+  tipo_pago: 'reserva' | 'saldo' | 'total';
+  fecha_pago: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 @Injectable({
@@ -146,6 +160,19 @@ export class PosService {
     }).pipe(
       map(res => res.cliente)
     );
+  }
+
+  obtenerPagosOrden(idOrden: number): Observable<PagoOrden[]> {
+    return this.http.get<PagoOrden[]>(`${this.apiUrl}/pagos-ordenes?id_orden=${idOrden}`);
+  }
+
+  crearPagoOrden(data: {
+    id_orden: number;
+    monto_recibido: number;
+    metodo_pago: 'efectivo' | 'qr' | 'tarjeta';
+    tipo_pago: 'reserva' | 'saldo' | 'total';
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/pagos-ordenes`, data);
   }
 
   /**
