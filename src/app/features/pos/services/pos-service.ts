@@ -13,6 +13,7 @@ export interface CartItem {
   cantidad: number;
   precio_unitario: number;
   subtotal: number;
+  orden_detalle_id?: number;
   modificadores?: CartItemModificador[];
   nota?: string;
   isModifierVariant?: boolean;
@@ -49,15 +50,19 @@ export interface Order {
   cliente_id?: number;
   tipo_orden?: 'dine-in' | 'to-go' | 'delivery';
   mesa_id?: number;
+  mesa?: Mesa;
   fecha_orden?: string | null;
   items: CartItem[];
   subtotal: number;
   impuesto?: number;
   descuento?: number;
   total: number;
-  metodo_pago: 'efectivo' | 'qr' | 'tarjeta';
+  metodo_pago?: 'efectivo' | 'qr';
   montoRecibido?: number;
   estado?: string;
+  estado_pago?: 'pendiente' | 'parcial' | 'completado';
+  pagos?: PagoOrden[];
+  saldo_pendiente?: number;
   created_at?: string;
 }
 
@@ -72,7 +77,6 @@ export interface OrderPayload {
   subtotal: number;
   descuento?: number;
   total: number;
-  metodo_pago: 'efectivo' | 'qr' | 'tarjeta';
   observaciones?: string;
 }
 
@@ -101,8 +105,8 @@ export interface PagoOrden {
   monto_recibido: number;
   monto_pagado: number;
   cambio_devuelto: number;
-  metodo_pago: 'efectivo' | 'qr' | 'tarjeta';
-  tipo_pago: 'reserva' | 'saldo' | 'total';
+  metodo_pago: 'efectivo' | 'qr';
+  tipo_pago: 'devolucion' | 'pago';
   fecha_pago: string;
   created_at?: string;
   updated_at?: string;
@@ -122,7 +126,9 @@ export class PosService {
   }
 
   obtenerOrdenes(): Observable<Order[]> {
-    return this.http.get<Order[]>(`${this.apiUrl}/ordenes`);
+    return this.http.get<{ ordenes: Order[] }>(`${this.apiUrl}/ordenes`).pipe(
+      map((response) => response.ordenes || [])
+    );
   }
 
   obtenerOrdenPorId(id: number): Observable<{ orden: Order }> {
@@ -169,8 +175,8 @@ export class PosService {
   crearPagoOrden(data: {
     id_orden: number;
     monto_recibido: number;
-    metodo_pago: 'efectivo' | 'qr' | 'tarjeta';
-    tipo_pago: 'reserva' | 'saldo' | 'total';
+    metodo_pago: 'efectivo' | 'qr';
+    tipo_pago: 'pago' | 'devolucion';
   }): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/pagos-ordenes`, data);
   }
@@ -185,11 +191,10 @@ export class PosService {
       cliente_telefono: order.cliente_telefono || null,
       mesa_id: order.mesa_id || null,
       tipo_orden: order.tipo_orden || 'dine-in',
-      fecha_orden: order.fecha_orden ?? null,
+      fecha_orden: order.fecha_orden?.trim() || this.getNowDateTimeString(),
       subtotal: order.subtotal,
       descuento: order.descuento || 0,
       total: order.total,
-      metodo_pago: order.metodo_pago,
       observaciones: order.cliente_nombre ? `Cliente: ${order.cliente_nombre}` : undefined,
       items: order.items.map(item => ({
         producto_id: item.producto.id,
@@ -210,6 +215,16 @@ export class PosService {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private getNowDateTimeString(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 }
 

@@ -1,8 +1,8 @@
-import { Component, signal, computed, effect, OnInit } from '@angular/core';
+import { Component, signal, computed, effect, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { CartItem, CartItemModificador, Order, PagoOrden, PaymentMethodOption, PosService, ClienteSearch, Mesa } from '../../services';
+import { CartItem, CartItemModificador, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa } from '../../services';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
 import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, ProductGridComponent } from '../../components';
@@ -23,7 +23,7 @@ import { ToastrService } from 'ngx-toastr';
   templateUrl: './pos-home.html',
   styleUrl: './pos-home.css',
 })
-export class PosHome implements OnInit {
+export class PosHome implements OnInit, OnDestroy {
   categorias = signal<Categoria[]>([]);
   productos = signal<Producto[]>([]);
   carrito = signal<CartItem[]>([]);
@@ -33,9 +33,14 @@ export class PosHome implements OnInit {
   isLoadingProductos = signal<boolean>(false);
   isCheckoutModalOpen = signal<boolean>(false);
   isProcessingCheckout = signal<boolean>(false);
+  isRefundMode = signal<boolean>(false);
+  deletedItems = signal<any[]>([]);
+  refundAmount = signal<number>(0);
   error = signal<string | null>(null);
   isEditingOrder = signal<boolean>(false);
   editingOrderId = signal<number | null>(null);
+  editingOrderSource = signal<'url' | 'pending' | 'internal' | null>(null);
+  pendingOrderAction = signal<'edit' | 'pay' | null>(null);
 
   selectedCategoryId = signal<number | null>(null);
   selectedSubcategoryId = signal<number | null>(null);
@@ -43,26 +48,69 @@ export class PosHome implements OnInit {
   selectedCliente = signal<ClienteSearch | null>(null);
   selectedMesa = signal<Mesa | null>(null);
   orderDate = signal<string | null>(null);
-  isPaymentHistoryOpen = signal<boolean>(false);
-  orderPayments = signal<PagoOrden[]>([]);
+  editingOrder = signal<Order | null>(null);
+  isFullyPaid = computed(() => this.isEditingOrder() && this.remainingAmount() === 0);
+  showHistoryButton = computed(() => this.hasPaymentHistory() && this.isFullyPaid());
+  orders = signal<Order[]>([]);
+  pendingOrders = signal<Order[]>([]);
+  pendingOrdersSearch = signal<string>('');
+  isPendingOrdersModalOpen = signal<boolean>(false);
+  isHistoryModalOpen = signal<boolean>(false);
 
-  pagosTotales = computed(() => {
-    return this.orderPayments().reduce((sum, pago) => sum + parseFloat(pago.monto_pagado.toString()), 0);
-  });
-
-  saldoPendiente = computed(() => {
-    return Math.max(0, this.total() - this.pagosTotales());
-  });
-
-  isCompletePaidOrder = computed(() => {
-    return this.isEditingOrder() && this.pagosTotales() >= this.total();
-  });
-
-  shouldShowHistoryButton = computed(() => {
-    return this.isCompletePaidOrder() && (
-      this.orderPayments().length > 1 ||
-      this.orderPayments().some((pago) => pago.cambio_devuelto > 0)
+  pendingOrdersCount = computed(() => this.pendingOrders().length);
+  hasUnsavedChanges = computed(() => {
+    return (
+      this.carrito().length > 0 ||
+      !!this.selectedCliente() ||
+      !!this.selectedMesa() ||
+      !!this.orderDate() ||
+      this.isEditingOrder()
     );
+  });
+
+  filteredPendingOrders = computed(() => {
+    const query = this.pendingOrdersSearch().trim().toLowerCase();
+    return this.pendingOrders().filter((orden) => {
+      const haystack = [
+        orden.numero_orden?.toString() || orden.id.toString(),
+        orden.cliente_nombre || '',
+        orden.cliente_telefono || '',
+        orden.mesa?.numero || '',
+        orden.estado || '',
+        orden.estado_pago || '',
+        typeof orden.saldo_pendiente === 'number' ? orden.saldo_pendiente.toString() : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return !query || haystack.includes(query);
+    });
+  });
+
+  paidAmount = computed(() => {
+    const orden = this.editingOrder();
+    if (!orden) {
+      return 0;
+    }
+    return (orden.pagos || []).reduce((sum, pago) => sum + parseFloat(pago.monto_pagado.toString()), 0);
+  });
+
+  remainingAmount = computed(() => {
+    const orden = this.editingOrder();
+    if (!orden) {
+      return 0;
+    }
+
+    if (typeof orden.saldo_pendiente === 'number') {
+      return Math.max(0, orden.saldo_pendiente);
+    }
+
+    return Math.max(0, Number(orden.total) - this.paidAmount());
+  });
+
+  hasPaymentHistory = computed(() => {
+    return (this.editingOrder()?.pagos?.length ?? 0) > 0;
   });
 
   subtotal = computed(() => {
@@ -112,9 +160,21 @@ export class PosHome implements OnInit {
     private router: Router
   ) {}
 
+  private beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+    if (this.hasUnsavedChanges()) {
+      event.preventDefault();
+      event.returnValue = 'Si sales se perderán todos los cambios.';
+      return event.returnValue;
+    }
+    return undefined;
+  };
+
   ngOnInit(): void {
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
     this.cargarCategorias();
     this.cargarProductos();
+    this.loadOrders();
+    this.loadPendingOrders();
     
     // Verificar si viene un ID de orden para editar
     this.route.queryParams.subscribe(params => {
@@ -122,13 +182,74 @@ export class PosHome implements OnInit {
       const isEdit = params['edit'] === 'true';
       
       if (orderId && isEdit) {
+        this.editingOrderSource.set('url');
+        this.pendingOrderAction.set('edit');
         this.cargarOrdenExistente(parseInt(orderId));
       }
     });
   }
 
+  ngOnDestroy(): void {
+    window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+  }
+
+  onBackRequested(): void {
+    if (this.hasUnsavedChanges()) {
+      const message = 'Si sales se perderán todos los cambios. ¿Deseas continuar?';
+      if (!window.confirm(message)) {
+        return;
+      }
+    }
+    this.router.navigate(['/app/pedidos']);
+  }
+
+  onSaveOrderEditsRequested(): void {
+    const orderId = this.editingOrderId();
+    if (!this.isEditingOrder() || !orderId) {
+      return;
+    }
+
+    // Construir payload según OrderPayload
+    const itemsPayload = this.carrito().map((item) => ({
+      producto_id: item.producto.id,
+      cantidad: item.cantidad,
+      precio_unitario: item.precio_unitario,
+      nota: item.nota?.trim() || null,
+      modificadores: (item.modificadores || []).map((m: CartItemModificador) => ({
+        modificador_opcion_id: m.opcion_id,
+        precio_extra: m.precio_extra,
+      })),
+    }));
+
+    const payload: any = {
+      cliente_id: this.selectedCliente()?.id ?? null,
+      tipo_orden: this.orderType(),
+      mesa_id: this.selectedMesa()?.id ?? null,
+      fecha_orden: this.orderDate() ?? null,
+      items: itemsPayload,
+      subtotal: this.subtotal(),
+      total: this.total(),
+    };
+
+    this.isProcessingCheckout.set(true);
+    this.posService.actualizarOrden(orderId, payload).subscribe({
+      next: () => {
+        this.toastr.success('Orden actualizada correctamente');
+        // Después de guardar cambios salimos del modo edición y limpiamos todo
+        this.finalizarVenta();
+      },
+      error: (err) => {
+        this.toastr.error('No se pudo guardar los cambios de la orden');
+        this.isProcessingCheckout.set(false);
+      },
+      complete: () => {
+        this.isProcessingCheckout.set(false);
+      },
+    });
+  }
+
   private cargarOrdenExistente(orderId: number): void {
-    this.posService.obtenerOrdenPorId(orderId).subscribe({
+  this.posService.obtenerOrdenPorId(orderId).subscribe({
     next: (response: any) => {
       const orden = response?.orden;
       if (!orden) {
@@ -136,17 +257,29 @@ export class PosHome implements OnInit {
         return;
       }
 
+      this.editingOrder.set(orden);
       this.editingOrderId.set(orderId);
       this.isEditingOrder.set(true);
       this.orderType.set((orden.tipo_orden as any) || 'dine-in');
       this.orderDate.set(this.normalizeOrderDate(orden.fecha_orden));
       
       // Cargar cliente y mesa si existen
-      if (orden.cliente) {
-        this.selectedCliente.set({ id: orden.cliente_id, nombre: orden.cliente.nombre || '' });
-      }
-      if (orden.mesa_id) {
-        this.selectedMesa.set({ id: orden.mesa_id, numero: orden.mesa?.numero || '', capacidad: 0, estado: 'ocupada' });
+      const clienteSeleccionado: ClienteSearch | null = orden.cliente
+        ? { id: orden.cliente_id, nombre: orden.cliente?.nombre || orden.cliente_nombre || '' }
+        : orden.cliente_id
+        ? { id: orden.cliente_id, nombre: orden.cliente_nombre || '' }
+        : null;
+      this.selectedCliente.set(clienteSeleccionado);
+
+      if (orden.mesa) {
+        this.selectedMesa.set({
+          id: orden.mesa.id,
+          numero: orden.mesa.numero || '',
+          capacidad: orden.mesa.capacidad || 0,
+          estado: orden.mesa.estado || 'ocupada',
+        });
+      } else if (orden.mesa_id) {
+        this.selectedMesa.set({ id: orden.mesa_id, numero: '', capacidad: 0, estado: 'ocupada' });
       }
 
       // CORRECCIÓN 1: Cambiamos 'orden.items' por 'orden.detalles' que es el nombre real en tu JSON
@@ -190,6 +323,7 @@ export class PosHome implements OnInit {
           precio_unitario: precioUnitarioNum,
           subtotal: subtotalLinea,
           modificadores: modificadoresMapeados,
+          orden_detalle_id: item.id,
           nota: item.nota || ''
         };
       });
@@ -197,7 +331,10 @@ export class PosHome implements OnInit {
       // Inyectamos los platos reconstruidos directamente en el Signal del carrito
       this.carrito.set(items);
       this.productos.set(this.syncProductosConCarrito(this.productos()));
-      this.cargarPagosOrden(orderId);
+      if (this.pendingOrderAction() === 'pay') {
+        this.isCheckoutModalOpen.set(true);
+      }
+      this.pendingOrderAction.set(null);
     },
     error: (err) => {
       this.toastr.error('Error al cargar la orden');
@@ -206,29 +343,6 @@ export class PosHome implements OnInit {
     }
   });
 }
-
-  private cargarPagosOrden(orderId: number): void {
-    this.posService.obtenerPagosOrden(orderId).subscribe({
-      next: (pagos) => {
-        this.orderPayments.set(pagos || []);
-      },
-      error: () => {
-        this.orderPayments.set([]);
-      },
-    });
-  }
-
-  onViewPaymentHistory(): void {
-    this.isPaymentHistoryOpen.set(true);
-  }
-
-  closePaymentHistory(): void {
-    this.isPaymentHistoryOpen.set(false);
-  }
-
-  onEditRequested(): void {
-    this.toastr.info('Ajusta la orden desde el carrito o la fecha sin cobrar.', 'Editar orden');
-  }
 
   private cargarCategorias(): void {
     this.isLoadingCategorias.set(true);
@@ -363,10 +477,47 @@ export class PosHome implements OnInit {
   onItemRemoved(itemId: number): void {
     const carrito = this.carrito();
     const item = carrito.find((currentItem) => currentItem.id === itemId);
+    if (!item) return;
+
     if (item?.producto?.maneja_stock) {
       this.updateProductStock(item.producto.id, item.cantidad);
     }
-    this.carrito.set(carrito.filter((item) => item.id !== itemId));
+
+    const nextCarrito = carrito.filter((c) => c.id !== itemId);
+    this.carrito.set(nextCarrito);
+
+    if (this.isEditingOrder() && this.editingOrderId()) {
+      const orderId = this.editingOrderId()!;
+
+      const order: Order = {
+        id: orderId,
+        items: nextCarrito,
+        subtotal: this.subtotal(),
+        total: this.total(),
+        cliente_id: this.selectedCliente()?.id,
+        cliente_nombre: this.selectedCliente()?.nombre,
+        cliente_telefono: this.selectedCliente()?.telefono,
+        tipo_orden: this.orderType(),
+        mesa_id: this.selectedMesa()?.id,
+        fecha_orden: this.orderDate() ?? null,
+      };
+
+      this.posService.actualizarOrden(orderId, this.posService.mapOrderToPayload(order)).subscribe({
+        next: (res: any) => {
+          const updatedOrden = res?.orden;
+          if (updatedOrden) {
+            this.editingOrder.set(updatedOrden);
+          }
+
+          const newRefundAmount = Math.max(0, this.paidAmount() - this.total());
+          this.deletedItems.set([...(this.deletedItems() || []), item]);
+          this.refundAmount.set(newRefundAmount);
+        },
+        error: () => {
+          this.toastr.error('Error al actualizar la orden al eliminar el producto');
+        },
+      });
+    }
   }
 
   onItemModifiersChanged(data: { itemId: number; modificadores: CartItemModificador[] }): void {
@@ -488,6 +639,35 @@ export class PosHome implements OnInit {
     this.orderType.set(tipoOrden);
   }
 
+  private resetCurrentOrderState(): void {
+    this.carrito.set([]);
+    this.selectedMesa.set(null);
+    this.orderDate.set(null);
+    this.orderType.set('dine-in');
+    this.isEditingOrder.set(false);
+    this.editingOrderId.set(null);
+    this.editingOrderSource.set(null);
+    this.pendingOrderAction.set(null);
+    this.editingOrder.set(null);
+  }
+
+  onClienteSelected(cliente: ClienteSearch | null): void {
+    const currentClienteId = this.selectedCliente()?.id ?? null;
+    const newClienteId = cliente?.id ?? null;
+    const shouldReset =
+      cliente === null ||
+      this.isEditingOrder() ||
+      this.carrito().length > 0 ||
+      this.selectedMesa() !== null ||
+      this.orderDate() !== null;
+
+    if (shouldReset) {
+      this.resetCurrentOrderState();
+    }
+
+    this.selectedCliente.set(cliente);
+  }
+
   onOrderDateChanged(value: string | null): void {
     this.orderDate.set(this.normalizeOrderDate(value));
   }
@@ -509,10 +689,6 @@ export class PosHome implements OnInit {
     }
     this.isCheckoutModalOpen.set(true);
   }
-
-  // onEditRequested(): void {
-  //   this.toastr.info('Ajusta la orden desde el carrito o la fecha sin cobrar.', 'Editar orden');
-  // }
 
   onPayLaterRequested(): void {
     if (!this.selectedCliente()) {
@@ -576,6 +752,11 @@ export class PosHome implements OnInit {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
+    this.editingOrder.set(null);
+    this.isEditingOrder.set(false);
+    this.editingOrderId.set(null);
+    this.editingOrderSource.set(null);
+    this.pendingOrderAction.set(null);
   }
 
   onCheckoutConfirmed(data: {
@@ -583,6 +764,7 @@ export class PosHome implements OnInit {
     clienteId?: number;
     mesaId?: number;
     montoRecibido?: number;
+    tipoPago?: 'pago' | 'devolucion';
   }): void {
     this.isProcessingCheckout.set(true);
 
@@ -592,10 +774,6 @@ export class PosHome implements OnInit {
       this.isProcessingCheckout.set(false);
       return;
     }
-
-    const remainingToPay = this.isEditingOrder() ? this.saldoPendiente() : this.total();
-    const paymentAmount = data.montoRecibido ?? remainingToPay;
-    const paymentType = paymentAmount >= remainingToPay ? 'total' : 'saldo';
 
     const order: Order = {
       id: this.editingOrderId() || 0,
@@ -609,75 +787,102 @@ export class PosHome implements OnInit {
       tipo_orden: this.orderType(),
       mesa_id: data.mesaId ?? this.selectedMesa()?.id,
       fecha_orden: this.orderDate() ?? null,
-      montoRecibido: data.montoRecibido,
     };
 
-    const handlePaymentCreation = (orderId: number) => {
-      this.posService.crearPagoOrden({
-        id_orden: orderId,
-        monto_recibido: paymentAmount,
-        metodo_pago: data.metodoPago,
-        tipo_pago: paymentType,
-      }).subscribe({
-        next: (paymentResponse) => {
-          this.cargarPagosOrden(orderId);
-
-          if (paymentType === 'total' || this.saldoPendiente() <= 0) {
-            this.finalizarVenta();
-            this.isEditingOrder.set(false);
-            this.editingOrderId.set(null);
-            this.isCheckoutModalOpen.set(false);
-            this.mostrarExito('Pago registrado y orden finalizada');
-          } else {
-            this.isCheckoutModalOpen.set(false);
-            this.mostrarExito('Pago parcial registrado. Falta cobrar ' + this.formatPrice(this.saldoPendiente()));
-          }
-
-          this.isProcessingCheckout.set(false);
-        },
-        error: (e) => {
-          this.error.set('Error al registrar el pago.');
-          this.isProcessingCheckout.set(false);
-          console.error('Error al crear el pago de la orden:', e);
-        },
-      });
-    };
+    const montoRecibido = data.montoRecibido ?? 0;
+    const tipoPago = data.tipoPago ?? 'pago';
 
     if (this.isEditingOrder() && this.editingOrderId()) {
       const orderId = this.editingOrderId()!;
+      // Primero actualizamos la orden
       this.posService.actualizarOrden(orderId, this.posService.mapOrderToPayload(order)).subscribe({
         next: () => {
-          handlePaymentCreation(orderId);
+          // Luego registramos el pago
+          this.posService.crearPagoOrden({
+            id_orden: orderId,
+            monto_recibido: montoRecibido,
+            metodo_pago: data.metodoPago,
+            tipo_pago: tipoPago,
+          }).subscribe({
+            next: () => {
+              this.finalizarVenta();
+              this.isCheckoutModalOpen.set(false);
+              this.isProcessingCheckout.set(false);
+              this.isEditingOrder.set(false);
+              this.editingOrderId.set(null);
+              this.isRefundMode.set(false);
+              this.deletedItems.set([]);
+              this.refundAmount.set(0);
+              this.mostrarExito('Orden actualizada y pagada exitosamente');
+            },
+            error: (err) => {
+              this.error.set('Error al registrar el pago');
+              this.isProcessingCheckout.set(false);
+            },
+          });
         },
         error: () => {
-          this.error.set('Error al actualizar la orden.');
+          this.error.set('Error al actualizar la orden');
           this.isProcessingCheckout.set(false);
         },
       });
-      return;
-    }
-
-    this.posService.crearOrden(order).subscribe({
-      next: (response) => {
-        const newOrderId = response?.orden?.id;
-        if (typeof newOrderId === 'number') {
-          handlePaymentCreation(newOrderId);
-        } else {
-          this.finalizarVenta();
-          this.isCheckoutModalOpen.set(false);
+    } else {
+      // Crear nueva orden y luego registrar pago
+      this.posService.crearOrden(order).subscribe({
+        next: (response: any) => {
+          const createdOrderId = response?.orden?.id ?? null;
+          if (createdOrderId && montoRecibido > 0) {
+            this.posService.crearPagoOrden({
+              id_orden: createdOrderId,
+              monto_recibido: montoRecibido,
+              metodo_pago: data.metodoPago,
+              tipo_pago: tipoPago,
+            }).subscribe({
+              next: () => {
+                this.finalizarVenta();
+                this.isCheckoutModalOpen.set(false);
+                this.isProcessingCheckout.set(false);
+                this.isRefundMode.set(false);
+                this.deletedItems.set([]);
+                this.refundAmount.set(0);
+                this.mostrarExito('Venta completada exitosamente');
+              },
+              error: () => {
+                this.error.set('Error al registrar el pago');
+                this.isProcessingCheckout.set(false);
+              },
+            });
+          } else {
+            // No hay monto recibido o no se obtuvo id, finalizar sin pago
+            this.finalizarVenta();
+            this.isCheckoutModalOpen.set(false);
+            this.isProcessingCheckout.set(false);
+            this.mostrarExito('Venta completada exitosamente');
+          }
+        },
+        error: (err) => {
+          this.error.set('Error al procesar la venta');
           this.isProcessingCheckout.set(false);
-          this.mostrarExito('Venta completada exitosamente');
-        }
-      },
-      error: (_err) => {
-        this.error.set('Error al procesar la venta');
-        this.isProcessingCheckout.set(false);
-      },
-    });
+        },
+      });
+    }
   }
 
   onCheckoutCancelled(): void {
     this.isCheckoutModalOpen.set(false);
+    this.isRefundMode.set(false);
+    this.deletedItems.set([]);
+    this.refundAmount.set(0);
+  }
+
+  onRefundActionRequested(): void {
+    if (this.refundAmount() <= 0) {
+      this.toastr.warning('No hay monto para devolver.');
+      return;
+    }
+
+    this.isRefundMode.set(true);
+    this.isCheckoutModalOpen.set(true);
   }
 
   onStockAdjusted(): void {
@@ -694,7 +899,11 @@ export class PosHome implements OnInit {
     this.orderDate.set(null);
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
+    this.editingOrderSource.set(null);
+    this.pendingOrderAction.set(null);
     this.cargarProductos();
+    this.loadOrders();
+    this.loadPendingOrders();
   }
 
   private mostrarExito(mensaje: string): void {
@@ -702,17 +911,111 @@ export class PosHome implements OnInit {
   }
 
   onCancelEditMode(): void {
+    const source = this.editingOrderSource();
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
+    this.editingOrderSource.set(null);
+    this.pendingOrderAction.set(null);
     this.carrito.set([]);
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
-    this.router.navigate(['/app/pedidos']);
+    if (source === 'url') {
+      this.router.navigate(['/app/pedidos']);
+    }
+  }
+
+  onViewHistoryRequested(): void {
+    // Abrir modal de historial para la orden en edición
+    if (!this.isEditingOrder() || !this.editingOrderId()) {
+      // nada que mostrar
+      return;
+    }
+    this.isHistoryModalOpen.set(true);
+  }
+
+  closeHistoryModal(): void {
+    this.isHistoryModalOpen.set(false);
   }
 
   onProductSearchChanged(query: string): void {
     this.productSearchQuery.set(query);
+  }
+
+  onPendingOrdersRequested(): void {
+    this.loadPendingOrders();
+    this.isPendingOrdersModalOpen.set(true);
+  }
+
+  closePendingOrdersModal(): void {
+    this.isPendingOrdersModalOpen.set(false);
+  }
+
+  onExistingOrderSelected(orderId: number): void {
+    this.editingOrderSource.set('internal');
+    this.pendingOrderAction.set('edit');
+    this.cargarOrdenExistente(orderId);
+  }
+
+  onEditPendingOrder(orderId: number): void {
+    this.pendingOrderAction.set('edit');
+    this.editingOrderSource.set('pending');
+    this.closePendingOrdersModal();
+    this.cargarOrdenExistente(orderId);
+  }
+
+  onPayPendingOrder(orderId: number): void {
+    this.pendingOrderAction.set('pay');
+    this.editingOrderSource.set('pending');
+    this.closePendingOrdersModal();
+    this.cargarOrdenExistente(orderId);
+  }
+
+  loadPendingOrders(): void {
+    this.posService.obtenerOrdenes().subscribe({
+      next: (ordenes) => {
+        const pendientes = ordenes.filter((orden) => this.isPendingOrder(orden));
+        this.pendingOrders.set(pendientes);
+        this.pendingOrdersSearch.set('');
+      },
+      error: () => {
+        this.pendingOrders.set([]);
+      },
+    });
+  }
+
+  private loadOrders(): void {
+    this.posService.obtenerOrdenes().subscribe({
+      next: (ordenes) => this.orders.set(ordenes),
+      error: () => this.orders.set([]),
+    });
+  }
+
+  private isPendingOrder(orden: Order): boolean {
+    return (
+      orden.estado_pago === 'pendiente' ||
+      orden.estado_pago === 'parcial' ||
+      orden.estado === 'adeudado' ||
+      (typeof orden.saldo_pendiente === 'number' && orden.saldo_pendiente > 0)
+    );
+  }
+
+  getPendingOrderRemainingAmount(order: Order): number {
+    if (typeof order.saldo_pendiente === 'number') {
+      return Math.max(0, order.saldo_pendiente);
+    }
+
+    const paid = (order.pagos || []).reduce((sum, pago) => sum + parseFloat(pago.monto_pagado.toString()), 0);
+    return Math.max(0, Number(order.total) - paid);
+  }
+
+  formatPrice(amount: number): string {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
   }
 
   private updateProductStock(productId: number, delta: number): void {
@@ -770,16 +1073,22 @@ export class PosHome implements OnInit {
 
     const normalized = value.trim();
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-      return `${normalized}T00:00`;
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}$/.test(normalized)) {
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(normalized)) {
       return normalized.replace(' ', 'T');
     }
 
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return `${normalized}T00:00:00`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}(:\d{2})?$/.test(normalized)) {
+      const cleaned = normalized.replace(' ', 'T');
+      return cleaned.includes(':') && cleaned.split(':').length === 2 ? `${cleaned}:00` : cleaned;
+    }
+
     if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}/.test(normalized)) {
-      return normalized.slice(0, 16);
+      const dateTime = normalized.replace(' ', 'T');
+      return dateTime.includes(':') && dateTime.split(':').length === 2 ? `${dateTime}:00` : dateTime;
     }
 
     const parsed = new Date(normalized);
@@ -793,16 +1102,6 @@ export class PosHome implements OnInit {
     }
 
     return null;
-  }
-
-  formatPrice(price: number): string {
-    const cleanPrice = typeof price === 'string' ? parseFloat(price) : price;
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(cleanPrice);
   }
 
   // ==================== HELPERS ====================

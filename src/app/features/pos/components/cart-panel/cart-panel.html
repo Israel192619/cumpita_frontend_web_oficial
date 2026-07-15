@@ -29,17 +29,37 @@
           type="text"
           [value]="searchQuery()"
           (input)="onSearchCliente($any($event.target).value)"
-          placeholder="Buscar cliente por nombre o teléfono"
+          placeholder="Buscar cliente"
         />
         <button type="button" class="btn btn-secondary" (click)="onCreateCliente()" [disabled]="!searchQuery().trim() || isCreatingCliente()">+</button>
       </div>
 
       <div *ngIf="isLoadingClientes()" class="loading">Buscando clientes...</div>
-      <div *ngIf="!isLoadingClientes() && clientesResults().length > 0" class="search-results">
-        <button *ngFor="let cliente of clientesResults()" type="button" class="result-item" (click)="selectCliente(cliente)">
-          <strong>{{ cliente.nombre }}</strong>
-          <small *ngIf="cliente.telefono">{{ cliente.telefono }}</small>
-        </button>
+      <div *ngIf="!isLoadingClientes() && (clientesResults().length > 0 || orderSuggestions().length > 0)" class="search-results">
+        <div *ngIf="clientesResults().length > 0" class="search-group">
+          <div class="search-group-header">Clientes</div>
+          <button *ngFor="let cliente of clientesResults()" type="button" class="result-item" (click)="selectCliente(cliente)">
+            <strong>{{ cliente.nombre }}</strong>
+            <small *ngIf="cliente.telefono">{{ cliente.telefono }}</small>
+          </button>
+        </div>
+
+        <div *ngIf="orderSuggestions().length > 0" class="search-group">
+          <div class="search-group-header">Órdenes recientes</div>
+          <button
+            *ngFor="let orden of orderSuggestions()"
+            type="button"
+            class="result-item result-order"
+            (click)="selectExistingOrder(orden)"
+          >
+            <strong>Editar orden #{{ orden.numero_orden || orden.id }}</strong>
+            <small>
+              {{ orden.cliente_nombre || 'Cliente desconocido' }}
+              <span *ngIf="orden.mesa && orden.mesa.numero">· Mesa {{ orden.mesa.numero }}</span>
+              · Falta {{ formatPrice(getPendingOrderRemainingAmount(orden)) }}
+            </small>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -47,7 +67,7 @@
   <div class="order-meta-card">
     <div class="order-meta-row">
       <div class="order-meta-column">
-        <span class="small-label">Fecha de orden</span>
+        <span class="small-label">Fecha</span>
         <input
           id="order-date"
           class="order-date-input"
@@ -58,11 +78,12 @@
         />
       </div>
       <div class="order-meta-column">
-        <span class="small-label">Hora opcional</span>
+        <span class="small-label">Hora</span>
         <input
           id="order-time"
           class="order-time-input"
           type="time"
+          step="1"
           [value]="getOrderTimeValue()"
           (change)="onOrderTimeChange($any($event.target).value)"
           [disabled]="isProcessing()"
@@ -370,6 +391,7 @@
 
     <div class="button-group">
       <button
+        *ngIf="shouldShowPrimaryAction()"
         type="button"
         class="btn-continue-payment"
         (click)="onPrimaryAction()"
@@ -390,7 +412,7 @@
       </button>
 
       <button
-        *ngIf="isEditing() && hasPaymentHistory()"
+        *ngIf="showExtraHistoryButton()"
         type="button"
         class="btn-secondary"
         (click)="onViewHistory()"
@@ -400,23 +422,13 @@
       </button>
 
       <button
-        *ngIf="isEditing() && total() < paidAmount()"
-        type="button"
-        class="btn-secondary"
-        (click)="onRefundRequested()"
-        [disabled]="isProcessing()"
-      >
-        Devolver
-      </button>
-
-      <button
-        *ngIf="isEditing()"
+        *ngIf="shouldShowEditOrderButton()"
         type="button"
         class="btn-secondary"
         (click)="onEditAction()"
         [disabled]="isProcessing()"
       >
-        Editar orden
+        {{ getEditOrderButtonLabel() }}
       </button>
     </div>
 

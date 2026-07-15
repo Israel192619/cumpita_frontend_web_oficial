@@ -4,77 +4,108 @@
 <!-- Modal -->
 <div *ngIf="isOpen()" class="checkout-modal">
   <div class="checkout-modal-content" (click)="$event.stopPropagation()">
-    <!-- Header -->
     <div class="checkout-modal-header">
-      <h2>Confirmar Venta</h2>
+      <div>
+        <p class="eyebrow" *ngIf="!isRefundMode()">Finalizar venta</p>
+        <p class="eyebrow" *ngIf="isRefundMode()">Devolución</p>
+        <h2 *ngIf="!isRefundMode()">Pago y cierre</h2>
+        <h2 *ngIf="isRefundMode()">Devolución</h2>
+      </div>
       <button type="button" class="btn-close" (click)="onCancel()" [disabled]="isProcessing()">
         ✕
       </button>
     </div>
 
-    <!-- Body -->
     <div class="modal-body">
-      <!-- Resumen de Compra -->
       <div class="section">
-        <h3>Resumen</h3>
-        <div class="items-summary">
-          <div *ngFor="let item of items(); trackBy: trackByItem" class="summary-item">
-            <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
-            <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
-          </div>
+        <div class="section-title-row">
+          <h3 *ngIf="!isRefundMode()">Resumen</h3>
+          <h3 *ngIf="isRefundMode()">Resumen de devolución</h3>
+          <span class="summary-pill">{{ formatPrice(total()) }}</span>
         </div>
-        <div class="summary-total">
-          {{ formatPrice(total()) }}
+        <div class="items-summary">
+          <div *ngIf="isRefundMode(); else normalItems">
+            <div *ngFor="let item of items(); trackBy: trackByItem" class="summary-item">
+              <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
+              <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
+            </div>
+            <div *ngIf="deletedItems().length > 0" class="deleted-items-block">
+              <div class="deleted-items-title">Productos eliminados</div>
+              <div *ngFor="let item of deletedItems(); trackBy: trackByItem" class="summary-item deleted">
+                <span>{{ item.cantidad }}x {{ item.producto.nombre }} (eliminado)</span>
+                <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
+              </div>
+            </div>
+          </div>
+          <ng-template #normalItems>
+            <div *ngFor="let item of items(); trackBy: trackByItem" class="summary-item">
+              <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
+              <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
+            </div>
+          </ng-template>
         </div>
       </div>
 
-      <!-- Input de Monto (Solo para Efectivo) -->
-      <div class="section" *ngIf="selectedPaymentMethod() === 'efectivo'">
-        <h3>Monto a Recibir</h3>
-        <div class="payment-amount-section">
+      <div class="section">
+        <div class="section-title-row">
+          <h3 *ngIf="!isRefundMode()">Monto a recibir</h3>
+          <h3 *ngIf="isRefundMode()">Monto a devolver</h3>
+          <span class="summary-pill" *ngIf="selectedPaymentMethod() === 'qr'">Pago QR</span>
+        </div>
+
+        <div class="amount-card">
           <div class="amount-input-wrapper">
             <input
               type="number"
               class="amount-input"
               [value]="montoRecibido()"
-              (change)="onMontoChange($event)"
+              (input)="onMontoChange($event)"
               placeholder="0"
               [disabled]="isProcessing()"
               min="0"
-              step="1"
+              step="0.01"
             />
-            <span class="currency-symbol">COP</span>
+            <span class="currency-chip">COP</span>
           </div>
-          
-          <!-- Total a Pagar -->
-          <div class="amount-info">
+
+          <div class="quick-amounts">
+            <button type="button" class="quick-amount-btn" *ngFor="let amount of quickAmounts" (click)="selectQuickAmount(amount)">
+              {{ formatPrice(amount) }}
+            </button>
+            <button type="button" class="quick-amount-btn exact" (click)="selectExactAmount()">
+              Exacto
+            </button>
+          </div>
+
+          <div class="payment-summary">
             <div class="info-row">
-              <span class="info-label">Total a Pagar:</span>
-              <span class="info-value">{{ formatPrice(total()) }}</span>
+              <span class="info-label">Pendiente</span>
+              <span class="info-value">{{ formatPrice(getTargetAmount()) }}</span>
             </div>
-            
-            <!-- Estado y Cambio/Diferencia -->
-            <div class="info-row" [ngClass]="getPaymentStatusClass()">
-              <span class="info-label">{{ getPaymentStatusText() }}</span>
-              <span class="info-value">
-                <span *ngIf="estadoPago() === 'insufficient'">
-                  {{ formatPrice(total() - montoRecibido()) }}
-                </span>
-                <span *ngIf="estadoPago() === 'excess'">
-                  {{ formatPrice(cambio()) }}
-                </span>
-                <span *ngIf="estadoPago() === 'exact'">
-                  Perfecto
-                </span>
-              </span>
+            <div class="status-card" [ngClass]="getPaymentStatusClass()">
+              <span class="status-label">{{ getPaymentStatusText() }}</span>
+              <strong class="status-value" *ngIf="estadoPago() === 'insufficient'">{{ formatPrice(getTargetAmount() - montoRecibido()) }}</strong>
+              <strong class="status-value" *ngIf="estadoPago() === 'excess'">{{ formatPrice(cambio()) }}</strong>
+              <strong class="status-value" *ngIf="estadoPago() === 'exact'">{{ formatPrice(montoRecibido()) }}</strong>
+            </div>
+          </div>
+
+          <div class="payment-history" *ngIf="getRecentPayments().length > 0">
+            <div class="payment-history-title">Movimientos recientes</div>
+            <div class="payment-history-list">
+              <div class="payment-history-item" *ngFor="let pago of getRecentPayments()">
+                <span>{{ pago.fecha_pago | date:'dd/MM/yyyy' }}</span>
+                <div class="payment-type">{{ pago.tipo_pago | titlecase }}</div>
+                <strong>{{ formatPrice(pago.monto_recibido) }}</strong>
+                <small *ngIf="pago.cambio_devuelto !== 0">Cambio {{ formatPrice(pago.cambio_devuelto) }}</small>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Método de Pago -->
       <div class="section">
-        <h3>Método de Pago</h3>
+        <h3>Método de pago</h3>
         <div class="payment-methods" [formGroup]="form">
           <button
             *ngFor="let method of paymentMethods"
@@ -91,7 +122,6 @@
       </div>
     </div>
 
-    <!-- Footer -->
     <div class="modal-footer">
       <button
         type="button"
@@ -103,11 +133,12 @@
       </button>
       <button
         type="button"
-        class="btn btn-confirm"
+        [ngClass]="getConfirmButtonClass()"
+        class="btn"
         (click)="onConfirm()"
-        [disabled]="!selectedPaymentMethod() || isProcessing() || (selectedPaymentMethod() === 'efectivo' && estadoPago() === 'insufficient')"
+        [disabled]="!selectedPaymentMethod() || isProcessing()"
       >
-        {{ isProcessing() ? 'Procesando...' : 'Confirmar Venta' }}
+        {{ getConfirmButtonLabel() }}
       </button>
     </div>
   </div>

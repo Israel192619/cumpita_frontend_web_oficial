@@ -44,7 +44,8 @@ export class OrdenesList implements OnInit {
     this.posService.obtenerOrdenes().pipe(timeout(10000)).subscribe({
       next: (data: any) => {
         // 1. Extraemos el arreglo 'ordenes' que viene dentro del objeto de Laravel
-        const listaOriginal = data?.ordenes || [];
+        // const listaOriginal = data?.ordenes || [];
+        const listaOriginal = data || [];
 
         // 2. Aplanamos las propiedades para que coincidan con las llaves de tu 'app-data-table'
         const ordenesFormateadas = listaOriginal.map((orden: any) => ({

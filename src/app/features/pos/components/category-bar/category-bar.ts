@@ -2,12 +2,11 @@ import { Component, input, output, effect, computed, signal, OnInit } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Categoria } from '@app/core/models/categoria';
-import { Button } from '@app/shared/components/button/button';
 
 @Component({
   selector: 'app-category-bar',
   standalone: true,
-  imports: [CommonModule, FormsModule, Button],
+  imports: [CommonModule, FormsModule],
   templateUrl: './category-bar.html',
   styleUrl: './category-bar.css',
 })
@@ -16,10 +15,13 @@ export class CategoryBarComponent implements OnInit {
   selectedCategoryId = input<number | null>(null);
   selectedSubcategoryId = input<number | null>(null);
   isLoading = input<boolean>(false);
+  pendingOrdersCount = input<number>(0);
 
   categorySelected = output<number | null>();
   subcategorySelected = output<number | null>();
   searchChanged = output<string>();
+  backRequested = output<void>();
+  pendingOrdersRequested = output<void>();
 
   expandedCategoryId = signal<number | null>(null);
   searchQuery = signal<string>('');
@@ -77,6 +79,14 @@ export class CategoryBarComponent implements OnInit {
     this.searchText = value;
     this.searchQuery.set(value);
     this.searchChanged.emit(value);
+  }
+
+  onGoBack(): void {
+    this.backRequested.emit();
+  }
+
+  onRequestPendingOrders(): void {
+    this.pendingOrdersRequested.emit();
   }
 
   trackByCategory = (index: number, cat: Categoria) => cat.id;

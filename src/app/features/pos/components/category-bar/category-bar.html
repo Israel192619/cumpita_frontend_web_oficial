@@ -8,13 +8,16 @@
     </div>
 
     <!-- Sección de Búsqueda (Derecha) -->
-    <app-button
-    text="Volver"
-    color="secondary"
-    [link]="'/app/pedidos'"
-    > 
-    </app-button>
-    
+    <div class="header-actions">
+      <button type="button" class="header-action-btn btn-back" (click)="onGoBack()">
+        ← Volver
+      </button>
+      <button type="button" class="header-action-btn btn-pending" (click)="onRequestPendingOrders()" [disabled]="isLoading()">
+        Pendientes
+        <span class="badge" *ngIf="pendingOrdersCount() > 0">{{ pendingOrdersCount() }}</span>
+      </button>
+    </div>
+
     <div class="search-section">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <circle cx="11" cy="11" r="8"></circle>

@@ -25,9 +25,12 @@
           [selectedCategoryId]="selectedCategoryId()"
           [selectedSubcategoryId]="selectedSubcategoryId()"
           [isLoading]="isLoadingProductos()"
+          [pendingOrdersCount]="pendingOrdersCount()"
           (categorySelected)="onCategorySelected($event)"
           (subcategorySelected)="onSubcategorySelected($event)"
           (searchChanged)="onProductSearchChanged($event)"
+          (pendingOrdersRequested)="onPendingOrdersRequested()"
+          (backRequested)="onBackRequested()"
         />
       </div>
 
@@ -54,16 +57,17 @@
         [selectedMesaInput]="selectedMesa()"
         [orderDateInput]="orderDate()"
         [stockByProductId]="productStockById()"
+        [orders]="orders()"
         [isEditing]="isEditingOrder()"
-        [paidAmount]="pagosTotales()"
-        [remainingAmount]="saldoPendiente()"
-        [hasPaymentHistory]="orderPayments().length > 0"
-        [showHistoryButton]="shouldShowHistoryButton()"
-        [isFullyPaid]="isCompletePaidOrder()"
+        [editingOrderIdInput]="editingOrderId()"
+        [paidAmount]="paidAmount()"
+        [remainingAmount]="remainingAmount()"
+        [hasPaymentHistory]="hasPaymentHistory()"
         (quantityChanged)="onQuantityChanged($event)"
         (itemRemoved)="onItemRemoved($event)"  
         (checkoutRequested)="onCheckoutRequested()"
         (payLaterRequested)="onPayLaterRequested()"
+        (refundRequested)="onRefundActionRequested()"
         (cartCleared)="onCartCleared()"
         (itemModifiersChanged)="onItemModifiersChanged($event)"
         (modifierBatchApplied)="onModifierBatchApplied($event)"
@@ -71,40 +75,12 @@
         (itemNoteChanged)="onItemNoteChanged($event)"
         (orderTypeChanged)="onOrderTypeChanged($event)"
         (orderDateChanged)="onOrderDateChanged($event)"
-        (clienteSelected)="selectedCliente.set($event)"
+        (clienteSelected)="onClienteSelected($event)"
         (mesaSelected)="selectedMesa.set($event)"
-        (viewHistoryRequested)="onViewPaymentHistory()"
-        (editRequested)="onEditRequested()"
+        (existingOrderSelected)="onExistingOrderSelected($event)"
+        (viewHistoryRequested)="onViewHistoryRequested()"
+        (editRequested)="onSaveOrderEditsRequested()"
       />
-
-  <div *ngIf="isPaymentHistoryOpen()" class="payment-history-backdrop" (click)="closePaymentHistory()">
-    <div class="payment-history-modal" (click)="$event.stopPropagation()">
-      <div class="payment-history-header">
-        <h2>Historial de pagos</h2>
-        <button type="button" class="btn-close" (click)="closePaymentHistory()">✕</button>
-      </div>
-      <div class="payment-history-body">
-        <div *ngIf="orderPayments().length === 0" class="empty-state">
-          <p>No hay pagos registrados para esta orden.</p>
-        </div>
-        <div *ngIf="orderPayments().length > 0" class="payments-list">
-          <div *ngFor="let pago of orderPayments()" class="payment-row">
-            <div>
-              <strong>{{ pago.metodo_pago | uppercase }}</strong> · {{ pago.tipo_pago }}
-              <div class="payment-meta">{{ pago.fecha_pago | date:'short' }}</div>
-            </div>
-            <div class="payment-amounts">
-              <span>{{ formatPrice(pago.monto_pagado) }}</span>
-              <small *ngIf="pago.cambio_devuelto > 0">Cambio {{ formatPrice(pago.cambio_devuelto) }}</small>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="payment-history-footer">
-        <button type="button" class="btn btn-confirm" (click)="closePaymentHistory()">Cerrar</button>
-      </div>
-    </div>
-  </div>
     </div>
   </div>
 
@@ -112,6 +88,11 @@
   <app-checkout-modal
     [items]="carrito()"
     [total]="total()"
+    [remainingAmount]="remainingAmount()"
+    [refundAmount]="refundAmount()"
+    [isRefundMode]="isRefundMode()"
+    [deletedItems]="deletedItems()"
+    [paymentHistory]="editingOrder()?.pagos || []"
     [isOpen]="isCheckoutModalOpen()"
     [isProcessing]="isProcessingCheckout()"
     [orderType]="orderType()"
@@ -120,5 +101,111 @@
     (checkoutConfirmed)="onCheckoutConfirmed($event)"
     (checkoutCancelled)="onCheckoutCancelled()"
   />
+
+  <!-- Payment History Modal -->
+  <div *ngIf="isHistoryModalOpen()" class="payment-history-backdrop" (click)="closeHistoryModal()">
+    <div class="payment-history-modal" (click)="$event.stopPropagation()">
+      <div class="payment-history-header">
+        <div>
+          <h2>Historial de pagos</h2>
+          <p>Movimientos realizados para la orden en edición.</p>
+        </div>
+        <button type="button" class="payment-history-close" (click)="closeHistoryModal()">✕</button>
+      </div>
+      <div class="payment-history-body">
+        <div *ngIf="(editingOrder()?.pagos?.length ?? 0) === 0" class="empty-state">
+          <p class="empty-title">No hay movimientos registrados para esta orden.</p>
+        </div>
+        <div class="payment-history-list">
+          <div *ngFor="let pago of editingOrder()?.pagos || []" class="payment-history-item">
+            <div class="payment-history-row">
+              <div class="payment-history-main">
+                <div class="payment-history-icon">💳</div>
+                <div class="payment-history-info">
+                  <div class="payment-history-title"><strong>{{ pago.tipo_pago | titlecase }} • {{ pago.metodo_pago | uppercase }}</strong></div>
+                  <div class="payment-history-meta">{{ pago.fecha_pago | date:'yyyy-MM-dd HH:mm:ss' }}</div>
+                </div>
+              </div>
+              <div class="payment-history-amount">
+                <span class="currency-code">COP</span>
+                <span class="currency-amount">{{ pago.monto_pagado | number:'1.0-2' }}</span>
+              </div>
+            </div>
+            <div class="payment-history-details">
+              <div class="payment-detail">
+                <span class="label">Recibido</span>
+                <span class="value"><span class="currency-code">COP</span> <span class="value-amount">{{ (pago.monto_recibido != null ? pago.monto_recibido : pago.monto_pagado) | number:'1.0-2' }}</span></span>
+              </div>
+              <div class="payment-detail">
+                <span class="label">Pagado</span>
+                <span class="value"><span class="currency-code">COP</span> <span class="value-amount">{{ pago.monto_pagado | number:'1.0-2' }}</span></span>
+              </div>
+              <div class="payment-detail">
+                <span class="label">Cambio</span>
+                <span class="value"><span class="currency-code">COP</span> <span class="value-amount">{{ (pago.cambio_devuelto != null ? pago.cambio_devuelto : 0) | number:'1.0-2' }}</span></span>
+              </div>
+              <div class="payment-detail">
+                <span class="label">Tipo</span>
+                <span class="badge">{{ pago.tipo_pago || pago.metodo_pago || '—' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="payment-history-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeHistoryModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="isPendingOrdersModalOpen()" class="pending-orders-backdrop" (click)="closePendingOrdersModal()">
+    <div class="pending-orders-modal" (click)="$event.stopPropagation()">
+      <div class="pending-orders-header">
+        <div>
+          <h2>Órdenes pendientes</h2>
+          <p>Selecciona una orden con saldo por pagar o en estado parcial.</p>
+        </div>
+        <button type="button" class="modal-close" (click)="closePendingOrdersModal()">✕</button>
+      </div>
+
+      <div class="pending-orders-search">
+        <input
+          type="text"
+          [value]="pendingOrdersSearch()"
+          (input)="pendingOrdersSearch.set($any($event.target).value)"
+          placeholder="Buscar orden, cliente o mesa"
+        />
+      </div>
+
+      <div class="pending-orders-list">
+        <div *ngFor="let orden of filteredPendingOrders()" class="pending-order-card">
+          <div class="pending-order-main">
+            <div>
+              <strong>Orden #{{ orden.numero_orden || orden.id }}</strong>
+              <p class="pending-order-meta">
+                {{ orden.cliente_nombre || 'Cliente desconocido' }}
+                <span *ngIf="orden.mesa && orden.mesa.numero">· Mesa {{ orden.mesa.numero }}</span>
+                <span *ngIf="orden.estado_pago">· {{ orden.estado_pago | titlecase }}</span>
+                <span *ngIf="orden.estado === 'adeudado'">· Adeudado</span>
+              </p>
+            </div>
+            <span class="pending-order-amount">Falta {{ formatPrice(getPendingOrderRemainingAmount(orden)) }}</span>
+          </div>
+          <div class="pending-order-row">
+            <div class="pending-order-summary">Total: {{ formatPrice(orden.total) }}</div>
+            <div class="pending-order-actions">
+              <button type="button" class="btn btn-small btn-secondary" (click)="closePendingOrdersModal()">Cerrar</button>
+              <button type="button" class="btn btn-small btn-secondary" (click)="onEditPendingOrder(orden.id)">Editar</button>
+              <button type="button" class="btn btn-small btn-confirm" (click)="onPayPendingOrder(orden.id)">Pagar</button>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="filteredPendingOrders().length === 0" class="empty-state">
+          <p class="empty-title">No se encontraron órdenes pendientes o parciales.</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 

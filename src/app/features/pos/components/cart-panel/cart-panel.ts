@@ -1,6 +1,6 @@
 import { Component, computed, effect, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CartItem, CartItemModificador, ClienteSearch, Mesa, PosService } from '@app/features/pos/services/pos-service';
+import { CartItem, CartItemModificador, ClienteSearch, Mesa, Order, PosService } from '@app/features/pos/services/pos-service';
 import { MesasModalComponent } from '../mesas-modal/mesas-modal';
 import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
 import { ModificadorEstructurado, ModificadorOpcion, Producto, ProductoOpcion } from '@app/core/models/producto';
@@ -28,19 +28,22 @@ export class CartPanelComponent {
   hasPaymentHistory = input<boolean>(false);
   showHistoryButton = input<boolean>(false);
   isFullyPaid = input<boolean>(false);
+  editingOrderIdInput = input<number | null>(null);
+  orders = input<Order[]>([]);
 
   quantityChanged = output<{ itemId: number; cantidad: number }>();
   itemRemoved = output<number>();
   checkoutRequested = output<void>();
   payLaterRequested = output<void>();
-  refundRequested = output<void>();
   cartCleared = output<void>();
-  viewHistoryRequested = output<void>();
-  editRequested = output<void>();
   orderTypeChanged = output<'dine-in' | 'to-go' | 'delivery'>();
   orderDateChanged = output<string | null>();
   clienteSelected = output<ClienteSearch | null>();
   mesaSelected = output<Mesa | null>();
+  refundRequested = output<void>();
+  viewHistoryRequested = output<void>();
+  editRequested = output<void>();
+  existingOrderSelected = output<number>();
   itemModifiersChanged = output<{ itemId: number; modificadores: CartItemModificador[] }>();
   modifierBatchApplied = output<{ itemId: number; quantity: number; modificadores: CartItemModificador[] }>();
   modifierModalClosed = output<void>();
@@ -71,9 +74,62 @@ export class CartPanelComponent {
   modifierBatchSize = signal<number>(1);
   modifierRemainingUnits = signal<number>(0);
 
+  // Snapshot para detectar cambios durante edición
+  private initialSnapshot = signal<{
+    total: number;
+    itemsHash: string;
+    clienteId: number | null;
+    mesaId: number | null;
+    orderType: 'dine-in' | 'to-go' | 'delivery';
+    orderDate: string | null;
+    notesHash: string;
+  } | null>(null);
+
+  hasEdits = computed<boolean>(() => {
+    const snap = this.initialSnapshot();
+    if (!this.isEditing() || !snap) return false;
+    // compare totals
+    if (Number(this.total()) !== Number(snap.total)) return true;
+    // compare items
+    const currentItemsHash = JSON.stringify(this.items().map(i => ({ id: i.id, cantidad: i.cantidad, precio_unitario: i.precio_unitario, modificadores: (i.modificadores || []).map(m=>({ modificador_id: m.modificador_id, opcion_id: m.opcion_id })) })));
+    if (currentItemsHash !== snap.itemsHash) return true;
+    // cliente/mesa/type/date
+    const clienteId = this.selectedCliente()?.id ?? null;
+    if (clienteId !== snap.clienteId) return true;
+    const mesaId = this.selectedMesa()?.id ?? null;
+    if (mesaId !== snap.mesaId) return true;
+    if (this.orderType() !== snap.orderType) return true;
+    if ((this.orderDate() ?? null) !== snap.orderDate) return true;
+    // notes
+    const notesObj: Record<number,string> = {};
+    Array.from(this.itemNotes().entries()).forEach(([k,v]) => notesObj[k] = v);
+    const notesHash = JSON.stringify(notesObj);
+    if (notesHash !== snap.notesHash) return true;
+    return false;
+  });
+
+  shouldShowPrimaryAction = computed<boolean>(() => {
+    // Always show primary when not editing
+    if (!this.isEditing()) return true;
+
+    // When editing, compute delta vs snapshot
+    const snap = this.initialSnapshot();
+    const delta = snap ? Number(this.total()) - Number(snap.total) : 0;
+
+    // If delta changes amount, show primary (charge/refund)
+    if (delta > 0 || delta < 0) return true;
+
+    // If there is still a remaining amount to collect, show primary
+    if (Number(this.remainingAmount()) > 0) return true;
+
+    // Otherwise, do not show primary action (history is shown via separate button)
+    return false;
+  });
+
   // Long-press handling
   longPressTimer: any = null;
   longPressTriggered = signal<boolean>(false);
+  private previousSelectedClienteId: number | null | undefined = undefined;
 
   constructor(private posService: PosService, private confirmDialog: ConfirmDialogService) {
     effect(() => {
@@ -93,6 +149,40 @@ export class CartPanelComponent {
         }
       });
       this.itemNotes.set(nextNotes);
+
+      const currentCliente = this.selectedClienteInput();
+      const currentClienteId = currentCliente?.id ?? null;
+      if (this.previousSelectedClienteId !== undefined && this.previousSelectedClienteId !== null && currentClienteId === null) {
+        this.searchQuery.set('');
+        this.clientesResults.set([]);
+      }
+      this.previousSelectedClienteId = currentClienteId;
+    });
+
+    // Capturar snapshot inicial cuando entramos en modo edición
+    let wasEditing = false;
+    effect(() => {
+      const editing = this.isEditing();
+      const orderId = this.editingOrderIdInput();
+      if (editing && !wasEditing) {
+        // rising edge: capture snapshot
+        const itemsHash = JSON.stringify(this.items().map(i => ({ id: i.id, cantidad: i.cantidad, precio_unitario: i.precio_unitario, modificadores: (i.modificadores || []).map(m=>({ modificador_id: m.modificador_id, opcion_id: m.opcion_id })) })));
+        const notesObj: Record<number,string> = {};
+        Array.from(this.itemNotes().entries()).forEach(([k,v]) => notesObj[k] = v);
+        this.initialSnapshot.set({
+          total: Number(this.total()),
+          itemsHash,
+          clienteId: this.selectedCliente()?.id ?? null,
+          mesaId: this.selectedMesa()?.id ?? null,
+          orderType: this.orderType(),
+          orderDate: this.orderDate() ?? null,
+          notesHash: JSON.stringify(notesObj),
+        });
+      }
+      if (!editing) {
+        this.initialSnapshot.set(null);
+      }
+      wasEditing = editing;
     });
   }
 
@@ -126,14 +216,18 @@ export class CartPanelComponent {
     this.itemRemoved.emit(itemId);
   }
 
-  onCheckout(): void {
+  private clearSearch(): void {
     this.searchQuery.set('');
+    this.clientesResults.set([]);
+  }
+
+  onCheckout(): void {
+    this.clearSearch();
     this.checkoutRequested.emit();
   }
 
   onPrimaryAction(): void {
     const action = this.getPrimaryActionType();
-
     switch (action) {
       case 'checkout':
         this.onCheckout();
@@ -165,7 +259,32 @@ export class CartPanelComponent {
   }
 
   onPayLater(): void {
+    this.clearSearch();
     this.payLaterRequested.emit();
+  }
+
+  selectExistingOrder(order: Order): void {
+    if (!order?.id) {
+      return;
+    }
+    this.searchQuery.set('');
+    this.clientesResults.set([]);
+    this.existingOrderSelected.emit(order.id);
+  }
+
+  getPendingOrderRemainingAmount(order: Order): number {
+    if (typeof order.saldo_pendiente === 'number') {
+      return Math.max(0, order.saldo_pendiente);
+    }
+    const paid = (order.pagos || []).reduce((sum, pago) => sum + parseFloat(pago.monto_pagado.toString()), 0);
+    return Math.max(0, Number(order.total) - paid);
+  }
+
+  private getCurrentBalance(): number {
+    const total = Number(this.total());
+    const paid = Number(this.paidAmount());
+    const balance = total - paid;
+    return Math.round((balance + Number.EPSILON) * 100) / 100;
   }
 
   getPrimaryActionLabel(): string {
@@ -173,19 +292,20 @@ export class CartPanelComponent {
       return 'Cobrar';
     }
 
-    if (this.total() < this.paidAmount()) {
-      return 'Devolver';
-    }
-
-    if (this.remainingAmount() > 0) {
-      return `Cobrar ${this.formatPrice(this.remainingAmount())}`;
-    }
-
-    if (this.isFullyPaid() && this.showHistoryButton()) {
+    if (this.isEditing() && Number(this.remainingAmount()) === 0 && !this.hasEdits()) {
       return 'Ver historial';
     }
 
-    return 'Editar';
+    const balance = this.getCurrentBalance();
+    if (balance > 0) {
+      return `Cobrar ${this.formatPrice(balance)}`;
+    }
+    if (balance < 0) {
+      return `Devolver ${this.formatPrice(Math.abs(balance))}`;
+    }
+
+    if (this.showHistoryButton()) return 'Ver historial';
+    return `Cobrar ${this.formatPrice(this.total())}`;
   }
 
   getPrimaryActionType(): 'checkout' | 'refund' | 'history' | 'edit' {
@@ -193,30 +313,65 @@ export class CartPanelComponent {
       return 'checkout';
     }
 
-    if (this.total() < this.paidAmount()) {
-      return 'refund';
-    }
-
-    if (this.remainingAmount() > 0) {
-      return 'checkout';
-    }
-
-    if (this.isFullyPaid() && this.showHistoryButton()) {
+    if (this.isEditing() && Number(this.remainingAmount()) === 0 && !this.hasEdits()) {
       return 'history';
     }
 
-    return 'edit';
+    const balance = this.getCurrentBalance();
+    if (balance > 0) return 'checkout';
+    if (balance < 0) return 'refund';
+
+    if (this.showHistoryButton()) return 'history';
+    return 'checkout';
   }
 
   shouldShowPayLater(): boolean {
-    return !this.isEditing() || (this.isEditing() && this.remainingAmount() > 0);
+    return !this.isEditing();
   }
 
-  onCancelOrder() {
+  showExtraHistoryButton(): boolean {
+    // Show history button by default during edit mode
+    return this.isEditing();
+  }
+
+  shouldShowEditOrderButton(): boolean {
+    return this.isEditing() && this.hasEdits();
+  }
+
+  getEditOrderButtonLabel(): string {
+    if (!this.isEditing()) {
+      return 'Solo editar orden';
+    }
+    return 'Guardar cambios';
+  }
+
+  private hasMeaningfulOrderEdits(): boolean {
+    return this.isEditing() && this.items().length > 0;
+  }
+
+  orderSuggestions = computed<Order[]>(() => {
+    const query = this.searchQuery().trim().toLowerCase();
+    if (!query || !Array.isArray(this.orders()) || this.orders().length === 0) {
+      return [];
+    }
+
+    return this.orders().filter((orden) => {
+      const orderNumber = orden.numero_orden?.toString() || orden.id.toString();
+      const clienteName = orden.cliente_nombre?.toLowerCase() || '';
+      const mesaNumber = orden.mesa?.numero?.toString() || '';
+      const remaining = this.getPendingOrderRemainingAmount(orden).toString();
+
+      return [orderNumber, clienteName, mesaNumber, remaining].some((value) =>
+        value.toLowerCase().includes(query)
+      );
+    });
+  });
+
+  onCancelOrder(): void {
     this.confirmDialog.confirm({
       title: 'Cancelar orden',
       message: '¿Estás seguro de cancelar esta orden? Esta acción no se puede deshacer.'
-    }).subscribe(result => {
+    }).subscribe((result) => {
       if (result) {
         this.itemNotes.set(new Map());
         this.orderType.set('dine-in');
@@ -319,8 +474,7 @@ export class CartPanelComponent {
 
   selectCliente(cliente: ClienteSearch): void {
     this.selectedCliente.set(cliente);
-    this.searchQuery.set(cliente.nombre);
-    this.clientesResults.set([]);
+    this.clearSearch();
     this.clienteSelected.emit(cliente);
   }
 
