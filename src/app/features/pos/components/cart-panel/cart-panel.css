@@ -1188,3 +1188,34 @@
     cursor: not-allowed;
   }
 }
+
+/* Undo Changes Button */
+.btn-undo-changes {
+  width: 100%;
+  padding: 0.46rem 0.55rem;
+  background: rgba(100, 150, 200, 0.1);
+  color: #6496c8;
+  border: 1px solid rgba(100, 150, 200, 0.3);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: capitalize;
+  letter-spacing: 0.2px;
+
+  &:hover:not(:disabled) {
+    background: rgba(100, 150, 200, 0.15);
+    border-color: rgba(100, 150, 200, 0.4);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

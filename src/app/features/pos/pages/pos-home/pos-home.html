@@ -63,6 +63,8 @@
         [paidAmount]="paidAmount()"
         [remainingAmount]="remainingAmount()"
         [hasPaymentHistory]="hasPaymentHistory()"
+        [deletedItems]="deletedItems()"
+        [hasChanges]="hasChanges()"
         (quantityChanged)="onQuantityChanged($event)"
         (itemRemoved)="onItemRemoved($event)"  
         (checkoutRequested)="onCheckoutRequested()"
@@ -80,6 +82,7 @@
         (existingOrderSelected)="onExistingOrderSelected($event)"
         (viewHistoryRequested)="onViewHistoryRequested()"
         (editRequested)="onSaveOrderEditsRequested()"
+        (undoChangesRequested)="onUndoChanges()"
       />
     </div>
   </div>
@@ -194,7 +197,6 @@
           <div class="pending-order-row">
             <div class="pending-order-summary">Total: {{ formatPrice(orden.total) }}</div>
             <div class="pending-order-actions">
-              <button type="button" class="btn btn-small btn-secondary" (click)="closePendingOrdersModal()">Cerrar</button>
               <button type="button" class="btn btn-small btn-secondary" (click)="onEditPendingOrder(orden.id)">Editar</button>
               <button type="button" class="btn btn-small btn-confirm" (click)="onPayPendingOrder(orden.id)">Pagar</button>
             </div>

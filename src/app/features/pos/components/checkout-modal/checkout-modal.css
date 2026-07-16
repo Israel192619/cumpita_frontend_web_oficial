@@ -175,6 +175,20 @@
   color: #7f1d1d;
 }
 
+.summary-item.deleted-refund {
+  background: rgba(220, 38, 38, 0.15);
+  border: 2px solid rgba(220, 38, 38, 0.5);
+  border-radius: 0.85rem;
+  color: #991b1b;
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+}
+
+.summary-item.deleted-refund .price {
+  color: #dc2626;
+  font-weight: 700;
+}
+
 .deleted-items-title {
   display: block;
   margin: 0.65rem 0 0.35rem;

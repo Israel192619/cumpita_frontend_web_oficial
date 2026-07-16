@@ -442,5 +442,16 @@
     >
       Cancelar
     </button>
+
+    <button
+      *ngIf="isEditing() && hasChanges()"
+      type="button"
+      class="btn-undo-changes"
+      (click)="onUndoChanges()"
+      [disabled]="isProcessing()"
+      title="Deshacer todos los cambios realizados en esta orden"
+    >
+      ↶ Deshacer cambios
+    </button>
   </div>
 </div>

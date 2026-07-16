@@ -25,14 +25,16 @@
         </div>
         <div class="items-summary">
           <div *ngIf="isRefundMode(); else normalItems">
+            <!-- Items que siguen en el carrito (sin devolución) -->
             <div *ngFor="let item of items(); trackBy: trackByItem" class="summary-item">
               <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
               <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
             </div>
+            <!-- Items eliminados/devueltos con fondo rojo -->
             <div *ngIf="deletedItems().length > 0" class="deleted-items-block">
-              <div class="deleted-items-title">Productos eliminados</div>
-              <div *ngFor="let item of deletedItems(); trackBy: trackByItem" class="summary-item deleted">
-                <span>{{ item.cantidad }}x {{ item.producto.nombre }} (eliminado)</span>
+              <div class="deleted-items-title">Productos a devolver</div>
+              <div *ngFor="let item of deletedItems(); trackBy: trackByItem" class="summary-item deleted-refund">
+                <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
                 <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
               </div>
             </div>
@@ -78,13 +80,24 @@
           </div>
 
           <div class="payment-summary">
-            <div class="info-row">
+            <div class="info-row" *ngIf="!isRefundMode()">
               <span class="info-label">Pendiente</span>
               <span class="info-value">{{ formatPrice(getTargetAmount()) }}</span>
             </div>
+            <!-- Labels especiales para modo refund -->
+            <div class="info-row" *ngIf="isRefundMode()">
+              <span class="info-label">A devolver</span>
+              <span class="info-value">{{ formatPrice(getTargetAmount()) }}</span>
+            </div>
             <div class="status-card" [ngClass]="getPaymentStatusClass()">
-              <span class="status-label">{{ getPaymentStatusText() }}</span>
-              <strong class="status-value" *ngIf="estadoPago() === 'insufficient'">{{ formatPrice(getTargetAmount() - montoRecibido()) }}</strong>
+              <!-- Labels específicos para refund -->
+              <span class="status-label" *ngIf="isRefundMode() && estadoPago() === 'exact'">Devolución completa</span>
+              <span class="status-label" *ngIf="isRefundMode() && estadoPago() === 'insufficient'">Falta por devolver</span>
+              <span class="status-label" *ngIf="isRefundMode() && estadoPago() === 'excess'">Cambio</span>
+              <!-- Labels normales -->
+              <span class="status-label" *ngIf="!isRefundMode()">{{ getPaymentStatusText() }}</span>
+              
+              <strong class="status-value" *ngIf="estadoPago() === 'insufficient'">{{ formatPrice(Math.abs(getTargetAmount() - montoRecibido())) }}</strong>
               <strong class="status-value" *ngIf="estadoPago() === 'excess'">{{ formatPrice(cambio()) }}</strong>
               <strong class="status-value" *ngIf="estadoPago() === 'exact'">{{ formatPrice(montoRecibido()) }}</strong>
             </div>

@@ -48,6 +48,9 @@ export class CheckoutModalComponent implements OnChanges {
   showClientSearch = signal<boolean>(false);
   showCreateClient = signal<boolean>(false);
 
+  // Exponer Math para usarlo en el template
+  Math = Math;
+
   clienteId = input<number | null>(null);
   mesaId = input<number | null>(null);
 

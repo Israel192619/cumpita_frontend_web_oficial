@@ -177,6 +177,8 @@ export class PosService {
     monto_recibido: number;
     metodo_pago: 'efectivo' | 'qr';
     tipo_pago: 'pago' | 'devolucion';
+    monto_pagado?: number;
+    cambio_devuelto?: number;
   }): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/pagos-ordenes`, data);
   }

@@ -30,6 +30,8 @@ export class CartPanelComponent {
   isFullyPaid = input<boolean>(false);
   editingOrderIdInput = input<number | null>(null);
   orders = input<Order[]>([]);
+  deletedItems = input<CartItem[]>([]);
+  hasChanges = input<boolean>(false);
 
   quantityChanged = output<{ itemId: number; cantidad: number }>();
   itemRemoved = output<number>();
@@ -41,6 +43,7 @@ export class CartPanelComponent {
   clienteSelected = output<ClienteSearch | null>();
   mesaSelected = output<Mesa | null>();
   refundRequested = output<void>();
+  undoChangesRequested = output<void>();
   viewHistoryRequested = output<void>();
   editRequested = output<void>();
   existingOrderSelected = output<number>();
@@ -252,6 +255,10 @@ export class CartPanelComponent {
 
   onEditAction(): void {
     this.editRequested.emit();
+  }
+
+  onUndoChanges(): void {
+    this.undoChangesRequested.emit();
   }
 
   onRefundRequested(): void {

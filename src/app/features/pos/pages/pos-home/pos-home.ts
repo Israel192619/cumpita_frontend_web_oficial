@@ -35,8 +35,37 @@ export class PosHome implements OnInit, OnDestroy {
   isProcessingCheckout = signal<boolean>(false);
   isRefundMode = signal<boolean>(false);
   deletedItems = signal<any[]>([]);
-  refundAmount = signal<number>(0);
+  originalCarrito = signal<CartItem[]>([]);
   error = signal<string | null>(null);
+
+  // Calculado automáticamente: lo que pagó - lo que debe pagar ahora
+  refundAmount = computed(() => {
+    return Math.max(0, this.paidAmount() - this.total());
+  });
+
+  // Detecta si hay cambios en el carrito vs el original de BD
+  hasChanges = computed(() => {
+    if (!this.isEditingOrder() || this.originalCarrito().length === 0) {
+      return false;
+    }
+    
+    // Comparar cantidad de items
+    if (this.carrito().length !== this.originalCarrito().length) {
+      return true;
+    }
+    
+    // Comparar cantidades de cada item
+    for (let i = 0; i < this.carrito().length; i++) {
+      const current = this.carrito()[i];
+      const original = this.originalCarrito()[i];
+      
+      if (!original || current.cantidad !== original.cantidad) {
+        return true;
+      }
+    }
+    
+    return false;
+  });
   isEditingOrder = signal<boolean>(false);
   editingOrderId = signal<number | null>(null);
   editingOrderSource = signal<'url' | 'pending' | 'internal' | null>(null);
@@ -102,11 +131,9 @@ export class PosHome implements OnInit, OnDestroy {
       return 0;
     }
 
-    if (typeof orden.saldo_pendiente === 'number') {
-      return Math.max(0, orden.saldo_pendiente);
-    }
-
-    return Math.max(0, Number(orden.total) - this.paidAmount());
+    // Use current cart total, not order.total from DB
+    // This ensures remainingAmount updates when editing items
+    return Math.max(0, this.total() - this.paidAmount());
   });
 
   hasPaymentHistory = computed(() => {
@@ -330,6 +357,10 @@ export class PosHome implements OnInit, OnDestroy {
 
       // Inyectamos los platos reconstruidos directamente en el Signal del carrito
       this.carrito.set(items);
+      // Guardar copia del carrito original para poder deshacer cambios
+      this.originalCarrito.set(JSON.parse(JSON.stringify(items)));
+      this.deletedItems.set([]);
+      this.isRefundMode.set(false);
       this.productos.set(this.syncProductosConCarrito(this.productos()));
       if (this.pendingOrderAction() === 'pay') {
         this.isCheckoutModalOpen.set(true);
@@ -471,6 +502,21 @@ export class PosHome implements OnInit, OnDestroy {
       );
       item.subtotal = item.cantidad * (item.precio_unitario + modificadoresExtra);
       this.carrito.set([...carrito]);
+
+      // En modo edición, si se disminuye cantidad, registrar las unidades removidas para devolución
+      // SOLO si el item viene de la BD (tiene orden_detalle_id)
+      if (this.isEditingOrder() && this.editingOrderId() && delta > 0 && item.orden_detalle_id) {
+        // Crear un item parcial con la cantidad removida
+        const removedItem: CartItem = {
+          ...item,
+          id: item.orden_detalle_id || Date.now(), // Usar orden_detalle_id como ID
+          cantidad: delta,
+          subtotal: (item.precio_unitario + modificadoresExtra) * delta,
+        };
+        
+        this.deletedItems.set([...(this.deletedItems() || []), removedItem]);
+        // refundAmount se actualiza automáticamente via computed
+      }
     }
   }
 
@@ -486,37 +532,10 @@ export class PosHome implements OnInit, OnDestroy {
     const nextCarrito = carrito.filter((c) => c.id !== itemId);
     this.carrito.set(nextCarrito);
 
-    if (this.isEditingOrder() && this.editingOrderId()) {
-      const orderId = this.editingOrderId()!;
-
-      const order: Order = {
-        id: orderId,
-        items: nextCarrito,
-        subtotal: this.subtotal(),
-        total: this.total(),
-        cliente_id: this.selectedCliente()?.id,
-        cliente_nombre: this.selectedCliente()?.nombre,
-        cliente_telefono: this.selectedCliente()?.telefono,
-        tipo_orden: this.orderType(),
-        mesa_id: this.selectedMesa()?.id,
-        fecha_orden: this.orderDate() ?? null,
-      };
-
-      this.posService.actualizarOrden(orderId, this.posService.mapOrderToPayload(order)).subscribe({
-        next: (res: any) => {
-          const updatedOrden = res?.orden;
-          if (updatedOrden) {
-            this.editingOrder.set(updatedOrden);
-          }
-
-          const newRefundAmount = Math.max(0, this.paidAmount() - this.total());
-          this.deletedItems.set([...(this.deletedItems() || []), item]);
-          this.refundAmount.set(newRefundAmount);
-        },
-        error: () => {
-          this.toastr.error('Error al actualizar la orden al eliminar el producto');
-        },
-      });
+    // En modo edición, registrar item para devolución SOLO si viene de la BD (tiene orden_detalle_id)
+    if (this.isEditingOrder() && this.editingOrderId() && item.orden_detalle_id) {
+      this.deletedItems.set([...(this.deletedItems() || []), item]);
+      // refundAmount se actualiza automáticamente via computed
     }
   }
 
@@ -654,12 +673,14 @@ export class PosHome implements OnInit, OnDestroy {
   onClienteSelected(cliente: ClienteSearch | null): void {
     const currentClienteId = this.selectedCliente()?.id ?? null;
     const newClienteId = cliente?.id ?? null;
+    
+    // Only reset if:
+    // 1. Removing cliente (null) - need to reset to avoid orphan cart
+    // 2. Editing an order and changing cliente - means editing different order
+    // DO NOT reset if just adding/editing cart items without edit mode
     const shouldReset =
       cliente === null ||
-      this.isEditingOrder() ||
-      this.carrito().length > 0 ||
-      this.selectedMesa() !== null ||
-      this.orderDate() !== null;
+      this.isEditingOrder();
 
     if (shouldReset) {
       this.resetCurrentOrderState();
@@ -775,6 +796,43 @@ export class PosHome implements OnInit, OnDestroy {
       return;
     }
 
+    const montoRecibido = data.montoRecibido ?? 0;
+    const tipoPago = data.tipoPago ?? 'pago';
+
+    // Si es modo refund, SOLO registrar el pago, NO actualizar la orden
+    if (this.isRefundMode() && this.isEditingOrder() && this.editingOrderId()) {
+      const orderId = this.editingOrderId()!;
+      
+      // Calcular el cambio: si el cliente trae más de lo necesario para devolver
+      const cambio = Math.max(0, montoRecibido - this.refundAmount());
+      
+      this.posService.crearPagoOrden({
+        id_orden: orderId,
+        monto_recibido: montoRecibido,
+        metodo_pago: data.metodoPago,
+        tipo_pago: 'devolucion',
+        monto_pagado: this.refundAmount(), // El monto que se debe devolver
+        cambio_devuelto: cambio, // El cambio que el cliente me da
+      }).subscribe({
+        next: () => {
+          this.finalizarVenta();
+          this.isCheckoutModalOpen.set(false);
+          this.isProcessingCheckout.set(false);
+          this.isEditingOrder.set(false);
+          this.editingOrderId.set(null);
+          this.isRefundMode.set(false);
+          this.deletedItems.set([]);
+          this.mostrarExito('Devolución registrada exitosamente');
+        },
+        error: (err) => {
+          this.error.set('Error al registrar la devolución');
+          this.isProcessingCheckout.set(false);
+        },
+      });
+      return;
+    }
+
+    // Modo normal: actualizar orden y luego registrar pago
     const order: Order = {
       id: this.editingOrderId() || 0,
       items: this.carrito(),
@@ -788,9 +846,6 @@ export class PosHome implements OnInit, OnDestroy {
       mesa_id: data.mesaId ?? this.selectedMesa()?.id,
       fecha_orden: this.orderDate() ?? null,
     };
-
-    const montoRecibido = data.montoRecibido ?? 0;
-    const tipoPago = data.tipoPago ?? 'pago';
 
     if (this.isEditingOrder() && this.editingOrderId()) {
       const orderId = this.editingOrderId()!;
@@ -812,7 +867,6 @@ export class PosHome implements OnInit, OnDestroy {
               this.editingOrderId.set(null);
               this.isRefundMode.set(false);
               this.deletedItems.set([]);
-              this.refundAmount.set(0);
               this.mostrarExito('Orden actualizada y pagada exitosamente');
             },
             error: (err) => {
@@ -844,7 +898,6 @@ export class PosHome implements OnInit, OnDestroy {
                 this.isProcessingCheckout.set(false);
                 this.isRefundMode.set(false);
                 this.deletedItems.set([]);
-                this.refundAmount.set(0);
                 this.mostrarExito('Venta completada exitosamente');
               },
               error: () => {
@@ -871,8 +924,19 @@ export class PosHome implements OnInit, OnDestroy {
   onCheckoutCancelled(): void {
     this.isCheckoutModalOpen.set(false);
     this.isRefundMode.set(false);
+  }
+
+  onUndoChanges(): void {
+    if (!this.isEditingOrder() || this.originalCarrito().length === 0) {
+      this.toastr.warning('No hay cambios para deshacer');
+      return;
+    }
+    
+    // Restaurar el carrito al estado original
+    this.carrito.set(JSON.parse(JSON.stringify(this.originalCarrito())));
     this.deletedItems.set([]);
-    this.refundAmount.set(0);
+    this.isRefundMode.set(false);
+    this.toastr.success('Cambios deshhechos');
   }
 
   onRefundActionRequested(): void {
@@ -892,6 +956,9 @@ export class PosHome implements OnInit, OnDestroy {
   private finalizarVenta(): void {
     console.log('Venta finalizada, limpiando estado...');
     this.carrito.set([]);
+    this.originalCarrito.set([]);
+    this.deletedItems.set([]);
+    this.isRefundMode.set(false);
     this.selectedCategoryId.set(null);
     this.selectedSubcategoryId.set(null);
     this.selectedCliente.set(null);
@@ -917,6 +984,9 @@ export class PosHome implements OnInit, OnDestroy {
     this.editingOrderSource.set(null);
     this.pendingOrderAction.set(null);
     this.carrito.set([]);
+    this.originalCarrito.set([]);
+    this.deletedItems.set([]);
+    this.isRefundMode.set(false);
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
@@ -952,12 +1022,36 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onExistingOrderSelected(orderId: number): void {
+    // Si hay una edición en progreso, cancelarla primero
+    if (this.isEditingOrder()) {
+      this.isEditingOrder.set(false);
+      this.editingOrderId.set(null);
+      this.carrito.set([]);
+      this.selectedCliente.set(null);
+      this.selectedMesa.set(null);
+      this.orderDate.set(null);
+      this.deletedItems.set([]);
+      this.isRefundMode.set(false);
+    }
+    
     this.editingOrderSource.set('internal');
     this.pendingOrderAction.set('edit');
     this.cargarOrdenExistente(orderId);
   }
 
   onEditPendingOrder(orderId: number): void {
+    // Si hay una edición en progreso, cancelarla primero
+    if (this.isEditingOrder()) {
+      this.isEditingOrder.set(false);
+      this.editingOrderId.set(null);
+      this.carrito.set([]);
+      this.selectedCliente.set(null);
+      this.selectedMesa.set(null);
+      this.orderDate.set(null);
+      this.deletedItems.set([]);
+      this.isRefundMode.set(false);
+    }
+    
     this.pendingOrderAction.set('edit');
     this.editingOrderSource.set('pending');
     this.closePendingOrdersModal();
@@ -965,6 +1059,18 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onPayPendingOrder(orderId: number): void {
+    // Si hay una edición en progreso, cancelarla primero
+    if (this.isEditingOrder()) {
+      this.isEditingOrder.set(false);
+      this.editingOrderId.set(null);
+      this.carrito.set([]);
+      this.selectedCliente.set(null);
+      this.selectedMesa.set(null);
+      this.orderDate.set(null);
+      this.deletedItems.set([]);
+      this.isRefundMode.set(false);
+    }
+    
     this.pendingOrderAction.set('pay');
     this.editingOrderSource.set('pending');
     this.closePendingOrdersModal();
