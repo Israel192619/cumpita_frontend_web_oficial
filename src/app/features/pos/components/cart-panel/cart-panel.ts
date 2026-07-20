@@ -362,7 +362,13 @@ export class CartPanelComponent {
       return [];
     }
 
+    const today = this.getTodayDateString();
+
     return this.orders().filter((orden) => {
+      // Only include orders from today
+      const fecha = orden.fecha_orden ? orden.fecha_orden.split('T')[0] : null;
+      if (!fecha || fecha !== today) return false;
+
       const orderNumber = orden.numero_orden?.toString() || orden.id.toString();
       const clienteName = orden.cliente_nombre?.toLowerCase() || '';
       const mesaNumber = orden.mesa?.numero?.toString() || '';

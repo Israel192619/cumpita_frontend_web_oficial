@@ -674,16 +674,16 @@ export class PosHome implements OnInit, OnDestroy {
     const currentClienteId = this.selectedCliente()?.id ?? null;
     const newClienteId = cliente?.id ?? null;
     
-    // Only reset if:
-    // 1. Removing cliente (null) - need to reset to avoid orphan cart
-    // 2. Editing an order and changing cliente - means editing different order
-    // DO NOT reset if just adding/editing cart items without edit mode
-    const shouldReset =
-      cliente === null ||
-      this.isEditingOrder();
-
-    if (shouldReset) {
-      this.resetCurrentOrderState();
+    // If cliente is cleared via the "Cambiar" button:
+    // - when editing an order: reset full order state (cancel edit)
+    // - otherwise: only unset the selected client, keep cart intact
+    if (cliente === null) {
+      if (this.isEditingOrder()) {
+        this.resetCurrentOrderState();
+      } else {
+        this.selectedCliente.set(null);
+        return;
+      }
     }
 
     this.selectedCliente.set(cliente);
@@ -882,9 +882,12 @@ export class PosHome implements OnInit, OnDestroy {
       });
     } else {
       // Crear nueva orden y luego registrar pago
+      console.log('Creating order payload:', order);
       this.posService.crearOrden(order).subscribe({
         next: (response: any) => {
-          const createdOrderId = response?.orden?.id ?? null;
+          console.log('crearOrden response:', response);
+          // Backend may return the created order under different keys depending on endpoint/version.
+          const createdOrderId = response?.orden?.id ?? response?.order?.id ?? response?.id ?? null;
           if (createdOrderId && montoRecibido > 0) {
             this.posService.crearPagoOrden({
               id_orden: createdOrderId,
@@ -900,13 +903,15 @@ export class PosHome implements OnInit, OnDestroy {
                 this.deletedItems.set([]);
                 this.mostrarExito('Venta completada exitosamente');
               },
-              error: () => {
+              error: (err) => {
+                console.error('crearPagoOrden error:', err);
                 this.error.set('Error al registrar el pago');
                 this.isProcessingCheckout.set(false);
               },
             });
           } else {
             // No hay monto recibido o no se obtuvo id, finalizar sin pago
+            console.warn('No createdOrderId or montoRecibido <= 0, skipping payment. createdOrderId=', createdOrderId, 'montoRecibido=', montoRecibido);
             this.finalizarVenta();
             this.isCheckoutModalOpen.set(false);
             this.isProcessingCheckout.set(false);
@@ -914,6 +919,7 @@ export class PosHome implements OnInit, OnDestroy {
           }
         },
         error: (err) => {
+          console.error('crearOrden error:', err);
           this.error.set('Error al procesar la venta');
           this.isProcessingCheckout.set(false);
         },
@@ -981,6 +987,7 @@ export class PosHome implements OnInit, OnDestroy {
     const source = this.editingOrderSource();
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
+    this.editingOrder.set(null);
     this.editingOrderSource.set(null);
     this.pendingOrderAction.set(null);
     this.carrito.set([]);
