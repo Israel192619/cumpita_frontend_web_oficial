@@ -52,6 +52,7 @@ export interface Order {
   mesa_id?: number;
   mesa?: Mesa;
   fecha_orden?: string | null;
+  fecha_reserva?: string | null;
   items: CartItem[];
   subtotal: number;
   impuesto?: number;
@@ -73,6 +74,7 @@ export interface OrderPayload {
   tipo_orden?: 'dine-in' | 'to-go' | 'delivery';
   mesa_id?: number | null;
   fecha_orden?: string | null;
+  fecha_reserva?: string | null;
   items: OrderItem[];
   subtotal: number;
   descuento?: number;
@@ -193,7 +195,8 @@ export class PosService {
       cliente_telefono: order.cliente_telefono || null,
       mesa_id: order.mesa_id || null,
       tipo_orden: order.tipo_orden || 'dine-in',
-      fecha_orden: order.fecha_orden?.trim() || this.getNowDateTimeString(),
+      fecha_orden: this.normalizeDateTimeString(order.fecha_orden) ?? this.getNowDateTimeString(),
+      fecha_reserva: this.normalizeDateTimeString(order.fecha_reserva) ?? null,
       subtotal: order.subtotal,
       descuento: order.descuento || 0,
       total: order.total,
@@ -226,7 +229,48 @@ export class PosService {
     const day = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  }
+
+  private normalizeDateTimeString(value?: string | null): string | null {
+    if (!value || !value.trim()) {
+      return null;
+    }
+
+    const normalized = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return `${normalized}T00:00:00`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}$/.test(normalized)) {
+      return `${normalized.replace(' ', 'T')}:00`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}:\d{2}$/.test(normalized)) {
+      return normalized.replace(' ', 'T');
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}$/.test(normalized)) {
+      return `${normalized}:00`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}:\d{2}$/.test(normalized)) {
+      return normalized;
+    }
+
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      const hours = String(parsed.getHours()).padStart(2, '0');
+      const minutes = String(parsed.getMinutes()).padStart(2, '0');
+      const seconds = String(parsed.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    }
+
+    return null;
   }
 }
 

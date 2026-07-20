@@ -235,6 +235,85 @@
   flex-shrink: 0;
 }
 
+.compact-order-row {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compact-column {
+  min-width: 0;
+  flex: 1;
+}
+
+.reservation-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: auto;
+  }
+
+  .reservation-toggle {
+    white-space: nowrap;
+  }
+
+  .btn-clear-reservation {
+    background: rgba(255,255,255,0.08);
+    color: var(--text-primary);
+    border-color: rgba(255,255,255,0.16);
+  }
+
+  .order-date-summary {
+    margin-top: 0.3rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+  }
+
+  .order-date-summary strong {
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+
+  .order-date-summary span {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .reservation-summary {
+    margin-top: 0.35rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    padding: 0.35rem 0.45rem;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+
+  .reservation-summary span {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .reservation-summary strong {
+    font-size: 0.8rem;
+    font-weight: 800;
+  }
+
+  .reservation-meta-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.4rem;
+    border-radius: 10px;
+    background: rgba(234, 124, 105, 0.06);
+    border: 1px solid rgba(234, 124, 105, 0.12);
+  }
+
 .order-meta-label {
   font-size: 0.75rem;
   font-weight: 800;
@@ -1218,4 +1297,16 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+}
+
+/* ==================== ORDER DATE & TIME ==================== */
+
+
+
+
+.order-date-input {
+  width: 145px;
+  height: 30px;
+
+
 }

@@ -77,6 +77,7 @@ export class PosHome implements OnInit, OnDestroy {
   selectedCliente = signal<ClienteSearch | null>(null);
   selectedMesa = signal<Mesa | null>(null);
   orderDate = signal<string | null>(null);
+  reservationDate = signal<string | null>(null);
   editingOrder = signal<Order | null>(null);
   isFullyPaid = computed(() => this.isEditingOrder() && this.remainingAmount() === 0);
   showHistoryButton = computed(() => this.hasPaymentHistory() && this.isFullyPaid());
@@ -253,6 +254,7 @@ export class PosHome implements OnInit, OnDestroy {
       tipo_orden: this.orderType(),
       mesa_id: this.selectedMesa()?.id ?? null,
       fecha_orden: this.orderDate() ?? null,
+      fecha_reserva: this.reservationDate() ?? null,
       items: itemsPayload,
       subtotal: this.subtotal(),
       total: this.total(),
@@ -289,6 +291,7 @@ export class PosHome implements OnInit, OnDestroy {
       this.isEditingOrder.set(true);
       this.orderType.set((orden.tipo_orden as any) || 'dine-in');
       this.orderDate.set(this.normalizeOrderDate(orden.fecha_orden));
+      this.reservationDate.set(this.normalizeOrderDate(orden.fecha_reserva));
       
       // Cargar cliente y mesa si existen
       const clienteSeleccionado: ClienteSearch | null = orden.cliente
@@ -662,6 +665,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.carrito.set([]);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
+    this.reservationDate.set(null);
     this.orderType.set('dine-in');
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
@@ -691,6 +695,10 @@ export class PosHome implements OnInit, OnDestroy {
 
   onOrderDateChanged(value: string | null): void {
     this.orderDate.set(this.normalizeOrderDate(value));
+  }
+
+  onReservationDateChanged(value: string | null): void {
+    this.reservationDate.set(this.normalizeOrderDate(value));
   }
 
   onItemNoteChanged(data: { itemId: number; nota: string }): void {
@@ -731,6 +739,7 @@ export class PosHome implements OnInit, OnDestroy {
       tipo_orden: this.orderType(),
       mesa_id: this.selectedMesa()?.id,
       fecha_orden: this.orderDate() ?? null,
+      fecha_reserva: this.reservationDate() ?? null,
     };
 
     if (this.isEditingOrder() && this.editingOrderId()) {
@@ -773,6 +782,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
+    this.reservationDate.set(null);
     this.editingOrder.set(null);
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
@@ -845,6 +855,7 @@ export class PosHome implements OnInit, OnDestroy {
       tipo_orden: this.orderType(),
       mesa_id: data.mesaId ?? this.selectedMesa()?.id,
       fecha_orden: this.orderDate() ?? null,
+      fecha_reserva: this.reservationDate() ?? null,
     };
 
     if (this.isEditingOrder() && this.editingOrderId()) {

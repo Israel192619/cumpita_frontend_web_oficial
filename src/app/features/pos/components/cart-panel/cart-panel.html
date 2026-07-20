@@ -2,6 +2,15 @@
   <!-- Header -->
   <div class="cart-header">
     <h2>Carrito</h2>
+    <input
+          id="order-date"
+          class="order-date-input"
+          [type]="isEditing() ? 'datetime-local' : 'date'"
+          step="1"
+          [value]="getOrderDateInputValue()"
+          (change)="onOrderDateChange($any($event.target).value)"
+          [disabled]="isProcessing()"
+        />
     <span class="item-badge">{{ items().length }}</span>
   </div>
   <!-- Cliente quick-select -->
@@ -65,36 +74,56 @@
   </div>
 
   <div class="order-meta-card">
-    <div class="order-meta-row">
-      <div class="order-meta-column">
-        <span class="small-label">Fecha</span>
-        <input
-          id="order-date"
-          class="order-date-input"
-          type="date"
-          [value]="getOrderDateValue()"
-          (change)="onOrderDateChange($any($event.target).value)"
-          [disabled]="isProcessing()"
-        />
+    <div class="order-meta-row compact-order-row">
+      <div class="order-meta-column compact-column">
+        <span class="small-label">Pedido</span>
+        <div class="order-date-summary">
+          <!-- <strong>{{ getOrderDateValue() }}</strong>
+          <span *ngIf="getOrderTimeValue()">a las {{ getOrderTimeValue().slice(0,5) }}</span> -->
+        </div>
+        <div *ngIf="hasReservationSummary()" class="reservation-summary">
+          <span>Reserva para</span>
+          <strong>{{ getReservationSummaryText() }}</strong>
+        </div>
       </div>
-      <div class="order-meta-column">
-        <span class="small-label">Hora</span>
-        <input
-          id="order-time"
-          class="order-time-input"
-          type="time"
-          step="1"
-          [value]="getOrderTimeValue()"
-          (change)="onOrderTimeChange($any($event.target).value)"
+
+      <div class="reservation-actions-group">
+        <button type="button" class="btn btn-secondary btn-tiny reservation-toggle" (click)="toggleReservationControls()">
+          {{ showReservationControls() ? 'Ocultar reserva' : 'Programar reserva' }}
+        </button>
+        <button
+          *ngIf="hasReservationSummary()"
+          type="button"
+          class="btn btn-secondary btn-tiny btn-clear-reservation"
+          (click)="clearReservation()"
           [disabled]="isProcessing()"
-        />
+        >
+          Quitar reserva
+        </button>
       </div>
     </div>
-    <div class="order-meta-actions">
-      <button type="button" class="btn btn-secondary btn-tiny" (click)="addMinutesToOrderDate(15)">+15m</button>
-      <button type="button" class="btn btn-secondary btn-tiny" (click)="addMinutesToOrderDate(20)">+20m</button>
-      <button type="button" class="btn btn-secondary btn-tiny" (click)="addMinutesToOrderDate(30)">+30m</button>
-      <button type="button" class="btn btn-secondary btn-tiny" (click)="clearOrderTime()" [disabled]="!orderTime()">Limpiar</button>
+
+    <div *ngIf="showReservationControls()" class="reservation-meta-card">
+      <div class="order-meta-row">
+        <div class="order-meta-column">
+          <span class="small-label">Reserva</span>
+          <input
+            id="reservation-date"
+            class="order-date-input"
+            type="datetime-local"
+            step="1"
+            [value]="getReservationDateValue() + (getReservationTimeValue() ? 'T' + getReservationTimeValue() : '')"
+            (change)="onReservationDateChange($any($event.target).value)"
+            [disabled]="isProcessing()"
+          />
+        </div>
+      </div>
+      <div class="order-meta-actions">
+        <button type="button" class="btn btn-secondary btn-tiny" (click)="addMinutesToReservationDate(15)">+15m</button>
+        <button type="button" class="btn btn-secondary btn-tiny" (click)="addMinutesToReservationDate(20)">+20m</button>
+        <button type="button" class="btn btn-secondary btn-tiny" (click)="addMinutesToReservationDate(30)">+30m</button>
+        <button type="button" class="btn btn-secondary btn-tiny" (click)="clearReservationTime()" [disabled]="!reservationTime()">Limpiar</button>
+      </div>
     </div>
   </div>
 

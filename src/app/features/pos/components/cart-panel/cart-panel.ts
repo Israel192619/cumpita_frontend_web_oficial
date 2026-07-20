@@ -4,6 +4,7 @@ import { CartItem, CartItemModificador, ClienteSearch, Mesa, Order, PosService }
 import { MesasModalComponent } from '../mesas-modal/mesas-modal';
 import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
 import { ModificadorEstructurado, ModificadorOpcion, Producto, ProductoOpcion } from '@app/core/models/producto';
+import { createDateTimeString, getCurrentTimeString, getTodayDateString, normalizeDateOnlyValue, normalizeDateTimeValue, normalizeOrderDateValue } from './date-time-utils';
 
 @Component({
   selector: 'app-cart-panel',
@@ -40,6 +41,7 @@ export class CartPanelComponent {
   cartCleared = output<void>();
   orderTypeChanged = output<'dine-in' | 'to-go' | 'delivery'>();
   orderDateChanged = output<string | null>();
+  reservationDateChanged = output<string | null>();
   clienteSelected = output<ClienteSearch | null>();
   mesaSelected = output<Mesa | null>();
   refundRequested = output<void>();
@@ -58,6 +60,9 @@ export class CartPanelComponent {
   selectedMesa = signal<Mesa | null>(null);
   orderDate = signal<string | null>(null);
   orderTime = signal<string | null>(null);
+  reservationDate = signal<string | null>(null);
+  reservationTime = signal<string | null>(null);
+  showReservationControls = signal<boolean>(false);
   itemNotes = signal<Map<number, string>>(new Map());
 
   // Cliente quick-select
@@ -140,9 +145,12 @@ export class CartPanelComponent {
       this.selectedCliente.set(this.selectedClienteInput());
       this.selectedMesa.set(this.selectedMesaInput());
       const incomingDate = this.orderDateInput();
-      const normalized = this.normalizeOrderDateTime(incomingDate);
-      this.orderDate.set(normalized?.date ?? this.getTodayDateString());
-      this.orderTime.set(normalized?.time ?? null);
+      const normalized = normalizeDateTimeValue(incomingDate);
+      this.orderDate.set(normalized?.date ?? getTodayDateString());
+      this.orderTime.set(normalized?.time ?? (this.isEditing() ? null : getCurrentTimeString()));
+      this.reservationDate.set(null);
+      this.reservationTime.set(null);
+      this.showReservationControls.set(false);
 
       const nextNotes = new Map<number, string>();
       this.items().forEach((item) => {
@@ -362,12 +370,13 @@ export class CartPanelComponent {
       return [];
     }
 
-    const today = this.getTodayDateString();
+    const today = getTodayDateString();
 
     return this.orders().filter((orden) => {
-      // Only include orders from today
-      const fecha = orden.fecha_orden ? orden.fecha_orden.split('T')[0] : null;
-      if (!fecha || fecha !== today) return false;
+      const fecha = normalizeOrderDateValue(orden.fecha_orden);
+      if (!fecha || fecha !== today) {
+        return false;
+      }
 
       const orderNumber = orden.numero_orden?.toString() || orden.id.toString();
       const clienteName = orden.cliente_nombre?.toLowerCase() || '';
@@ -392,7 +401,11 @@ export class CartPanelComponent {
         this.selectedMesa.set(null);
         this.orderDate.set(null);
         this.orderTime.set(null);
+        this.reservationDate.set(null);
+        this.reservationTime.set(null);
+        this.showReservationControls.set(false);
         this.orderDateChanged.emit(null);
+        this.reservationDateChanged.emit(null);
         this.searchQuery.set('');
         this.clientesResults.set([]);
         this.clienteSelected.emit(null);
@@ -435,11 +448,29 @@ export class CartPanelComponent {
   }
 
   getOrderDateValue(): string {
-    return this.orderDate() ?? this.getTodayDateString();
+    return this.orderDate() ?? getTodayDateString();
+  }
+
+  getOrderDateInputValue(): string {
+    const dateValue = this.orderDate() ?? getTodayDateString();
+    if (!this.isEditing()) {
+      return dateValue;
+    }
+
+    const timeValue = this.orderTime() ?? '';
+    return timeValue ? `${dateValue}T${timeValue}` : dateValue;
   }
 
   getOrderTimeValue(): string {
     return this.orderTime() ?? '';
+  }
+
+  getReservationDateValue(): string {
+    return this.reservationDate() ?? getTodayDateString();
+  }
+
+  getReservationTimeValue(): string {
+    return this.reservationTime() ?? '';
   }
 
   clearOrderTime(): void {
@@ -447,14 +478,81 @@ export class CartPanelComponent {
     this.emitOrderDateTime();
   }
 
+  clearReservationTime(): void {
+    this.reservationTime.set(null);
+    this.emitReservationDateTime();
+  }
+
   addMinutesToOrderDate(minutes: number): void {
     const now = new Date();
     const calculated = new Date(now.getTime() + minutes * 60000);
     const nextTime = this.formatTimeOnly(calculated);
-    const dateValue = this.orderDate() ?? this.getTodayDateString();
+    const dateValue = this.orderDate() ?? getTodayDateString();
     this.orderTime.set(nextTime);
     this.orderDate.set(dateValue);
     this.emitOrderDateTime();
+  }
+
+  addMinutesToReservationDate(minutes: number): void {
+    const calculated = new Date(new Date().getTime() + minutes * 60000);
+    const nextTime = this.formatTimeOnly(calculated);
+    const dateValue = this.reservationDate() ?? getTodayDateString();
+    this.reservationTime.set(nextTime);
+    this.reservationDate.set(dateValue);
+    this.emitReservationDateTime();
+  }
+
+  toggleReservationControls(): void {
+    const shouldShow = !this.showReservationControls();
+    this.showReservationControls.set(shouldShow);
+
+    if (shouldShow) {
+      if (!this.reservationDate() || !this.reservationTime()) {
+        this.reservationDate.set(getTodayDateString());
+        this.reservationTime.set(getCurrentTimeString());
+      }
+      this.emitReservationDateTime();
+      return;
+    }
+
+    this.emitReservationDateTime();
+  }
+
+  clearReservation(): void {
+    this.showReservationControls.set(false);
+    this.reservationDate.set(null);
+    this.reservationTime.set(null);
+    this.emitReservationDateTime();
+  }
+
+  hasReservationSummary(): boolean {
+    return Boolean(this.reservationDate() && this.reservationTime());
+  }
+
+  getReservationSummaryText(): string {
+    const dateValue = this.reservationDate();
+    const timeValue = this.reservationTime();
+    if (!dateValue || !timeValue) {
+      return '';
+    }
+
+    return this.formatDateTimeLabel(dateValue, timeValue) || `${dateValue} ${timeValue.substring(0, 5)}`;
+  }
+
+  private formatDateTimeLabel(dateValue: string, timeValue: string): string | null {
+    const normalizedTime = timeValue.length === 5 ? `${timeValue}:00` : timeValue;
+    const dateTimeValue = `${dateValue}T${normalizedTime}`;
+    const parsed = new Date(dateTimeValue);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return new Intl.DateTimeFormat('es-CO', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(parsed);
   }
 
   formatPrice(price: number): string {
@@ -723,8 +821,18 @@ export class CartPanelComponent {
   }
 
   onOrderDateChange(value: string): void {
-    const nextDate = this.normalizeOrderDateOnly(value || null);
-    this.orderDate.set(nextDate ?? this.getTodayDateString());
+    const parsed = normalizeDateTimeValue(value || null);
+    if (parsed) {
+      this.orderDate.set(parsed.date);
+      if (this.isEditing()) {
+        this.orderTime.set(parsed.time ?? null);
+      } else {
+        this.orderTime.set(this.orderTime() ?? getCurrentTimeString());
+      }
+    } else {
+      this.orderDate.set(getTodayDateString());
+      this.orderTime.set(this.isEditing() ? null : getCurrentTimeString());
+    }
     this.emitOrderDateTime();
   }
 
@@ -734,112 +842,52 @@ export class CartPanelComponent {
     this.emitOrderDateTime();
   }
 
+  onReservationDateChange(value: string): void {
+    const parsed = normalizeDateTimeValue(value || null);
+    if (parsed) {
+      this.reservationDate.set(parsed.date);
+      this.reservationTime.set(parsed.time ?? null);
+    } else {
+      this.reservationDate.set(getTodayDateString());
+      this.reservationTime.set(null);
+    }
+    this.emitReservationDateTime();
+  }
+
+  onReservationTimeChange(value: string): void {
+    const timeValue = value ? value.trim() : null;
+    this.reservationTime.set(timeValue);
+    this.emitReservationDateTime();
+  }
+
   getProductImage(producto: any): string {
     return producto.imagen_url || '/images/no-image.png';
   }
 
-  private getTodayDateString(): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
   private emitOrderDateTime(): void {
-    const dateValue = this.orderDate() ?? this.getTodayDateString();
+    const dateValue = this.orderDate() ?? getTodayDateString();
     const timeValue = this.orderTime();
-    const payload = timeValue ? `${dateValue}T${timeValue}` : dateValue;
+    const payload = createDateTimeString(dateValue, timeValue);
     this.orderDateChanged.emit(payload);
   }
 
-  private normalizeOrderDateTime(value: string | null | undefined): { date: string; time: string | null } | null {
-    if (!value || !value.trim()) {
-      return null;
+  private emitReservationDateTime(): void {
+    const dateValue = this.reservationDate();
+    const timeValue = this.reservationTime();
+    if (!dateValue || !timeValue) {
+      this.reservationDateChanged.emit(null);
+      return;
     }
 
-    const normalized = value.trim();
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-      return { date: normalized, time: null };
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}$/.test(normalized)) {
-      const cleaned = normalized.replace(' ', 'T').slice(0, 16);
-      const [date, time] = cleaned.split('T');
-      return { date, time };
-    }
-
-    const parsed = new Date(normalized);
-    if (!Number.isNaN(parsed.getTime())) {
-      const date = this.formatDateOnly(parsed);
-      const time = this.formatTimeOnly(parsed);
-      return { date, time };
-    }
-
-    return null;
-  }
-
-  private normalizeOrderDateOnly(value: string | null | undefined): string | null {
-    if (!value || !value.trim()) {
-      return null;
-    }
-
-    const normalized = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-      return normalized;
-    }
-
-    const parsed = new Date(normalized);
-    if (!Number.isNaN(parsed.getTime())) {
-      return this.formatDateOnly(parsed);
-    }
-
-    return null;
-  }
-
-  private createDateAtCurrentTime(dateValue: string): Date {
-    const now = new Date();
-    return new Date(`${dateValue}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
-  }
-
-  private parseDateTimeInput(value: string | null | undefined): Date {
-    if (!value) {
-      return new Date();
-    }
-
-    const normalized = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-      return new Date(`${normalized}T00:00`);
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}$/.test(normalized)) {
-      return new Date(normalized.replace(' ', 'T'));
-    }
-
-    return new Date(normalized);
-  }
-
-  private formatDateOnly(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const payload = createDateTimeString(dateValue, timeValue);
+    this.reservationDateChanged.emit(payload);
   }
 
   private formatTimeOnly(date: Date): string {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  }
-
-  private formatDateTimeForInput(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
   }
 
   trackByItem = (index: number, item: CartItem) => item.id;
