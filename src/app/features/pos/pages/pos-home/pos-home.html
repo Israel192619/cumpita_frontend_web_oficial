@@ -9,7 +9,7 @@
   <div *ngIf="isEditingOrder()" class="edit-mode-banner">
     <div class="edit-mode-content">
       <span class="edit-mode-icon">✎</span>
-      <span class="edit-mode-text">Editando Orden #{{ editingOrderId() }}</span>
+      <span class="edit-mode-text">Editando Orden #{{ editingOrder()?.numero_orden || editingOrderId() }}</span>
       <button type="button" class="btn-exit-edit" (click)="onCancelEditMode()">Cancelar</button>
     </div>
   </div>
@@ -56,6 +56,7 @@
         [selectedClienteInput]="selectedCliente()"
         [selectedMesaInput]="selectedMesa()"
         [orderDateInput]="orderDate()"
+        [reservationDateInput]="reservationDate()"
         [stockByProductId]="productStockById()"
         [orders]="orders()"
         [isEditing]="isEditingOrder()"

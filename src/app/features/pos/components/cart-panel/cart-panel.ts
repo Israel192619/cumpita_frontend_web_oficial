@@ -22,6 +22,7 @@ export class CartPanelComponent {
   selectedClienteInput = input<ClienteSearch | null>(null);
   selectedMesaInput = input<Mesa | null>(null);
   orderDateInput = input<string | null>(null);
+  reservationDateInput = input<string | null>(null);
   stockByProductId = input<Record<number, number>>({});
   isEditing = input<boolean>(false);
   paidAmount = input<number>(0);
@@ -90,6 +91,8 @@ export class CartPanelComponent {
     mesaId: number | null;
     orderType: 'dine-in' | 'to-go' | 'delivery';
     orderDate: string | null;
+    reservationDate: string | null;
+    reservationTime: string | null;
     notesHash: string;
   } | null>(null);
 
@@ -108,6 +111,8 @@ export class CartPanelComponent {
     if (mesaId !== snap.mesaId) return true;
     if (this.orderType() !== snap.orderType) return true;
     if ((this.orderDate() ?? null) !== snap.orderDate) return true;
+    if ((this.reservationDate() ?? null) !== snap.reservationDate) return true;
+    if ((this.reservationTime() ?? null) !== snap.reservationTime) return true;
     // notes
     const notesObj: Record<number,string> = {};
     Array.from(this.itemNotes().entries()).forEach(([k,v]) => notesObj[k] = v);
@@ -140,6 +145,9 @@ export class CartPanelComponent {
   private previousSelectedClienteId: number | null | undefined = undefined;
 
   constructor(private posService: PosService, private confirmDialog: ConfirmDialogService) {
+    let previousReservationInput: string | null = null;
+    let isReservationInitialized = false;
+
     effect(() => {
       this.orderType.set(this.orderTypeInput());
       this.selectedCliente.set(this.selectedClienteInput());
@@ -148,9 +156,24 @@ export class CartPanelComponent {
       const normalized = normalizeDateTimeValue(incomingDate);
       this.orderDate.set(normalized?.date ?? getTodayDateString());
       this.orderTime.set(normalized?.time ?? (this.isEditing() ? null : getCurrentTimeString()));
-      this.reservationDate.set(null);
-      this.reservationTime.set(null);
-      this.showReservationControls.set(false);
+
+      const incomingReservation = this.reservationDateInput();
+      const reservationNormalized = normalizeDateTimeValue(incomingReservation);
+      this.reservationDate.set(reservationNormalized?.date ?? null);
+      this.reservationTime.set(reservationNormalized?.time ?? null);
+
+      if (!isReservationInitialized) {
+        this.showReservationControls.set(Boolean(reservationNormalized));
+        isReservationInitialized = true;
+      } else if (previousReservationInput === null && incomingReservation !== null) {
+        // Only auto-open when a reservation is newly added from the parent.
+        this.showReservationControls.set(true);
+      } else if (incomingReservation === null) {
+        // Hide controls when the parent explicitly clears reservation data.
+        this.showReservationControls.set(false);
+      }
+
+      previousReservationInput = incomingReservation;
 
       const nextNotes = new Map<number, string>();
       this.items().forEach((item) => {
@@ -187,6 +210,8 @@ export class CartPanelComponent {
           mesaId: this.selectedMesa()?.id ?? null,
           orderType: this.orderType(),
           orderDate: this.orderDate() ?? null,
+          reservationDate: this.reservationDate() ?? null,
+          reservationTime: this.reservationTime() ?? null,
           notesHash: JSON.stringify(notesObj),
         });
       }

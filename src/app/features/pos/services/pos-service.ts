@@ -45,11 +45,11 @@ export interface ClienteSearch {
 export interface Order {
   id: number;
   numero_orden?: string;
-  cliente_nombre?: string;
-  cliente_telefono?: string;
-  cliente_id?: number;
+  cliente_nombre?: string | null;
+  cliente_telefono?: string | null;
+  cliente_id?: number | null;
   tipo_orden?: 'dine-in' | 'to-go' | 'delivery';
-  mesa_id?: number;
+  mesa_id?: number | null;
   mesa?: Mesa;
   fecha_orden?: string | null;
   fecha_reserva?: string | null;
@@ -189,6 +189,7 @@ export class PosService {
    * Mapea un Order (del frontend) a OrderPayload (para el backend)
    */
   public mapOrderToPayload(order: Order): OrderPayload {
+    console.log('Mapping order to payload:', order);
     return {
       cliente_id: order.cliente_id || null,
       cliente_nombre: order.cliente_nombre || null,

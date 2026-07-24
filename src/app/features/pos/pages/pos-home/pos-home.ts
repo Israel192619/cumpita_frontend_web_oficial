@@ -249,18 +249,24 @@ export class PosHome implements OnInit, OnDestroy {
       })),
     }));
 
-    const payload: any = {
+    const order: Order = {
+      id: orderId,
+      items: this.carrito(),
+      subtotal: this.subtotal(),
+      total: this.total(),
       cliente_id: this.selectedCliente()?.id ?? null,
+      cliente_nombre: this.selectedCliente()?.nombre ?? null,
+      cliente_telefono: this.selectedCliente()?.telefono ?? null,
       tipo_orden: this.orderType(),
       mesa_id: this.selectedMesa()?.id ?? null,
       fecha_orden: this.orderDate() ?? null,
       fecha_reserva: this.reservationDate() ?? null,
-      items: itemsPayload,
-      subtotal: this.subtotal(),
-      total: this.total(),
     };
 
+    const payload = this.posService.mapOrderToPayload(order);
+
     this.isProcessingCheckout.set(true);
+    console.log('1', payload);
     this.posService.actualizarOrden(orderId, payload).subscribe({
       next: () => {
         this.toastr.success('Orden actualizada correctamente');
@@ -744,6 +750,7 @@ export class PosHome implements OnInit, OnDestroy {
 
     if (this.isEditingOrder() && this.editingOrderId()) {
       const orderId = this.editingOrderId()!;
+      console.log('2', this.posService.mapOrderToPayload(order));
       this.posService.actualizarOrden(orderId, this.posService.mapOrderToPayload(order)).subscribe({
         next: () => {
           this.finalizarVenta();
@@ -811,34 +818,100 @@ export class PosHome implements OnInit, OnDestroy {
 
     // Si es modo refund, SOLO registrar el pago, NO actualizar la orden
     if (this.isRefundMode() && this.isEditingOrder() && this.editingOrderId()) {
+      // const orderId = this.editingOrderId()!;
+      
+      // // Calcular el cambio: si el cliente trae más de lo necesario para devolver
+      // const cambio = Math.max(0, montoRecibido - this.refundAmount());
+      
+      // this.posService.crearPagoOrden({
+      //   id_orden: orderId,
+      //   monto_recibido: montoRecibido,
+      //   metodo_pago: data.metodoPago,
+      //   tipo_pago: 'devolucion',
+      //   monto_pagado: this.refundAmount(), // El monto que se debe devolver
+      //   cambio_devuelto: cambio, // El cambio que el cliente me da
+      // }).subscribe({
+      //   next: () => {
+      //     this.finalizarVenta();
+      //     this.isCheckoutModalOpen.set(false);
+      //     this.isProcessingCheckout.set(false);
+      //     this.isEditingOrder.set(false);
+      //     this.editingOrderId.set(null);
+      //     this.isRefundMode.set(false);
+      //     this.deletedItems.set([]);
+      //     this.mostrarExito('Devolución registrada exitosamente');
+      //   },
+      //   error: (err) => {
+      //     console.log('Error al registrar la devolución:', err);
+      //     this.error.set('Error al registrar la devolución');
+      //     this.isProcessingCheckout.set(false);
+      //   },
+      // });
+      // return;
       const orderId = this.editingOrderId()!;
-      
-      // Calcular el cambio: si el cliente trae más de lo necesario para devolver
-      const cambio = Math.max(0, montoRecibido - this.refundAmount());
-      
-      this.posService.crearPagoOrden({
-        id_orden: orderId,
-        monto_recibido: montoRecibido,
+
+      const order: Order = {
+        id: orderId,
+        items: this.carrito(),
+        subtotal: this.subtotal(),
+        total: this.total(),
         metodo_pago: data.metodoPago,
-        tipo_pago: 'devolucion',
-        monto_pagado: this.refundAmount(), // El monto que se debe devolver
-        cambio_devuelto: cambio, // El cambio que el cliente me da
-      }).subscribe({
+        cliente_id: data.clienteId ?? this.selectedCliente()?.id,
+        cliente_nombre: this.selectedCliente()?.nombre,
+        cliente_telefono: this.selectedCliente()?.telefono,
+        tipo_orden: this.orderType(),
+        mesa_id: data.mesaId ?? this.selectedMesa()?.id,
+        fecha_orden: this.orderDate() ?? null,
+        fecha_reserva: this.reservationDate() ?? null,
+      };
+
+      const payload = this.posService.mapOrderToPayload(order);
+
+      // 1. Primero actualizamos la orden
+      this.posService.actualizarOrden(orderId, payload).subscribe({
         next: () => {
-          this.finalizarVenta();
-          this.isCheckoutModalOpen.set(false);
-          this.isProcessingCheckout.set(false);
-          this.isEditingOrder.set(false);
-          this.editingOrderId.set(null);
-          this.isRefundMode.set(false);
-          this.deletedItems.set([]);
-          this.mostrarExito('Devolución registrada exitosamente');
+
+          // 2. Luego registramos la devolución
+          const cambio = Math.max(
+            0,
+            montoRecibido - this.refundAmount()
+          );
+
+          this.posService.crearPagoOrden({
+            id_orden: orderId,
+            monto_recibido: montoRecibido,
+            metodo_pago: data.metodoPago,
+            tipo_pago: 'devolucion',
+            monto_pagado: this.refundAmount(),
+            cambio_devuelto: cambio,
+          }).subscribe({
+            next: () => {
+              this.finalizarVenta();
+              this.isCheckoutModalOpen.set(false);
+              this.isProcessingCheckout.set(false);
+              this.isEditingOrder.set(false);
+              this.editingOrderId.set(null);
+              this.isRefundMode.set(false);
+              this.deletedItems.set([]);
+
+              this.mostrarExito(
+                'Orden actualizada y devolución registrada exitosamente'
+              );
+            },
+            error: (err) => {
+              console.error('Error al registrar la devolución:', err);
+              this.error.set('Error al registrar la devolución');
+              this.isProcessingCheckout.set(false);
+            },
+          });
         },
         error: (err) => {
-          this.error.set('Error al registrar la devolución');
+          console.error('Error al actualizar la orden:', err);
+          this.error.set('Error al actualizar la orden');
           this.isProcessingCheckout.set(false);
         },
       });
+
       return;
     }
 
@@ -861,6 +934,7 @@ export class PosHome implements OnInit, OnDestroy {
     if (this.isEditingOrder() && this.editingOrderId()) {
       const orderId = this.editingOrderId()!;
       // Primero actualizamos la orden
+      console.log('3', this.posService.mapOrderToPayload(order));
       this.posService.actualizarOrden(orderId, this.posService.mapOrderToPayload(order)).subscribe({
         next: () => {
           // Luego registramos el pago
@@ -893,7 +967,8 @@ export class PosHome implements OnInit, OnDestroy {
       });
     } else {
       // Crear nueva orden y luego registrar pago
-      console.log('Creating order payload:', order);
+      //const createPayload = this.posService.mapOrderToPayload(order);
+      //console.log('Creating order payload:', createPayload);
       this.posService.crearOrden(order).subscribe({
         next: (response: any) => {
           console.log('crearOrden response:', response);
@@ -981,6 +1056,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
+    this.reservationDate.set(null);
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
     this.editingOrderSource.set(null);
@@ -1008,6 +1084,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
+    this.reservationDate.set(null);
     if (source === 'url') {
       this.router.navigate(['/app/pedidos']);
     }
@@ -1048,6 +1125,7 @@ export class PosHome implements OnInit, OnDestroy {
       this.selectedCliente.set(null);
       this.selectedMesa.set(null);
       this.orderDate.set(null);
+      this.reservationDate.set(null);
       this.deletedItems.set([]);
       this.isRefundMode.set(false);
     }
@@ -1066,6 +1144,7 @@ export class PosHome implements OnInit, OnDestroy {
       this.selectedCliente.set(null);
       this.selectedMesa.set(null);
       this.orderDate.set(null);
+      this.reservationDate.set(null);
       this.deletedItems.set([]);
       this.isRefundMode.set(false);
     }
@@ -1085,6 +1164,7 @@ export class PosHome implements OnInit, OnDestroy {
       this.selectedCliente.set(null);
       this.selectedMesa.set(null);
       this.orderDate.set(null);
+      this.reservationDate.set(null);
       this.deletedItems.set([]);
       this.isRefundMode.set(false);
     }
@@ -1222,7 +1302,8 @@ export class PosHome implements OnInit, OnDestroy {
       const day = String(parsed.getDate()).padStart(2, '0');
       const hours = String(parsed.getHours()).padStart(2, '0');
       const minutes = String(parsed.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
+      const seconds = String(parsed.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
     }
 
     return null;
