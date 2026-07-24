@@ -1,0 +1,74 @@
+<main class="kds">
+  <header class="kds-header">
+    <div class="kds-title">
+      <div>
+        <h1>Vista de cocina</h1>
+        <p>{{ ordenesVisibles().length }} pedidos activos</p>
+      </div>
+    </div>
+
+    <div class="kds-filters">
+      <select [value]="categoriaSeleccionada()" (change)="onCategoriaChange($event)" aria-label="Filtrar por categoría">
+        <option value="todos">Todas las categorías</option>
+        <option *ngFor="let categoria of categorias()" [value]="categoria">{{ categoria }}</option>
+      </select>
+      <input type="date" [value]="fechaSeleccionada()" (change)="onFechaChange($event)" aria-label="Fecha de pedidos">
+      <input type="search" placeholder="Buscar cliente o producto" [value]="busqueda()" (input)="onBusquedaChange($event)">
+    </div>
+  </header>
+
+  <section class="kds-board" aria-live="polite">
+    <div *ngIf="isLoading()" class="kds-empty">Cargando pedidos de cocina…</div>
+    <div *ngIf="!isLoading() && ordenesVisibles().length === 0" class="kds-empty">
+      <span>✓</span>
+      <h2>No hay pedidos pendientes</h2>
+      <p>Los nuevos pedidos aparecerán aquí automáticamente.</p>
+    </div>
+
+    <article *ngFor="let orden of ordenesVisibles()" class="kds-ticket" [class.kds-ticket--cancelled]="orden.estado === 'cancelado'">
+      <div *ngIf="orden.estado === 'cancelado'" class="cancelled-stamp">CANCELADO</div>
+      <header class="ticket-header">
+        <div class="ticket-client">
+          <p class="ticket-label">Cliente</p>
+          <h2>{{ orden.cliente?.nombre || 'Cliente sin nombre' }}</h2>
+        </div>
+        <span class="ticket-time" [class.ticket-time--urgent]="esUrgente(orden)">{{ tiempoTranscurrido(orden) }}</span>
+      </header>
+
+      <div class="ticket-meta">
+        <strong>#{{ orden.numero_orden || orden.id }}</strong>
+        <span>{{ etiquetaTipoOrden(orden) }}</span>
+        <span class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
+      </div>
+
+      <section *ngIf="tieneCambiosRecientes(orden)" class="ticket-changes">
+        <div class="ticket-changes__heading">
+          <strong>Cambios recientes</strong>
+          <button type="button" (click)="aceptarCambios(orden.id)">Aceptar cambios</button>
+        </div>
+        <div *ngFor="let cambio of orden.cambios_recientes" class="change-row" [ngClass]="claseCambio(cambio)">
+          {{ etiquetaCambio(cambio) }}
+        </div>
+      </section>
+
+      <section *ngFor="let grupo of gruposPorCategoria(orden)" class="ticket-category">
+        <h3>{{ grupo.categoria }}</h3>
+        <div *ngFor="let detalle of grupo.detalles" class="ticket-item">
+          <div class="ticket-item__product">
+            <strong><span>{{ detalle.cantidad }}×</span> {{ detalle.producto.nombre }}</strong>
+            <small *ngIf="detalle.nota">Nota: {{ detalle.nota }}</small>
+          </div>
+          <label class="serve-switch" [class.serve-switch--loading]="detalleActualizando() === detalle.id">
+            <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="detalleActualizando() === detalle.id" (change)="marcarServido(detalle, $any($event.target).checked)">
+            <span></span>
+            <b>{{ detalleActualizando() === detalle.id ? 'Guardando' : 'Servido' }}</b>
+          </label>
+        </div>
+      </section>
+
+      <footer *ngIf="orden.estado === 'cancelado'" class="ticket-cancelled-footer">
+        <button type="button" (click)="aceptarCancelacion(orden.id)">ACEPTAR</button>
+      </footer>
+    </article>
+  </section>
+</main>

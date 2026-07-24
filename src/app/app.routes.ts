@@ -188,6 +188,18 @@ export const routes: Routes = [
       }
     ]
   },
+  {
+    path: 'cocina',
+    loadComponent: () => import('./layout/cocina-layout/cocina-layout').then(m => m.CocinaLayout),
+    canActivate: [authGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
+      }
+    ]
+  },
   
 
   //Ruta no encontrada

@@ -83,6 +83,7 @@ export interface OrderPayload {
 }
 
 export interface OrderItem {
+  orden_detalle_id?: number;
   producto_id: number;
   cantidad: number;
   precio_unitario: number;
@@ -236,6 +237,9 @@ export class PosService {
       total: order.total,
       observaciones: order.cliente_nombre ? `Cliente: ${order.cliente_nombre}` : undefined,
       items: order.items.map(item => ({
+        // Conserva el identificador al editar: el backend compara este detalle
+        // con el existente en vez de borrar y crear toda la orden nuevamente.
+        orden_detalle_id: item.orden_detalle_id,
         producto_id: item.producto.id,
         cantidad: item.cantidad,
         precio_unitario: item.precio_unitario,
