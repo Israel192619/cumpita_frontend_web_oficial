@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { timeout } from 'rxjs/internal/operators/timeout';
@@ -8,6 +8,8 @@ import { ConfirmDialogService } from '../../../../shared/services/confirm-dialog
 import { DataTable } from '../../../../shared/components';
 import { Order, PosService } from '../../services';
 import { OrdenShow } from '../orden-show/orden-show';
+import { Subscription } from 'rxjs/internal/Subscription';
+import { ReverbService } from '@app/core/services/reverb-service';
 
 @Component({
   selector: 'app-ordenes-list',
@@ -16,23 +18,52 @@ import { OrdenShow } from '../orden-show/orden-show';
   templateUrl: './ordenes-list.html',
   styleUrl: './ordenes-list.css',
 })
-export class OrdenesList implements OnInit {
+export class OrdenesList implements OnInit, OnDestroy {
   ordenes = signal<Order[]>([]);
   isLoading = signal(false);
   error = signal<string | null>(null);
   errorMessageLink = signal<string | null>(null);
   errorMessageText = signal<string | null>(null);
+  private reverbSub!: Subscription;
 
   constructor(
     private posService: PosService,
     private router: Router,
     private toastr: ToastrService,
     private confirmDialog: ConfirmDialogService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private reverb: ReverbService
   ) {}
 
   ngOnInit(): void {
     this.obtenerOrdenes();
+    this.escucharNuevasOrdenes();
+  }
+
+  escucharNuevasOrdenes() {
+    this.reverbSub = this.reverb
+      .escucharCanal('canal-ordenes', '.OrdenCreada')
+      .subscribe((data: any) => {
+        const nuevaOrdenRaw = data.orden;
+
+        if (nuevaOrdenRaw) {
+          // Aplanamos las propiedades de la nueva orden para que coincida con tu formato de la tabla
+          const ordenFormateada: any = {
+            ...nuevaOrdenRaw,
+            numero_orden: `#${nuevaOrdenRaw.id}`,
+            cliente_nombre: nuevaOrdenRaw.cliente 
+              ? nuevaOrdenRaw.cliente.nombre 
+              : (nuevaOrdenRaw.observaciones || 'Venta Rápida'),
+            total: parseFloat(nuevaOrdenRaw.total)
+          };
+
+          // Actualizamos el Signal agregando la nueva orden al inicio de la lista
+          this.ordenes.update((listaActual) => [ordenFormateada, ...listaActual]);
+          
+          // Opcional: Mostrar una pequeña notificación visual en la esquina
+          this.toastr.info(`Nueva orden ${ordenFormateada.numero_orden} recibida`, 'Tiempo Real');
+        }
+      });
   }
 
   obtenerOrdenes() {
@@ -112,5 +143,11 @@ export class OrdenesList implements OnInit {
         });
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.reverbSub) {
+      this.reverbSub.unsubscribe();
+    }
   }
 }
