@@ -114,6 +114,27 @@ export interface PagoOrden {
   updated_at?: string;
 }
 
+export interface CajaResumen {
+  monto_apertura: number;
+  ingresos_efectivo: number;
+  monto_esperado: number;
+  cantidad_pagos_efectivo: number;
+}
+
+export interface Caja {
+  id: number;
+  user_id: number;
+  monto_apertura: number;
+  monto_esperado?: number | null;
+  monto_cierre?: number | null;
+  diferencia?: number | null;
+  fecha_apertura: string;
+  fecha_cierre?: string | null;
+  estado: 'abierta' | 'cerrada';
+  observacion_apertura?: string | null;
+  observacion_cierre?: string | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -183,6 +204,18 @@ export class PosService {
     cambio_devuelto?: number;
   }): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/pagos-ordenes`, data);
+  }
+
+  obtenerCajaActual(): Observable<{ caja: Caja | null; resumen?: CajaResumen }> {
+    return this.http.get<{ caja: Caja | null; resumen?: CajaResumen }>(`${this.apiUrl}/cajas/actual`);
+  }
+
+  abrirCaja(data: { monto_apertura: number; observacion_apertura?: string }): Observable<{ caja: Caja }> {
+    return this.http.post<{ caja: Caja }>(`${this.apiUrl}/cajas/abrir`, data);
+  }
+
+  cerrarCaja(id: number, data: { monto_cierre: number; observacion_cierre?: string }): Observable<{ caja: Caja; resumen: CajaResumen }> {
+    return this.http.post<{ caja: Caja; resumen: CajaResumen }>(`${this.apiUrl}/cajas/${id}/cerrar`, data);
   }
 
   /**

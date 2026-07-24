@@ -110,6 +110,14 @@
   position: relative;
 }
 
+.header-action-btn.btn-caja { min-width: 132px; padding: 0.45rem 0.75rem; border-radius: 10px; justify-content: flex-start; text-align: left; line-height: 1.15; color: #8a4b00; background: #fff7e4; border-color: #f0d292; }
+.header-action-btn.btn-caja.btn-caja-open { color: #166534; background: #eaf8ef; border-color: #b7dfc2; }
+.header-action-btn.btn-caja:hover:not(:disabled) { color: #166534; border-color: #5aae73; background: #dff4e6; }
+.caja-icon { font-size: 1.05rem; }
+.caja-copy { display: flex; flex-direction: column; gap: 0.08rem; }
+.caja-copy strong { font-size: 0.78rem; }
+.caja-copy small { font-size: 0.65rem; font-weight: 600; opacity: 0.8; white-space: nowrap; }
+
 .header-action-btn .badge {
   display: inline-flex;
   align-items: center;

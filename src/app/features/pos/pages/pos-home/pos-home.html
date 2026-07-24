@@ -14,6 +14,35 @@
     </div>
   </div>
 
+  <section *ngIf="false" class="caja-status" [class.caja-status--closed]="!cajaActual()">
+    <div class="caja-status__main" *ngIf="cajaActual(); else cajaCerrada">
+      <span class="caja-status__icon">💵</span>
+      <div>
+        <strong>Caja abierta</strong>
+        <span>Desde {{ cajaActual()?.fecha_apertura | date:'dd/MM/yyyy HH:mm' }}</span>
+      </div>
+      <div class="caja-status__total">
+        <span>Efectivo esperado</span>
+        <strong>{{ formatearMonto(resumenCaja()?.monto_esperado || cajaActual()?.monto_apertura || 0) }}</strong>
+      </div>
+      <div class="caja-status__total caja-status__payments">
+        <span>Pagos en efectivo</span>
+        <strong>{{ resumenCaja()?.cantidad_pagos_efectivo || 0 }}</strong>
+      </div>
+    </div>
+    <ng-template #cajaCerrada>
+      <div class="caja-status__main">
+        <span class="caja-status__icon">🔒</span>
+        <div>
+          <strong>Caja cerrada</strong>
+          <span>Los pagos QR están disponibles; abre caja para cobrar en efectivo.</span>
+        </div>
+      </div>
+    </ng-template>
+    <button *ngIf="!cajaActual()" type="button" class="btn-caja btn-caja--open" (click)="abrirModalCaja('abrir')">Abrir caja</button>
+    <button *ngIf="cajaActual()" type="button" class="btn-caja btn-caja--close" (click)="abrirModalCaja('cerrar')">Cerrar caja</button>
+  </section>
+
   <!-- Main Layout: Izquierda (Header + Productos) | Derecha (Carrito) -->
   <div class="pos-layout">
     <!-- Left Column: Header + Productos -->
@@ -26,10 +55,14 @@
           [selectedSubcategoryId]="selectedSubcategoryId()"
           [isLoading]="isLoadingProductos()"
           [pendingOrdersCount]="pendingOrdersCount()"
+          [cajaAbierta]="!!cajaActual()"
+          [cajaMontoEsperado]="resumenCaja()?.monto_esperado || cajaActual()?.monto_apertura || 0"
+          [cajaPagosEfectivo]="resumenCaja()?.cantidad_pagos_efectivo || 0"
           (categorySelected)="onCategorySelected($event)"
           (subcategorySelected)="onSubcategorySelected($event)"
           (searchChanged)="onProductSearchChanged($event)"
           (pendingOrdersRequested)="onPendingOrdersRequested()"
+          (cajaActionRequested)="abrirModalCaja($event)"
           (backRequested)="onBackRequested()"
         />
       </div>
@@ -106,6 +139,33 @@
     (checkoutConfirmed)="onCheckoutConfirmed($event)"
     (checkoutCancelled)="onCheckoutCancelled()"
   />
+
+  <div *ngIf="isCajaModalOpen()" class="caja-modal-backdrop" (click)="cerrarModalCaja()">
+    <section class="caja-modal" (click)="$event.stopPropagation()">
+      <header>
+        <div>
+          <p>{{ cajaModalMode() === 'abrir' ? 'Inicio de jornada' : 'Arqueo de caja' }}</p>
+          <h2>{{ cajaModalMode() === 'abrir' ? 'Abrir caja' : 'Cerrar caja' }}</h2>
+        </div>
+        <button type="button" (click)="cerrarModalCaja()" [disabled]="isProcessingCaja()">×</button>
+      </header>
+      <div class="caja-modal__body">
+        <p *ngIf="cajaModalMode() === 'cerrar'" class="caja-modal__expected">
+          Efectivo esperado: <strong>{{ formatearMonto(resumenCaja()?.monto_esperado || 0) }}</strong>
+        </p>
+        <label>{{ cajaModalMode() === 'abrir' ? 'Monto inicial' : 'Efectivo contado' }}</label>
+        <input type="number" min="0" step="0.01" inputmode="decimal" [value]="montoCaja()" (input)="montoCaja.set($any($event.target).value)" autofocus>
+        <label>Observación <small>(opcional)</small></label>
+        <textarea rows="3" [value]="observacionCaja()" (input)="observacionCaja.set($any($event.target).value)" placeholder="Ej.: cambio inicial o detalle del arqueo"></textarea>
+      </div>
+      <footer>
+        <button type="button" class="btn-caja-cancel" (click)="cerrarModalCaja()" [disabled]="isProcessingCaja()">Cancelar</button>
+        <button type="button" class="btn-caja-confirm" (click)="confirmarCaja()" [disabled]="isProcessingCaja()">
+          {{ isProcessingCaja() ? 'Guardando…' : (cajaModalMode() === 'abrir' ? 'Abrir caja' : 'Confirmar cierre') }}
+        </button>
+      </footer>
+    </section>
+  </div>
 
   <!-- Payment History Modal -->
   <div *ngIf="isHistoryModalOpen()" class="payment-history-backdrop" (click)="closeHistoryModal()">

@@ -44,6 +44,24 @@
   }
 }
 
+.caja-modal-backdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(15, 23, 42, 0.58); }
+.caja-modal { width: min(100%, 430px); background: var(--bg-surface, #fff); color: var(--text-primary, #1e293b); border-radius: 16px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28); overflow: hidden; }
+.caja-modal header { padding: 1.1rem 1.25rem; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color, #e2e8f0); }
+.caja-modal header p { margin: 0; font-size: 0.75rem; color: var(--text-muted, #64748b); }
+.caja-modal header h2 { margin: 0.2rem 0 0; font-size: 1.2rem; }
+.caja-modal header button { border: none; background: transparent; font-size: 1.5rem; cursor: pointer; color: inherit; }
+.caja-modal__body { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.caja-modal__body label { font-size: 0.82rem; font-weight: 700; margin-top: 0.4rem; }
+.caja-modal__body small { font-weight: 400; color: var(--text-muted, #64748b); }
+.caja-modal__body input, .caja-modal__body textarea { width: 100%; box-sizing: border-box; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color, #cbd5e1); border-radius: 9px; font: inherit; background: var(--bg-main, #fff); color: inherit; }
+.caja-modal__expected { margin: 0 0 0.3rem; padding: 0.75rem; border-radius: 9px; background: rgba(21, 128, 61, 0.1); }
+.caja-modal footer { padding: 1rem 1.25rem; display: flex; justify-content: flex-end; gap: 0.65rem; border-top: 1px solid var(--border-color, #e2e8f0); }
+.btn-caja-cancel, .btn-caja-confirm { border: none; border-radius: 8px; padding: 0.65rem 0.9rem; font-weight: 700; cursor: pointer; }
+.btn-caja-cancel { background: #e2e8f0; color: #334155; }
+.btn-caja-confirm { background: #15803d; color: white; }
+.btn-caja-confirm:disabled, .btn-caja-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
+
+
 @keyframes slideDown {
   from {
     transform: translateY(-10px);

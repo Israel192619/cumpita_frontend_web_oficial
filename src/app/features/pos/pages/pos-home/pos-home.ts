@@ -2,7 +2,7 @@ import { Component, signal, computed, effect, OnInit, OnDestroy } from '@angular
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { CartItem, CartItemModificador, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa } from '../../services';
+import { CartItem, CartItemModificador, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen } from '../../services';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
 import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, ProductGridComponent } from '../../components';
@@ -37,6 +37,13 @@ export class PosHome implements OnInit, OnDestroy {
   deletedItems = signal<any[]>([]);
   originalCarrito = signal<CartItem[]>([]);
   error = signal<string | null>(null);
+  cajaActual = signal<Caja | null>(null);
+  resumenCaja = signal<CajaResumen | null>(null);
+  isCajaModalOpen = signal<boolean>(false);
+  cajaModalMode = signal<'abrir' | 'cerrar'>('abrir');
+  isProcessingCaja = signal<boolean>(false);
+  montoCaja = signal<string>('');
+  observacionCaja = signal<string>('');
 
   // Calculado automáticamente: lo que pagó - lo que debe pagar ahora
   refundAmount = computed(() => {
@@ -203,6 +210,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.cargarProductos();
     this.loadOrders();
     this.loadPendingOrders();
+    this.cargarCajaActual();
     
     // Verificar si viene un ID de orden para editar
     this.route.queryParams.subscribe(params => {
@@ -219,6 +227,87 @@ export class PosHome implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+  }
+
+  cargarCajaActual(): void {
+    this.posService.obtenerCajaActual().subscribe({
+      next: (response) => {
+        this.cajaActual.set(response.caja);
+        this.resumenCaja.set(response.resumen ?? null);
+      },
+      error: () => {
+        this.cajaActual.set(null);
+        this.resumenCaja.set(null);
+      },
+    });
+  }
+
+  abrirModalCaja(mode: 'abrir' | 'cerrar'): void {
+    this.cajaModalMode.set(mode);
+    this.montoCaja.set(mode === 'cerrar' ? this.resumenCaja()?.monto_esperado?.toString() ?? '' : '');
+    this.observacionCaja.set('');
+    this.isCajaModalOpen.set(true);
+  }
+
+  cerrarModalCaja(): void {
+    if (!this.isProcessingCaja()) {
+      this.isCajaModalOpen.set(false);
+    }
+  }
+
+  confirmarCaja(): void {
+    const monto = Number(this.montoCaja());
+    if (!Number.isFinite(monto) || monto < 0) {
+      this.toastr.error('Ingresa un monto válido para la caja.');
+      return;
+    }
+
+    this.isProcessingCaja.set(true);
+    const observacion = this.observacionCaja().trim();
+
+    if (this.cajaModalMode() === 'abrir') {
+      this.posService.abrirCaja({ monto_apertura: monto, observacion_apertura: observacion || undefined }).subscribe({
+        next: () => {
+          this.isProcessingCaja.set(false);
+          this.isCajaModalOpen.set(false);
+          this.cargarCajaActual();
+          this.toastr.success('Caja abierta correctamente.');
+        },
+        error: (err) => {
+          this.isProcessingCaja.set(false);
+          this.toastr.error(err?.error?.message || 'No se pudo abrir la caja.');
+        },
+      });
+      return;
+    }
+
+    const caja = this.cajaActual();
+    if (!caja) {
+      this.isProcessingCaja.set(false);
+      this.isCajaModalOpen.set(false);
+      return;
+    }
+
+    this.posService.cerrarCaja(caja.id, { monto_cierre: monto, observacion_cierre: observacion || undefined }).subscribe({
+      next: (response) => {
+        this.isProcessingCaja.set(false);
+        this.isCajaModalOpen.set(false);
+        this.cajaActual.set(null);
+        this.resumenCaja.set(null);
+        const diferencia = Number(response.caja.diferencia || 0);
+        this.toastr.success(
+          diferencia === 0 ? 'Caja cerrada sin diferencias.' : `Caja cerrada con diferencia de ${this.formatearMonto(diferencia)}.`
+        );
+      },
+      error: (err) => {
+        this.isProcessingCaja.set(false);
+        this.toastr.error(err?.error?.message || 'No se pudo cerrar la caja.');
+      },
+    });
+  }
+
+  formatearMonto(monto: number): string {
+    return `Bs ${Number(monto || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   onBackRequested(): void {
@@ -806,6 +895,14 @@ export class PosHome implements OnInit, OnDestroy {
   }): void {
     this.isProcessingCheckout.set(true);
 
+    if (data.metodoPago === 'efectivo' && !this.cajaActual()) {
+      const mensaje = 'Abre una caja antes de registrar pagos o devoluciones en efectivo.';
+      this.error.set(mensaje);
+      this.toastr.error(mensaje);
+      this.isProcessingCheckout.set(false);
+      return;
+    }
+
     if (!this.selectedCliente() && !data.clienteId) {
       this.error.set('Selecciona un cliente para continuar con la venta.');
       this.toastr.error('Selecciona un cliente para continuar con la venta.');
@@ -1064,6 +1161,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.cargarProductos();
     this.loadOrders();
     this.loadPendingOrders();
+    this.cargarCajaActual();
   }
 
   private mostrarExito(mensaje: string): void {

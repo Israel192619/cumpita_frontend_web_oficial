@@ -16,12 +16,16 @@ export class CategoryBarComponent implements OnInit {
   selectedSubcategoryId = input<number | null>(null);
   isLoading = input<boolean>(false);
   pendingOrdersCount = input<number>(0);
+  cajaAbierta = input<boolean>(false);
+  cajaMontoEsperado = input<number>(0);
+  cajaPagosEfectivo = input<number>(0);
 
   categorySelected = output<number | null>();
   subcategorySelected = output<number | null>();
   searchChanged = output<string>();
   backRequested = output<void>();
   pendingOrdersRequested = output<void>();
+  cajaActionRequested = output<'abrir' | 'cerrar'>();
 
   expandedCategoryId = signal<number | null>(null);
   searchQuery = signal<string>('');
@@ -87,6 +91,10 @@ export class CategoryBarComponent implements OnInit {
 
   onRequestPendingOrders(): void {
     this.pendingOrdersRequested.emit();
+  }
+
+  onCajaAction(): void {
+    this.cajaActionRequested.emit(this.cajaAbierta() ? 'cerrar' : 'abrir');
   }
 
   trackByCategory = (index: number, cat: Categoria) => cat.id;
