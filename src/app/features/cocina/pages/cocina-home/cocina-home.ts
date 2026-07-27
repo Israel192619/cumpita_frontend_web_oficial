@@ -54,6 +54,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCreada').subscribe((data: { orden?: KdsOrden }) => {
         if (data.orden) {
+          //console.log('OrdenCreada recibida:', data.orden);
           this.insertarOActualizarOrden(data.orden);
         }
       }),
@@ -123,6 +124,7 @@ export class CocinaHome implements OnInit, OnDestroy {
       const sinOrdenActual = ordenes.filter((item) => item.id !== orden.id);
 
       if (!this.debeMostrarseEnKds(orden)) {
+        console.log('Orden eliminada del KDS:', orden.id);
         return sinOrdenActual;
       }
 
@@ -164,6 +166,7 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   private debeMostrarseEnKds(orden: KdsOrden): boolean {
     if (!this.esDeFechaSeleccionada(orden)) {
+      console.log('Orden ignorada por fecha:', orden.id, orden.created_at);
       return false;
     }
 
@@ -215,7 +218,21 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   private esDeFechaSeleccionada(orden: KdsOrden): boolean {
-    return (orden.created_at || '').slice(0, 10) === this.fechaSeleccionada();
+    //return (orden.created_at || '').slice(0, 10) === this.fechaSeleccionada();
+    if (!orden.created_at) return false;
+    
+    // 1. Convertir el texto ISO/UTC a un objeto Date nativo (se adapta automáticamente a la hora local)
+    const fechaOrdenLocal = new Date(orden.created_at);
+    
+    // 2. Formatear en estructura YYYY-MM-DD usando los métodos locales
+    const anio = fechaOrdenLocal.getFullYear();
+    const mes = String(fechaOrdenLocal.getMonth() + 1).padStart(2, '0');
+    const dia = String(fechaOrdenLocal.getDate()).padStart(2, '0');
+    
+    const fechaOrdenFormateada = `${anio}-${mes}-${dia}`;
+
+    // 3. Comparar ambos strings en base a la hora local
+    return fechaOrdenFormateada === this.fechaSeleccionada();
   }
 
   tiempoTranscurrido(orden: KdsOrden): string {
