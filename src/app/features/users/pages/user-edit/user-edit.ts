@@ -1,15 +1,16 @@
 import { Component, signal } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UserService } from '../../services/user-service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { User } from '../../../../core/models/user';
 import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/components';
+import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
 
 @Component({
   selector: 'app-user-edit',
   imports: [
-    FormCard, InputForm, Select, ErrorMessage
+    FormCard, InputForm, Select, ErrorMessage, ReactiveFormsModule
   ],
   templateUrl: './user-edit.html',
   styleUrl: './user-edit.css',
@@ -18,10 +19,18 @@ export class UserEdit {
   form: FormGroup;
   error = signal<string | null>(null);
   roles = signal<{ label: string, value: any }[]>([]);
+  estaciones = signal<{ label: string; value: number | null }[]>([]);
   user = signal<User | null>(null);
   loading = signal(false);
 
-  constructor(private fb: FormBuilder, private userService: UserService, private router: Router, private route: ActivatedRoute, private toastr: ToastrService) {
+  constructor(
+    private fb: FormBuilder,
+    private userService: UserService,
+    private estacionTrabajoService: EstacionTrabajoService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private toastr: ToastrService
+  ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
       direccion: ['', Validators.required],
@@ -29,7 +38,8 @@ export class UserEdit {
       avatar: null,
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.minLength(8)]],
-      role_id: [null, Validators.required]
+      role_id: [null, Validators.required],
+      estacion_id: [null]
     });
   }
 
@@ -43,6 +53,15 @@ export class UserEdit {
       }
     });
 
+    this.estacionTrabajoService.listar().subscribe({
+      next: (estaciones) => {
+        this.estaciones.set([
+          { label: 'Sin estación', value: null },
+          ...estaciones.filter(est => est.activa).map(est => ({ label: `${est.nombre} (${est.codigo})`, value: est.id }))
+        ]);
+      }
+    });
+
     if (id) {
       this.userService.getUsuarioPorId(id).subscribe({
         next: (user) => {
@@ -53,7 +72,8 @@ export class UserEdit {
             numero_celular: user.perfil_usuarios?.numero_celular || '',
             avatar: null,
             email: user.email,
-            role_id: user.role_id
+            role_id: user.role_id,
+            estacion_id: user.estacion_id ?? null
           });
         }
       });
@@ -80,9 +100,17 @@ export class UserEdit {
     // }
     this.error.set(null);
     const formData = new FormData();
+    const values = this.form.value;
 
-    Object.keys(this.form.value).forEach(key => {
-      const value = this.form.value[key];
+    Object.keys(values).forEach(key => {
+      const value = values[key];
+
+      if (key === 'estacion_id') {
+        if (value !== undefined) {
+          formData.append('estacion_id', value ?? '');
+        }
+        return;
+      }
 
       if (value !== null && value !== undefined && value !== '') {
         formData.append(key, value);

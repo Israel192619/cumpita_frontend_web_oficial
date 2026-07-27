@@ -4,6 +4,7 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } 
 import { ToastrService } from 'ngx-toastr';
 import { Router } from '@angular/router';
 import { ErrorMessage, FormCard, InputForm, Select } from '../../../../shared/components';
+import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
 
 @Component({
   selector: 'app-user-create',
@@ -18,9 +19,16 @@ export class UserCreate {
   form: FormGroup;
   error = signal<string | null>(null);
   roles = signal<{ label: string; value: any }[]>([]);
+  estaciones = signal<{ label: string; value: number | null }[]>([]);
   isloading = signal(false);
 
-  constructor(private userService: UserService, private fb: FormBuilder, private toastr: ToastrService, private router: Router) {
+  constructor(
+    private userService: UserService,
+    private estacionTrabajoService: EstacionTrabajoService,
+    private fb: FormBuilder,
+    private toastr: ToastrService,
+    private router: Router
+  ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
       direccion: ['', Validators.required],
@@ -28,7 +36,8 @@ export class UserCreate {
       avatar: null,
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
-      role_id: [null, Validators.required]
+      role_id: [null, Validators.required],
+      estacion_id: [null]
     });
   }
 
@@ -39,6 +48,18 @@ export class UserCreate {
         this.roles.set(
           roles.map(role => ({ label: role.nombre, value: role.id }))
         );
+      }
+    });
+    this.cargarEstaciones();
+  }
+
+  cargarEstaciones() {
+    this.estacionTrabajoService.listar().subscribe({
+      next: (estaciones) => {
+        this.estaciones.set([
+          { label: 'Sin estación', value: null },
+          ...estaciones.filter(est => est.activa).map(est => ({ label: `${est.nombre} (${est.codigo})`, value: est.id }))
+        ]);
       }
     });
   }
@@ -53,9 +74,17 @@ export class UserCreate {
     this.isloading.set(true);
     this.error.set(null);
     const formData = new FormData();
+    const values = this.form.value;
 
-    Object.keys(this.form.value).forEach(key => {
-      const value = this.form.value[key];
+    Object.keys(values).forEach(key => {
+      const value = values[key];
+
+      if (key === 'estacion_id') {
+        if (value !== undefined && value !== null) {
+          formData.append('estacion_id', value);
+        }
+        return;
+      }
 
       if (value !== null && value !== undefined) {
         formData.append(key, value);
@@ -93,7 +122,8 @@ export class UserCreate {
       name: '',
       email: '',
       password: '',
-      role_id: null
+      role_id: null,
+      estacion_id: null
     });
     this.error.set(null);
     this.form.markAsPristine();

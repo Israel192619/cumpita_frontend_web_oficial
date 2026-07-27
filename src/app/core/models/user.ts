@@ -1,8 +1,12 @@
+import { EstacionTrabajo } from './estacion-trabajo';
+
 export interface User {
   id: number;
   name: string;
   email: string;
   role_id: number;
+  estacion_id?: number | null;
+  estacion?: EstacionTrabajo | null;
   perfil_usuarios?: PerfilUsuario;
   created_at?: string;
   updated_at?: string;
