@@ -202,14 +202,12 @@ export const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
-      }
-    ]
-  },
-  
-
-  //Ruta no encontrada
-  {
-    path: '**',
-    redirectTo: 'login'
+      },
+      {
+            path: 'control',
+            loadComponent: () => import('./features/cocina/pages/cocina-control/cocina-control').then(m => m.CocinaControlPage)
+          },
+      
+      ]
   }
 ];

@@ -24,7 +24,8 @@ export interface KdsDetalle {
   id: number;
   cantidad: number;
   nota?: string | null;
-  estado_cocina: 'pendiente' | 'servido';
+  // Expanded states for the detail lifecycle. UI will remain backwards-compatible.
+  estado_cocina: 'pendiente' | 'en_preparacion' | 'listo_para_recoger' | 'recogido' | 'servido';
   producto: KdsProducto;
   estacion_id?: number | null;
   estacion?: KdsEstacion | null;
@@ -71,7 +72,7 @@ export class CocinaService {
     return this.http.get<{ ordenes: KdsOrden[] }>(`${this.apiUrl}/cocina/pedidos`, { params: { fecha } });
   }
 
-  actualizarEstadoDetalle(id: number, estado_cocina: 'pendiente' | 'servido'): Observable<ActualizacionEstadoCocinaResponse> {
+  actualizarEstadoDetalle(id: number, estado_cocina: 'pendiente' | 'en_preparacion' | 'listo_para_recoger' | 'recogido' | 'servido'): Observable<ActualizacionEstadoCocinaResponse> {
     return this.http.patch<ActualizacionEstadoCocinaResponse>(`${this.apiUrl}/cocina/detalles/${id}`, { estado_cocina });
   }
 }

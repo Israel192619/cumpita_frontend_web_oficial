@@ -3,6 +3,7 @@ import { environment } from '../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { finalize, Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
+import { User } from '../models';
 
 
 @Injectable({
@@ -38,6 +39,10 @@ export class AuthService {
 
   getToken() {
     return localStorage.getItem('auth_token');
+  }
+
+  me(): Observable<User> {
+    return this.http.get<User>(`${this.apiUrl}/me`);
   }
 
   olvidasteContrasena(email: string) {

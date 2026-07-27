@@ -1,0 +1,95 @@
+<main class="control-page">
+  <header class="control-header">
+    <div>
+      <h1>Control de Cocina</h1>
+      <p *ngIf="usuario()">Cocinero: {{ usuario()?.name }}</p>
+    </div>
+  </header>
+
+  <section *ngIf="isLoading()" class="control-loading">
+    <p>Cargando panel de control…</p>
+  </section>
+
+  <section *ngIf="error()" class="control-error">
+    <p>{{ error() }}</p>
+  </section>
+
+  <section *ngIf="!isLoading() && !error()" class="control-body">
+    <ng-container *ngIf="!tienePuesto(); else puestoAsignado">
+      <div class="control-card">
+        <h2>Seleccionar puesto</h2>
+        <div class="puesto-list">
+          <article *ngFor="let puesto of puestos()" class="puesto-item">
+            <div>
+              <strong>{{ puesto.nombre }}</strong>
+              <p>{{ puesto.user_id ? 'Ocupado por ' + puesto.user_nombre : 'Disponible' }}</p>
+            </div>
+            <button class="button button--primary" [disabled]="puesto.user_id !== null" (click)="ocuparPuesto(puesto)">
+              Ocupar
+            </button>
+          </article>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-template #puestoAsignado>
+      <div class="control-card">
+        <h2>Mi puesto</h2>
+        <p class="puesto-name">{{ puesto()?.nombre }}</p>
+        <p><strong>Usuario:</strong> {{ usuario()?.name }}</p>
+        <div class="order-panel" *ngIf="ordenActual(); else sinOrden">
+          <h3>Orden actual</h3>
+          <p><strong>#{{ ordenActual()?.numero_orden || ordenActual()?.id }}</strong></p>
+          <p><strong>Cliente:</strong> {{ ordenActual()?.cliente?.nombre || 'Sin cliente' }}</p>
+          <p><strong>Estado:</strong> {{ ordenActual()?.estado }}</p>
+          <div class="productos-list">
+            <strong>Productos:</strong>
+            <ul>
+              <li *ngFor="let detalle of ordenActual()?.detalles">{{ detalle.cantidad }}× {{ detalle.producto.nombre }}</li>
+            </ul>
+          </div>
+          <div class="order-actions">
+            <button class="button button--primary" (click)="marcarLista()">MARCAR LISTO</button>
+            <button class="button button--secondary" (click)="cambiarPedido()">CAMBIAR PEDIDO</button>
+          </div>
+        </div>
+
+        <ng-template #sinOrden>
+          <p class="control-empty">Sin orden asignada — esperando asignación automática</p>
+          <button class="button button--secondary" (click)="cambiarPedido()">CAMBIAR ORDEN (excepción)</button>
+        </ng-template>
+      </div>
+    </ng-template>
+
+    <div *ngIf="mostrarSeleccionOrden()" class="modal-overlay">
+      <div class="modal-backdrop" (click)="mostrarSeleccionOrden.set(false)"></div>
+      <section class="modal-content">
+        <header class="modal-header">
+          <h2>Pedidos disponibles</h2>
+          <button class="kds-button kds-button--secondary" (click)="mostrarSeleccionOrden.set(false)">Cerrar</button>
+        </header>
+        <div class="modal-body">
+          <p>Selecciona una orden para comenzar la preparación.</p>
+          <div class="ordenes-list">
+            <article *ngFor="let orden of ordenesDisponibles()" class="orden-item" (click)="seleccionarOrden(orden.id)" [class.orden-item--selected]="ordenSeleccionadaId() === orden.id">
+              <div>
+                <strong>#{{ orden.numero_orden || orden.id }}</strong>
+                <p>{{ orden.mesa && orden.mesa.numero ? 'Mesa ' + orden.mesa.numero : orden.tipo_orden }}</p>
+                <div class="productos-list">
+                  <small *ngFor="let detalle of orden.detalles">- {{ detalle.producto.nombre }}</small>
+                </div>
+              </div>
+              <div class="orden-item-meta">
+                <span>{{ orden.cliente?.nombre || 'Cliente pendiente' }}</span>
+              </div>
+            </article>
+          </div>
+        </div>
+        <footer class="modal-footer">
+          <button class="button button--primary" [disabled]="!ordenSeleccionadaId()" (click)="asignarOrden()">TOMAR PEDIDO</button>
+          <button class="button button--secondary" (click)="mostrarSeleccionOrden.set(false)">Cancelar</button>
+        </footer>
+      </section>
+    </div>
+  </section>
+</main>

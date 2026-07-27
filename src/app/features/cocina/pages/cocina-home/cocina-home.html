@@ -14,8 +14,68 @@
       </select>
       <input type="date" [value]="fechaSeleccionada()" (change)="onFechaChange($event)" aria-label="Fecha de pedidos">
       <input type="search" placeholder="Buscar cliente o producto" [value]="busqueda()" (input)="onBusquedaChange($event)">
+      <button type="button" class="kds-button kds-button--secondary" (click)="abrirSeleccionPuesto()">
+        {{ puestoActual() ? 'Mi puesto: ' + puestoActual()?.nombre : 'Seleccionar puesto' }}
+      </button>
+    </div>
+
+    <div class="puesto-modal" *ngIf="puestoModalAbierto()">
+      <div class="puesto-modal__backdrop" (click)="cerrarSeleccionPuesto()"></div>
+      <section class="puesto-modal__content">
+        <header class="puesto-modal__header">
+          <h2>Seleccionar puesto</h2>
+          <button type="button" class="kds-button kds-button--secondary" (click)="cerrarSeleccionPuesto()">Cerrar</button>
+        </header>
+        <div class="puesto-modal__body">
+          <ng-container *ngIf="puestoActual(); else seleccionarPuesto">
+            <div class="puesto-current">
+              <h3>Puesto actual</h3>
+              <p><strong>{{ puestoActual()?.nombre }}</strong></p>
+              <p>Usuario: {{ usuario()?.name }}</p>
+              <div class="current-actions">
+                <button type="button" class="kds-button kds-button--primary" (click)="entrarAControl()">Entrar a control</button>
+                <button type="button" class="kds-button kds-button--secondary" (click)="finalizarPuesto()">Finalizar puesto</button>
+              </div>
+            </div>
+          </ng-container>
+          <ng-template #seleccionarPuesto>
+            <p>Elige un puesto para ver su lista de órdenes.</p>
+            <div *ngIf="puestosDisponibles().length === 0" class="puestos-warning">
+              Todos los puestos están ocupados actualmente.
+            </div>
+            <ul class="puesto-list">
+              <li *ngFor="let puesto of puestos()" class="puesto-item">
+                <div>
+                  <strong>{{ puesto.nombre }}</strong>
+                  <p>{{ puesto.user_id ? 'Ocupado por ' + puesto.user_nombre : 'Disponible' }}</p>
+                </div>
+                <button
+                  type="button"
+                  class="kds-button kds-button--primary"
+                  (click)="abrirOPuesto(puesto)"
+                  [disabled]="puesto.user_id !== null">
+                  {{ puesto.user_id === null ? 'Ocupar y abrir' : 'No disponible' }}
+                </button>
+              </li>
+            </ul>
+          </ng-template>
+        </div>
+      </section>
     </div>
   </header>
+
+  <aside class="kds-service-panel" *ngIf="ordenEnServicio() as ordenEnServicio">
+    <div class="service-panel__label">En servicio</div>
+    <div class="service-panel__card">
+      <strong>#{{ ordenEnServicio.numero_orden || ordenEnServicio.id }}</strong>
+      <p>{{ ordenEnServicio.cliente?.nombre || 'Cliente pendiente' }}</p>
+      <p><small>{{ etiquetaTipoOrden(ordenEnServicio) }}</small></p>
+      <div class="service-panel__progress">
+        <span class="service-panel__status">{{ ordenEnServicio.detalles.filter(det => det.estado_cocina === 'en_preparacion').length }} en preparación</span>
+        <span class="service-panel__status">{{ ordenEnServicio.detalles.filter(det => det.estado_cocina === 'listo_para_recoger').length }} listos</span>
+      </div>
+    </div>
+  </aside>
 
   <section class="kds-board" aria-live="polite">
     <div *ngIf="isLoading()" class="kds-empty">Cargando pedidos de cocina…</div>
