@@ -24,9 +24,12 @@
         Esta categoría no tiene subcategorías
       </small>
 
-    </div>
+  </div>
 
-    <!-- Precio -->
+  <app-select label="Estación de trabajo" [options]="estaciones()" [control]="getControl('estacion_id')">
+  </app-select>
+
+  <!-- Precio -->
     <app-input-form label="Precio *" [control]="getControl('precio')" placeholder="0.00" type="number" step="0.01">
     </app-input-form>
 

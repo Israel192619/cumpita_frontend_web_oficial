@@ -106,6 +106,11 @@ export const routes: Routes = [
         ]
       },
       {
+        path: 'estaciones-trabajo',
+        loadComponent: () =>
+          import('./features/estaciones/pages/estaciones-list/estaciones-list').then(m => m.EstacionesList)
+      },
+      {
         path: 'productos',
         children: [
           {

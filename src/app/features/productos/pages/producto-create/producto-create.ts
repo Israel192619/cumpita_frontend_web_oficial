@@ -9,6 +9,7 @@ import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/co
 import { CommonModule } from '@angular/common';
 import { Categoria } from '../../../../core/models/categoria';
 import { ProductoFormService } from '../../services/producto-form-service';
+import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
 
 interface OpcionSeleccionada {
   id: number;
@@ -41,6 +42,7 @@ export class ProductoCreate {
   categoriaSeleccionada = signal<number | null>(null);
   modificadores = signal<Modificador[]>([]);
   modificadoresSeleccionados = signal<ModificadorSeleccionado[]>([]);
+  estaciones = signal<{ label: string; value: number }[]>([]);
 
   constructor(
     private fb: FormBuilder,
@@ -49,11 +51,13 @@ export class ProductoCreate {
     private modificadorService: ModificadorService,
     private toastr: ToastrService,
     private productoFormService: ProductoFormService,
+    private estacionTrabajoService: EstacionTrabajoService,
     private router: Router
   ) {
     this.form = this.fb.group({
       categoria_principal: [null, Validators.required],
       categoria_id: [null],
+      estacion_id: [null],
       nombre: ['', Validators.required],
       descripcion: [''],
       precio: [0, [Validators.required, Validators.min(0)]],
@@ -70,6 +74,7 @@ export class ProductoCreate {
     this.isloading.set(false);
     this.cargarCategoriasPrincipales();
     this.cargarModificadores();
+    this.cargarEstaciones();
     
     // Cuando se selecciona una categoría principal, cargar subcategorías
     this.form.get('categoria_principal')?.valueChanges.subscribe(val => {
@@ -139,6 +144,15 @@ export class ProductoCreate {
       next: (modificadores) => {
         this.modificadores.set(modificadores);
       }
+    });
+  }
+
+  cargarEstaciones() {
+    this.estacionTrabajoService.listar().subscribe({
+      next: (estaciones) => this.estaciones.set(
+        estaciones.filter(estacion => estacion.activa)
+          .map(estacion => ({ label: `${estacion.nombre} (${estacion.codigo})`, value: estacion.id }))
+      ),
     });
   }
 
@@ -228,6 +242,7 @@ export class ProductoCreate {
       ? formValue.categoria_id
       : formValue.categoria_principal;
     formData.append('categoria_id', categoriaIdFinal);
+    formData.append('estacion_id', formValue.estacion_id);
     formData.append('nombre', formValue.nombre);
     formData.append('descripcion', formValue.descripcion || '');
     formData.append('precio', formValue.precio);

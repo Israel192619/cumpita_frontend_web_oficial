@@ -14,12 +14,20 @@ export interface KdsProducto {
   categoria?: KdsCategoria | null;
 }
 
+export interface KdsEstacion {
+  id: number;
+  nombre: string;
+  codigo: string;
+}
+
 export interface KdsDetalle {
   id: number;
   cantidad: number;
   nota?: string | null;
   estado_cocina: 'pendiente' | 'servido';
   producto: KdsProducto;
+  estacion_id?: number | null;
+  estacion?: KdsEstacion | null;
 }
 
 export interface KdsCambioOrden {

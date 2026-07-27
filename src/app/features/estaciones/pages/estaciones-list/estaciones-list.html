@@ -1,0 +1,30 @@
+<section class="stations-page">
+  <header>
+    <div>
+      <h1>Estaciones de trabajo</h1>
+      <p>Define dónde se prepara cada producto. Las estaciones inactivas no se pueden usar en pedidos nuevos.</p>
+    </div>
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="guardar()" class="station-form">
+    <label>Nombre<input formControlName="nombre" placeholder="Ej. Parrilla"></label>
+    <label>Código<input formControlName="codigo" placeholder="Ej. PARRILLA"></label>
+    <label>Orden<input type="number" formControlName="orden" min="0"></label>
+    <label class="description">Descripción<textarea formControlName="descripcion" rows="2"></textarea></label>
+    <label class="active"><input type="checkbox" formControlName="activa"> Activa</label>
+    <div class="actions">
+      <button type="submit" [disabled]="cargando()">{{ editandoId() ? 'Guardar cambios' : 'Crear estación' }}</button>
+      <button type="button" class="secondary" *ngIf="editandoId()" (click)="cancelarEdicion()">Cancelar</button>
+    </div>
+  </form>
+
+  <div class="station-list" *ngIf="estaciones().length; else empty">
+    <article *ngFor="let estacion of estaciones()" [class.inactive]="!estacion.activa">
+      <div><strong>{{ estacion.nombre }}</strong><span>{{ estacion.codigo }}</span></div>
+      <p>{{ estacion.descripcion || 'Sin descripción' }}</p>
+      <small>Orden: {{ estacion.orden }} · {{ estacion.activa ? 'Activa' : 'Inactiva' }}</small>
+      <button type="button" class="secondary" (click)="editar(estacion)">Editar</button>
+    </article>
+  </div>
+  <ng-template #empty><p class="empty">Aún no hay estaciones. Crea la primera antes de asignar productos.</p></ng-template>
+</section>

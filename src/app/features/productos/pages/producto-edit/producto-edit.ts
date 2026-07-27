@@ -9,6 +9,7 @@ import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/co
 import { CommonModule } from '@angular/common';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
+import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
 
 interface OpcionSeleccionada {
   id: number;
@@ -43,12 +44,14 @@ export class ProductoEdit {
   modificadores = signal<Modificador[]>([]);
   producto = signal<Producto | null>(null);
   modificadoresSeleccionados = signal<ModificadorSeleccionado[]>([]);
+  estaciones = signal<{ label: string; value: number }[]>([]);
 
   constructor(
     private fb: FormBuilder,
     private productoService: ProductoService,
     private categoriaService: CategoriaService,
     private modificadorService: ModificadorService,
+    private estacionTrabajoService: EstacionTrabajoService,
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private router: Router
@@ -56,6 +59,7 @@ export class ProductoEdit {
     this.form = this.fb.group({
       categoria_principal: [null, Validators.required],
       categoria_id: [null, Validators.required],
+      estacion_id: [null],
       nombre: ['', Validators.required],
       descripcion: [''],
       precio: [0, [Validators.required, Validators.min(0)]],
@@ -77,6 +81,7 @@ export class ProductoEdit {
         this.productId.set(id);
         this.cargarCategoriasPrincipales();
         this.cargarModificadores();
+        this.cargarEstaciones();
         this.cargarProducto(id);
       }
     });
@@ -152,6 +157,15 @@ export class ProductoEdit {
     });
   }
 
+  cargarEstaciones() {
+    this.estacionTrabajoService.listar().subscribe({
+      next: (estaciones) => this.estaciones.set(
+        estaciones.filter(estacion => estacion.activa)
+          .map(estacion => ({ label: `${estacion.nombre} (${estacion.codigo})`, value: estacion.id }))
+      ),
+    });
+  }
+
   cargarProducto(id: number) {
     this.loading.set(true);
     this.productoService.obtenerProducto(id).subscribe({
@@ -171,6 +185,7 @@ export class ProductoEdit {
             this.form.patchValue({
               categoria_principal: categoriaPrincipalId,
               categoria_id: producto.categoria_id,
+              estacion_id: producto.estacion_id,
               nombre: producto.nombre,
               descripcion: producto.descripcion,
               precio: producto.precio,
@@ -295,6 +310,7 @@ export class ProductoEdit {
       ? formValue.categoria_id
       : formValue.categoria_principal;
     formData.append('categoria_id', categoriaIdFinal);
+    formData.append('estacion_id', formValue.estacion_id);
     formData.append('nombre', formValue.nombre);
     formData.append('descripcion', formValue.descripcion || '');
     formData.append('precio', formValue.precio);

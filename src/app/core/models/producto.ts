@@ -1,4 +1,5 @@
 import { Categoria } from './categoria';
+import { EstacionTrabajo } from './estacion-trabajo';
 
 export interface ModificadorOpcion {
   id: number;
@@ -20,7 +21,9 @@ export interface ModificadorEstructurado {
 export interface Producto {
   id: number;
   categoria_id: number;
+  estacion_id?: number | null;
   categoria?: Categoria;
+  estacion?: EstacionTrabajo | null;
   nombre: string;
   descripcion?: string;
   precio: number;
@@ -45,6 +48,7 @@ export interface ProductoOpcion {
 
 export interface CreateProducto {
   categoria_id: number;
+  estacion_id: number;
   nombre: string;
   descripcion?: string;
   precio: number;
