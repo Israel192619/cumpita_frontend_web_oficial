@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { CocinaService, KdsOrden } from '../../services/cocina-service';
-import { PuestosCocinaService, PuestoCocina } from '../../services/puestos-cocina.service';
+import { PuestosCocinaService, PuestoCocina } from '../../services/puestos-cocina';
 
 @Component({
   selector: 'app-cocina-puesto',

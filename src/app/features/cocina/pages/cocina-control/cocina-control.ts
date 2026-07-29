@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '@app/core/services/auth-service';
 import { ReverbService } from '@app/core/services/reverb-service';
-import { PuestosCocinaService, PuestoCocina, CocinaControlResponse } from '../../services/puestos-cocina.service';
+import { PuestosCocinaService, PuestoCocina, CocinaControlResponse } from '../../services/puestos-cocina';
 import { KdsOrden } from '../../services/cocina-service';
 
 @Component({
@@ -99,11 +99,13 @@ export class CocinaControlPage implements OnInit, OnDestroy {
 
     this.puestosService.asignarOrden(puesto.id, ordenId).subscribe({
       next: (response) => {
+        console.log('Orden asignada al puesto', response);
         this.puesto.set(response.puesto);
         this.ordenesDisponibles.update((ordenes) => ordenes.filter((orden) => orden.id !== ordenId));
         this.mostrarSeleccionOrden.set(false);
       },
       error: (err) => {
+        console.error('Error al asignar orden al puesto', err);
         this.error.set(err?.error?.message || 'No se pudo asignar el pedido.');
       },
     });

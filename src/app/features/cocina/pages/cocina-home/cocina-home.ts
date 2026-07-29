@@ -7,7 +7,7 @@ import { User } from '@app/core/models/user';
 import { ToastrService } from 'ngx-toastr';
 import { Router } from '@angular/router';
 import { ActualizacionEstadoCocinaResponse, CocinaService, KdsCambioOrden, KdsDetalle, KdsOrden } from '../../services/cocina-service';
-import { PuestosCocinaService, PuestoCocina } from '../../services/puestos-cocina.service';
+import { PuestosCocinaService, PuestoCocina } from '../../services/puestos-cocina';
 
 @Component({
   selector: 'app-cocina-home',
@@ -229,6 +229,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.cocinaService.obtenerPedidos(this.fechaSeleccionada()).subscribe({
       next: (res: any) => {
         if (res.debug) console.log('CocinaController debug ->', res.debug);
+        console.log('Pedidos recibidos', res.ordenes);
         const ordenes = res.ordenes || [];
         console.log('Pedidos recibidos count:', ordenes.length);
         console.log('Pedidos recibidos sample:', ordenes.slice(0,3).map((o: any) => ({ id: o.id, detalles_count: o.detalles?.length, detalles_sample: (o.detalles || []).slice(0,3).map((d: any) => ({ id: d.id, estacion_id: d.estacion_id, producto_id: d.producto?.id, producto_estacion_id: d.producto?.estacion_id })) })));

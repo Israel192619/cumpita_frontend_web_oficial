@@ -38,27 +38,27 @@ export class PuestosCocinaService {
   constructor(private http: HttpClient) {}
 
   obtenerPuestos(): Observable<{ puestos: PuestoCocina[] }> {
-    return this.http.get<{ puestos: PuestoCocina[] }>(`${this.apiUrl}/cocina/puestos`);
+    return this.http.get<{ puestos: PuestoCocina[] }>(`${this.apiUrl}/cocina/monitor/puestos`);
   }
 
   ocuparPuesto(id: number): Observable<{ puesto: PuestoCocina }> {
-    return this.http.post<{ puesto: PuestoCocina }>(`${this.apiUrl}/cocina/puestos/${id}/ocupar`, {});
+    return this.http.post<{ puesto: PuestoCocina }>(`${this.apiUrl}/cocina/control/puestos/${id}/ocupar`, {});
   }
 
   liberarPuesto(id: number): Observable<{ puesto: PuestoCocina }> {
-    return this.http.post<{ puesto: PuestoCocina }>(`${this.apiUrl}/cocina/puestos/${id}/liberar`, {});
+    return this.http.post<{ puesto: PuestoCocina }>(`${this.apiUrl}/cocina/control/puestos/${id}/liberar`, {});
   }
 
   asignarOrden(id: number, ordenId: number): Observable<{ puesto: PuestoCocina }> {
-    return this.http.post<{ puesto: PuestoCocina }>(`${this.apiUrl}/cocina/puestos/${id}/asignar-orden`, { orden_id: ordenId });
+    return this.http.post<{ puesto: PuestoCocina }>(`${this.apiUrl}/cocina/control/puestos/${id}/asignar-orden`, { orden_id: ordenId });
   }
 
   liberarOrden(id: number): Observable<{ puesto: PuestoCocina }> {
-    return this.http.post<{ puesto: PuestoCocina }>(`${this.apiUrl}/cocina/puestos/${id}/liberar-orden`, {});
+    return this.http.post<{ puesto: PuestoCocina }>(`${this.apiUrl}/cocina/control/puestos/${id}/liberar-orden`, {});
   }
 
   marcarOrdenLista(id: number): Observable<{ puesto: PuestoCocina; orden: any }> {
-    return this.http.post<{ puesto: PuestoCocina; orden: any }>(`${this.apiUrl}/cocina/puestos/${id}/orden/lista`, {});
+    return this.http.post<{ puesto: PuestoCocina; orden: any }>(`${this.apiUrl}/cocina/control/puestos/${id}/orden/lista`, {});
   }
 
   obtenerControlPuesto(): Observable<CocinaControlResponse> {
