@@ -13,7 +13,7 @@ export class AnularMovimientoDialog {
 
   constructor(
     public dialogRef: MatDialogRef<AnularMovimientoDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: { motivo: string; monto: number }
+    @Inject(MAT_DIALOG_DATA) public data: { motivo?: string; concepto?: string; monto: number; entidad?: string }
   ) {}
 
   confirmar() {

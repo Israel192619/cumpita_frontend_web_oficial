@@ -1,6 +1,6 @@
-<h2 mat-dialog-title>Anular movimiento</h2>
+<h2 mat-dialog-title>Anular {{ data.entidad || 'movimiento' }}</h2>
 <mat-dialog-content>
-  <p>El movimiento se conservará como ANULADO. Esta acción no se puede revertir.</p>
+  <p>El registro se conservará como ANULADO. Esta acción no se puede revertir.</p>
   <label for="motivo-anulacion">Motivo de la anulación</label>
   <textarea id="motivo-anulacion" [formControl]="motivo" rows="4" maxlength="500"
     placeholder="Ej. El monto correcto era Bs 50"></textarea>

@@ -1,0 +1,5 @@
+<app-data-table title="Gastos de caja" [data]="gastos()" [columns]="columns"
+  [loading]="loading()" [error]="error()" createLink="/app/gastos-caja/create"
+  createText="+ Nuevo gasto" [rowActions]="rowActions" (refresh)="cargar()"
+  (action)="handleAction($event)">
+</app-data-table>

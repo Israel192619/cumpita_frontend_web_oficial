@@ -193,6 +193,21 @@ export const routes: Routes = [
               import('./features/movimiento-cajas/pages/movimiento-create/movimiento-create').then(m => m.MovimientoCreate)
           }
         ]
+      },
+      {
+        path: 'gastos-caja',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/gastos-caja/pages/gasto-list/gasto-list').then(m => m.GastoList)
+          },
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/gastos-caja/pages/gasto-create/gasto-create').then(m => m.GastoCreate)
+          }
+        ]
       }
     ]
   },

@@ -50,6 +50,10 @@
                                 {{ item.tipo === 'INGRESO' ? '+' : '-' }} Bs {{ getValue(item, col.key) | number:'1.2-2' }}
                             </span>
 
+                            <span *ngSwitchCase="'expenseAmount'" class="amount-withdrawal">
+                                - Bs {{ getValue(item, col.key) | number:'1.2-2' }}
+                            </span>
+
                             <span *ngSwitchCase="'status'" class="status-badge"
                                 [class.status-cancelled]="getValue(item, col.key) === 'ANULADO'">
                                 {{ getValue(item, col.key) }}

@@ -1,0 +1,14 @@
+<app-form-card [form]="form" title="Nuevo gasto de caja" [loading]="loading()"
+  (submit)="guardar()" (cancelar)="cancelar()">
+  <label for="categoria">Categoría</label>
+  <select id="categoria" [formControl]="control('categoria')">
+    @for (categoria of categorias; track categoria) {
+      <option [value]="categoria">{{ categoria }}</option>
+    }
+  </select>
+  <app-input-form label="Concepto" [control]="control('concepto')"
+    placeholder="Describe el gasto"></app-input-form>
+  <app-input-form label="Monto (Bs)" type="number" [control]="control('monto')"
+    placeholder="0.00"></app-input-form>
+</app-form-card>
+<app-error-message [message]="error()"></app-error-message>
