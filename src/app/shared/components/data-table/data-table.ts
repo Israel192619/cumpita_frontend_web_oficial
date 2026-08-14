@@ -28,11 +28,23 @@ export class DataTable {
   @Input() errorMessageText: string | null = null;
 
   @Input() createLink?: string;
+  @Input() createText: string = '+ Crear';
+  @Input() rowActions?: {
+    type: string,
+    label: string,
+    icon?: string,
+    class?: string,
+    visible?: (item: any) => boolean
+  }[];
 
   @Output() refresh = new EventEmitter<void>();
   @Output() action = new EventEmitter<{ type: string, item: any }>();
 
   getValue(item: any, path: string) {
     return path.split('.').reduce((acc, key) => acc?.[key], item);
+  }
+
+  availableActions(item: any) {
+    return this.rowActions?.filter(action => !action.visible || action.visible(item)) ?? [];
   }
 }

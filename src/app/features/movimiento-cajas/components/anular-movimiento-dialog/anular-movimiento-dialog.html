@@ -1,0 +1,14 @@
+<h2 mat-dialog-title>Anular movimiento</h2>
+<mat-dialog-content>
+  <p>El movimiento se conservará como ANULADO. Esta acción no se puede revertir.</p>
+  <label for="motivo-anulacion">Motivo de la anulación</label>
+  <textarea id="motivo-anulacion" [formControl]="motivo" rows="4" maxlength="500"
+    placeholder="Ej. El monto correcto era Bs 50"></textarea>
+  @if (motivo.touched && motivo.invalid) {
+    <small>El motivo de anulación es obligatorio.</small>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="dialogRef.close()">Cancelar</button>
+  <button mat-flat-button color="warn" (click)="confirmar()">Confirmar anulación</button>
+</mat-dialog-actions>

@@ -178,6 +178,21 @@ export const routes: Routes = [
               import('./features/mesas/pages/mesa-edit/mesa-edit').then(m => m.MesaEdit)
           }
         ]
+      },
+      {
+        path: 'movimientos-caja',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/movimiento-cajas/pages/movimiento-list/movimiento-list').then(m => m.MovimientoList)
+          },
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/movimiento-cajas/pages/movimiento-create/movimiento-create').then(m => m.MovimientoCreate)
+          }
+        ]
       }
     ]
   },

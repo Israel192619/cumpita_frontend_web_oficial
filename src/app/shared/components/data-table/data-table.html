@@ -5,7 +5,7 @@
             <app-button 
                 *ngIf="createLink" 
                 [link]="createLink" 
-                text="+ Crear"
+                [text]="createText"
                 color="primary"
                 size="medium">
             </app-button>
@@ -28,7 +28,7 @@
                     <th *ngFor="let col of columns">
                         {{ col.label }}
                     </th>
-                    <th>Acciones</th>
+                    <th *ngIf="rowActions === undefined || rowActions.length">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -44,14 +44,25 @@
                                 {{ getValue(item, col.key) | date:'short' }}
                             </span>
 
+                            <span *ngSwitchCase="'movementAmount'"
+                                [class.amount-income]="item.tipo === 'INGRESO'"
+                                [class.amount-withdrawal]="item.tipo === 'RETIRO'">
+                                {{ item.tipo === 'INGRESO' ? '+' : '-' }} Bs {{ getValue(item, col.key) | number:'1.2-2' }}
+                            </span>
+
+                            <span *ngSwitchCase="'status'" class="status-badge"
+                                [class.status-cancelled]="getValue(item, col.key) === 'ANULADO'">
+                                {{ getValue(item, col.key) }}
+                            </span>
+
                             <span *ngSwitchDefault>
                                 {{ getValue(item, col.key) }}
                             </span>
 
                         </ng-container>
                     </td>
-                    <td class="actions-cell">
-                        <div class="actions-buttons">
+                    <td *ngIf="rowActions === undefined || rowActions.length" class="actions-cell">
+                        <div *ngIf="rowActions === undefined" class="actions-buttons">
                             <button class="action-btn action-btn--edit" (click)="action.emit({type:'edit', item})"
                                 title="Editar">
                                 <i class="ti ti-edit"></i>
@@ -65,6 +76,15 @@
                             <button class="action-btn action-btn--delete" (click)="action.emit({type:'delete', item})"
                                 title="Eliminar">
                                 <i class="ti ti-trash"></i>
+                            </button>
+                        </div>
+                        <div *ngIf="rowActions !== undefined" class="actions-buttons">
+                            <button *ngFor="let rowAction of availableActions(item)"
+                                class="action-btn" [ngClass]="rowAction.class"
+                                (click)="action.emit({type: rowAction.type, item})"
+                                [title]="rowAction.label">
+                                <i *ngIf="rowAction.icon" [class]="rowAction.icon"></i>
+                                <span *ngIf="!rowAction.icon">{{ rowAction.label }}</span>
                             </button>
                         </div>
                     </td>
