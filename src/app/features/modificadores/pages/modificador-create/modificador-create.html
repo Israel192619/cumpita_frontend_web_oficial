@@ -1,99 +1,36 @@
-<app-form-card 
-  [form]="form" 
-  [loading]="loading()" 
-  title="Crear Modificador" 
-  [mostrarGuardarYAgregarOtro]="true"
-  (submit)="crearModificador()"
-  (cancelar)="cancelar()" 
-  (guardarYAgregarOtro)="guardarYagregarOtro()">
-
-  <app-input-form 
-    label="Nombre" 
-    [control]="getControl('nombre')" 
-    placeholder="Ej. Tamaño, Aderezo">
-  </app-input-form>
-
-  <app-select 
-    label="Tipo" 
-    [control]="getControl('tipo')" 
-    [options]="[
-      { label: 'Única opción', value: 'unico' },
-      { label: 'Múltiples opciones', value: 'multiple' }
-    ]">
-  </app-select>
-
-  <!-- Checkboxes -->
-  <div class="checkbox-container">
-    <label class="checkbox-item">
-      <input 
-        type="checkbox" 
-        [formControl]="getControl('requerido')"
-        class="w-4 h-4">
-      <span>Requerido</span>
-    </label>
-    <label class="checkbox-item">
-      <input 
-        type="checkbox" 
-        [formControl]="getControl('activo')"
-        class="w-4 h-4">
-      <span>Activo</span>
-    </label>
-  </div>
-
-  <!-- Opciones FormArray -->
-  <div class="opciones-section">
-    <h3 class="text-lg font-semibold mb-4">Opciones</h3>
-    
-    <div *ngIf="opcionesForm.length === 0" class="text-center py-4">
-      <p class="text-gray-500">Sin opciones</p>
-    </div>
-
-    <div [formArray]="opcionesForm" class="space-y-4">
-      <div *ngFor="let opcion of opcionesForm.controls; let i = index" 
-           [formGroupName]="i" 
-           class="border rounded-lg p-4 bg-gray-50">
-        
-        <div class="flex justify-between items-center mb-3">
-          <span class="font-medium">Opción {{ i + 1 }}</span>
-          <button 
-            type="button"
-            (click)="eliminarOpcion(i)"
-            class="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
-            Eliminar
-          </button>
-        </div>
-
-        <app-input-form 
-          label="Nombre" 
-          [control]="getOpcionControl(i, 'nombre')" 
-          placeholder="Ej. Grande, Extra queso">
-        </app-input-form>
-
-        <app-input-form 
-          label="Precio Extra" 
-          type="number"
-          [control]="getOpcionControl(i, 'precio_extra')" 
-          placeholder="0.00">
-        </app-input-form>
-
-        <label class="checkbox-item">
-          <input 
-            type="checkbox" 
-            [formControl]="getOpcionControl(i, 'activo')"
-            class="w-4 h-4">
-          <span>Activo</span>
-        </label>
+<app-form-card [form]="form" [loading]="loading()" title="Crear modificador"
+  [mostrarGuardarYAgregarOtro]="true" (submit)="crearModificador()"
+  (cancelar)="cancelar()" (guardarYAgregarOtro)="guardarYagregarOtro()">
+  <div class="modifier-form">
+    <section class="form-section">
+      <div class="section-heading"><span class="section-number">1</span><div><h3>Información general</h3><p>Define cómo se identificará este grupo de opciones.</p></div></div>
+      <div class="field-grid">
+        <app-input-form label="Nombre del modificador" [control]="getControl('nombre')" placeholder="Ej. Tamaño, punto de cocción, aderezo"></app-input-form>
+        <app-select label="Estación de trabajo" [control]="getControl('estacion_id')" [options]="estacionOptions"></app-select>
       </div>
-    </div>
-
-    <button 
-      type="button"
-      (click)="agregarOpcion()"
-      class="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-      + Agregar Opción
-    </button>
+      <p class="field-help">Selecciona “Sin estación” si no corresponde a un área específica.</p>
+    </section>
+    <section class="form-section">
+      <div class="section-heading"><span class="section-number">2</span><div><h3>Comportamiento</h3><p>Configura la selección y disponibilidad.</p></div></div>
+      <div class="behavior-grid">
+        <app-select label="Tipo de selección" [control]="getControl('tipo')" [options]="[{ label: 'Selección única', value: 'unico' }, { label: 'Selección múltiple', value: 'multiple' }]"></app-select>
+        <label class="toggle-card"><input type="checkbox" [formControl]="getControl('requerido')"><span><strong>Selección requerida</strong><small>El cliente debe elegir al menos una opción.</small></span></label>
+        <label class="toggle-card"><input type="checkbox" [formControl]="getControl('activo')"><span><strong>Modificador activo</strong><small>Disponible para utilizar en el sistema.</small></span></label>
+      </div>
+    </section>
+    <section class="form-section options-section">
+      <div class="section-heading options-heading"><span class="section-number">3</span><div><h3>Opciones del modificador</h3><p>Administra nombres, precios y disponibilidad.</p></div><button type="button" class="btn-add-option" (click)="agregarOpcion()">+ Agregar opción</button></div>
+      <div [formArray]="opcionesForm" class="options-list">
+        <div *ngFor="let opcion of opcionesForm.controls; let i = index" [formGroupName]="i" class="option-card">
+          <div class="option-header"><div><span class="option-index">{{ i + 1 }}</span><strong>Opción {{ i + 1 }}</strong></div><button type="button" class="btn-remove" [disabled]="opcionesForm.length === 1" (click)="eliminarOpcion(i)"><i class="ti ti-trash"></i> Eliminar</button></div>
+          <div class="option-fields">
+            <app-input-form label="Nombre" [control]="getOpcionControl(i, 'nombre')" placeholder="Ej. Grande, Extra queso"></app-input-form>
+            <app-input-form label="Precio adicional (Bs)" type="number" [control]="getOpcionControl(i, 'precio_extra')" placeholder="0.00"></app-input-form>
+            <label class="option-status"><input type="checkbox" [formControl]="getOpcionControl(i, 'activo')"><span>{{ getOpcionControl(i, 'activo').value ? 'Activa' : 'Inactiva' }}</span></label>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
-
 </app-form-card>
-
 <app-error-message [message]="error()"></app-error-message>

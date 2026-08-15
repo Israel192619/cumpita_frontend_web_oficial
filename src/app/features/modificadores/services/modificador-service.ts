@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
+import { EstacionTrabajo } from '../../../core/models/estacion-trabajo';
 
 export interface ModificadorOpcion {
   id?: number;
@@ -17,6 +18,8 @@ export interface Modificador {
   tipo: 'unico' | 'multiple';
   requerido: boolean;
   activo: boolean;
+  estacion_id?: number | null;
+  estacion?: Pick<EstacionTrabajo, 'id' | 'nombre' | 'codigo' | 'activa'> | null;
   opciones_count?: number;
   opciones?: ModificadorOpcion[];
   created_at?: string;
@@ -27,6 +30,7 @@ export interface CreateModificador {
   tipo: 'unico' | 'multiple';
   requerido: boolean;
   activo: boolean;
+  estacion_id: number | null;
   opciones: ModificadorOpcion[];
 }
 

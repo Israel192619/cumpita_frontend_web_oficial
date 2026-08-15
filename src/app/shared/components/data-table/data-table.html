@@ -55,7 +55,8 @@
                             </span>
 
                             <span *ngSwitchCase="'status'" class="status-badge"
-                                [class.status-cancelled]="getValue(item, col.key) === 'ANULADO'">
+                                [class.status-cancelled]="getValue(item, col.key) === 'ANULADO'"
+                                [class.status-inactive]="getValue(item, col.key) === 'Inactivo'">
                                 {{ getValue(item, col.key) }}
                             </span>
 

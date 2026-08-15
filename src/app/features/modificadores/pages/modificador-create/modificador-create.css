@@ -1,0 +1,32 @@
+.modifier-form { display: grid; gap: 1.25rem; }
+.form-section { padding: 1.25rem; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+.section-heading { display: flex; align-items: flex-start; gap: .8rem; margin-bottom: 1.1rem; }
+.section-heading h3 { margin: 0; color: #0f172a; font-size: 1.05rem; }
+.section-heading p { margin: .25rem 0 0; color: #64748b; font-size: .875rem; }
+.section-number { display: inline-grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 9px; background: #e0f2fe; color: #0369a1; font-weight: 800; }
+.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.field-help { margin: -.25rem 0 0; color: #64748b; font-size: .8rem; }
+.behavior-grid { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 1rem; align-items: stretch; }
+.toggle-card { display: flex; gap: .7rem; align-items: flex-start; padding: .85rem; border: 1px solid #dbe4ee; border-radius: 10px; cursor: pointer; background: #f8fafc; }
+.toggle-card input, .option-status input { width: 18px; height: 18px; margin-top: 2px; accent-color: #0ea5e9; }
+.toggle-card span { display: grid; gap: .2rem; }
+.toggle-card strong { color: #1e293b; font-size: .9rem; }
+.toggle-card small { color: #64748b; line-height: 1.35; }
+.options-heading { align-items: center; }
+.options-heading > div { flex: 1; }
+.btn-add-option { border: 0; border-radius: 9px; padding: .65rem 1rem; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
+.btn-add-option:hover { background: #115e59; }
+.options-list { display: grid; gap: .85rem; }
+.option-card { border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; overflow: hidden; }
+.option-header { display: flex; justify-content: space-between; align-items: center; padding: .7rem 1rem; border-bottom: 1px solid #e2e8f0; background: #fff; }
+.option-header > div { display: flex; align-items: center; gap: .55rem; }
+.option-index { display: inline-grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #e2e8f0; color: #475569; font-size: .75rem; font-weight: 800; }
+.btn-remove { border: 1px solid #fecaca; border-radius: 8px; padding: .4rem .65rem; background: #fff; color: #b91c1c; cursor: pointer; }
+.btn-remove:disabled { opacity: .4; cursor: not-allowed; }
+.option-fields { display: grid; grid-template-columns: 2fr 1fr auto; gap: 1rem; align-items: center; padding: 1rem; }
+.option-status { display: flex; align-items: center; gap: .45rem; min-width: 90px; padding-top: .75rem; color: #334155; font-weight: 600; }
+:host-context(body[data-pc-theme="dark"]) .form-section, :host-context(body[data-pc-theme="dark"]) .option-header { background: #111827; border-color: #334155; }
+:host-context(body[data-pc-theme="dark"]) .section-heading h3, :host-context(body[data-pc-theme="dark"]) .toggle-card strong { color: #e2e8f0; }
+:host-context(body[data-pc-theme="dark"]) .toggle-card, :host-context(body[data-pc-theme="dark"]) .option-card { background: #0f172a; border-color: #334155; }
+@media (max-width: 900px) { .behavior-grid { grid-template-columns: 1fr 1fr; } .behavior-grid app-select { grid-column: 1 / -1; } }
+@media (max-width: 680px) { .form-section { padding: 1rem; } .field-grid, .behavior-grid, .option-fields { grid-template-columns: 1fr; } .behavior-grid app-select { grid-column: auto; } .options-heading { flex-wrap: wrap; } .btn-add-option { width: 100%; } .option-status { padding-top: 0; } }

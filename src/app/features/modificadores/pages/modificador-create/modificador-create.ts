@@ -5,6 +5,8 @@ import { ToastrService } from 'ngx-toastr';
 import { Router } from '@angular/router';
 import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/components';
 import { CommonModule } from '@angular/common';
+import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
+import { EstacionTrabajo } from '../../../../core/models/estacion-trabajo';
 
 @Component({
   selector: 'app-modificador-create',
@@ -18,10 +20,12 @@ export class ModificadorCreate {
   form: FormGroup;
   error = signal<string | null>(null);
   loading = signal(false);
+  estaciones = signal<EstacionTrabajo[]>([]);
 
   constructor(
     private fb: FormBuilder,
     private modificadorService: ModificadorService,
+    private estacionService: EstacionTrabajoService,
     private toastr: ToastrService,
     private router: Router
   ) {
@@ -30,6 +34,7 @@ export class ModificadorCreate {
       tipo: ['unico', Validators.required],
       requerido: [true, Validators.required],
       activo: [true, Validators.required],
+      estacion_id: [null],
       opciones: this.fb.array([])
     });
   }
@@ -38,6 +43,7 @@ export class ModificadorCreate {
     this.error.set(null);
     this.loading.set(false);
     this.agregarOpcion();
+    this.cargarEstaciones();
   }
 
   get opcionesForm(): FormArray {
@@ -54,7 +60,25 @@ export class ModificadorCreate {
   }
 
   eliminarOpcion(index: number) {
+    if (this.opcionesForm.length === 1) return;
     this.opcionesForm.removeAt(index);
+  }
+
+  cargarEstaciones() {
+    this.estacionService.listar().subscribe({
+      next: estaciones => this.estaciones.set(estaciones),
+      error: () => this.error.set('No se pudieron cargar las estaciones de trabajo.'),
+    });
+  }
+
+  get estacionOptions() {
+    return [
+      { label: 'Sin estación', value: null },
+      ...this.estaciones().map(estacion => ({
+        label: `${estacion.nombre} (${estacion.codigo})${estacion.activa ? '' : ' — Inactiva'}`,
+        value: estacion.id,
+      })),
+    ];
   }
 
   getOpcionControl(index: number, controlName: string): FormControl {
@@ -83,7 +107,11 @@ export class ModificadorCreate {
         this.error.set(null);
         this.loading.set(false);
         onSuccess();
-      }
+      },
+      error: err => {
+        this.loading.set(false);
+        this.error.set(err?.error?.message || 'No se pudo crear el modificador.');
+      },
     });
   }
 
@@ -109,7 +137,8 @@ export class ModificadorCreate {
       nombre: '',
       tipo: 'unico',
       requerido: true,
-      activo: true
+      activo: true,
+      estacion_id: null,
     });
     this.opcionesForm.clear();
     this.agregarOpcion();

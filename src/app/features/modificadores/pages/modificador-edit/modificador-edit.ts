@@ -5,6 +5,8 @@ import { ModificadorService, Modificador, UpdateModificador } from '../../servic
 import { ToastrService } from 'ngx-toastr';
 import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/components';
 import { CommonModule } from '@angular/common';
+import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
+import { EstacionTrabajo } from '../../../../core/models/estacion-trabajo';
 
 @Component({
   selector: 'app-modificador-edit',
@@ -19,10 +21,12 @@ export class ModificadorEdit {
   error = signal<string | null>(null);
   loading = signal(false);
   modificador = signal<Modificador | null>(null);
+  estaciones = signal<EstacionTrabajo[]>([]);
 
   constructor(
     private fb: FormBuilder,
     private modificadorService: ModificadorService,
+    private estacionService: EstacionTrabajoService,
     private route: ActivatedRoute,
     private router: Router,
     private toastr: ToastrService
@@ -32,6 +36,7 @@ export class ModificadorEdit {
       tipo: ['unico', Validators.required],
       requerido: [true, Validators.required],
       activo: [true, Validators.required],
+      estacion_id: [null],
       opciones: this.fb.array([])
     });
   }
@@ -39,6 +44,7 @@ export class ModificadorEdit {
   ngOnInit() {
     this.error.set(null);
     this.loading.set(false);
+    this.cargarEstaciones();
     const id = parseInt(this.route.snapshot.paramMap.get('id')!);
 
     if (id) {
@@ -49,14 +55,14 @@ export class ModificadorEdit {
   cargarModificador(id: number) {
     this.modificadorService.obtenerModificador(id).subscribe({
       next: (modificador) => {
-        console.log('Modificador obtenido:', modificador);
         this.modificador.set(modificador);
 
         this.form.patchValue({
           nombre: modificador.nombre,
           tipo: modificador.tipo,
           requerido: modificador.requerido,
-          activo: modificador.activo
+          activo: modificador.activo,
+          estacion_id: modificador.estacion_id ?? null,
         });
 
         // Popular opciones en FormArray
@@ -73,7 +79,8 @@ export class ModificadorEdit {
             );
           });
         }
-      }
+      },
+      error: err => this.error.set(err?.error?.message || 'No se pudo cargar el modificador.'),
     });
   }
 
@@ -91,7 +98,25 @@ export class ModificadorEdit {
   }
 
   eliminarOpcion(index: number) {
+    if (this.opcionesForm.length === 1) return;
     this.opcionesForm.removeAt(index);
+  }
+
+  cargarEstaciones() {
+    this.estacionService.listar().subscribe({
+      next: estaciones => this.estaciones.set(estaciones),
+      error: () => this.error.set('No se pudieron cargar las estaciones de trabajo.'),
+    });
+  }
+
+  get estacionOptions() {
+    return [
+      { label: 'Sin estación', value: null },
+      ...this.estaciones().map(estacion => ({
+        label: `${estacion.nombre} (${estacion.codigo})${estacion.activa ? '' : ' — Inactiva'}`,
+        value: estacion.id,
+      })),
+    ];
   }
 
   getOpcionControl(index: number, controlName: string): FormControl {
@@ -126,7 +151,11 @@ export class ModificadorEdit {
         this.error.set(null);
         this.loading.set(false);
         onSuccess();
-      }
+      },
+      error: err => {
+        this.loading.set(false);
+        this.error.set(err?.error?.message || 'No se pudo actualizar el modificador.');
+      },
     });
   }
 
