@@ -5,8 +5,8 @@ import { ReverbService } from '@app/core/services/reverb-service';
 import { AuthService } from '@app/core/services/auth-service';
 import { User } from '@app/core/models/user';
 import { ToastrService } from 'ngx-toastr';
-import { Router } from '@angular/router';
-import { ActualizacionEstadoCocinaResponse, CocinaService, KdsCambioOrden, KdsDetalle, KdsOrden } from '../../services/cocina-service';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ActualizacionEstadoCocinaResponse, CocinaService, KdsCambioOrden, KdsDetalle, KdsEstacion, KdsOrden } from '../../services/cocina-service';
 import { PuestosCocinaService, PuestoCocina } from '../../services/puestos-cocina';
 
 @Component({
@@ -27,6 +27,9 @@ export class CocinaHome implements OnInit, OnDestroy {
   usuario = signal<User | null>(null);
   private subscriptions: Subscription[] = [];
   estacionId = signal<number | null>(null);
+  estacionActual = signal<KdsEstacion | null>(null);
+  estacionesDisponibles = signal<KdsEstacion[]>([]);
+  estacionSolicitada = signal<string | null>(null);
   selectedOrdenPorPuesto = signal<Record<number, number | null>>({});
   puestoModalAbierto = signal(false);
 
@@ -48,6 +51,8 @@ export class CocinaHome implements OnInit, OnDestroy {
     const user = this.usuario();
     return user?.estacion?.codigo === 'COCINA' && user?.role?.nombre === 'Cocinero';
   });
+
+  puedeCambiarEstacion = computed(() => this.estacionesDisponibles().length > 1);
 
   categorias = computed(() => {
     const categorias = new Set<string>();
@@ -87,16 +92,15 @@ export class CocinaHome implements OnInit, OnDestroy {
     private authService: AuthService,
     private toastr: ToastrService,
     private router: Router,
+    private route: ActivatedRoute,
   ) {}
 
   ngOnInit(): void {
     this.authService.me().subscribe({
       next: (user: User) => {
-        console.log('Auth.me() ->', user);
-        console.log('Auth.me() estacion_id (raw) ->', user.estacion_id, 'typeof', typeof user.estacion_id);
         this.usuario.set(user);
         this.estacionId.set(user.estacion_id ?? null);
-        console.log('estacionId set to', this.estacionId(), 'typeof', typeof this.estacionId());
+        this.estacionSolicitada.set(this.route.snapshot.paramMap.get('estacion'));
         this.cargarPedidos();
         if (user.estacion?.codigo === 'COCINA') {
           this.cargarPuestos();
@@ -180,14 +184,14 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   private escucharEventosReverb(): void {
     this.subscriptions.push(
-      this.reverb.escucharCanal('canal-ordenes', '.OrdenCreada').subscribe((data: { orden?: KdsOrden }) => {
-        if (data.orden) {
-          this.insertarOActualizarOrden(data.orden);
+      this.reverb.escucharCanal('canal-ordenes', '.OrdenCreada').subscribe((data: { tipo?: string; orden_id?: number }) => {
+        if (data.orden_id) {
+          this.cargarPedidos(false);
         }
       }),
-      this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((data: { orden?: KdsOrden; cambios?: KdsCambioOrden[] }) => {
-        if (data.orden) {
-          this.insertarOActualizarOrden(data.orden, data.cambios || []);
+      this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((data: { tipo?: string; orden_id?: number }) => {
+        if (data.orden_id) {
+          this.cargarPedidos(false);
         }
       }),
       this.reverb.escucharCanal('canal-ordenes', '.PuestoCocinaActualizado').subscribe((data: { id?: number; nombre?: string; estacion_id?: number; ocupado?: boolean; user_id?: number | null; user_nombre?: string | null; orden_id?: number | null; orden_numero?: number | null }) => {
@@ -224,20 +228,26 @@ export class CocinaHome implements OnInit, OnDestroy {
     );
   }
 
-  cargarPedidos(): void {
-    this.isLoading.set(true);
-    this.cocinaService.obtenerPedidos(this.fechaSeleccionada()).subscribe({
-      next: (res: any) => {
-        if (res.debug) console.log('CocinaController debug ->', res.debug);
-        console.log('Pedidos recibidos', res.ordenes);
+  cargarPedidos(mostrarCarga = true): void {
+    if (mostrarCarga) this.isLoading.set(true);
+    this.cocinaService.obtenerPedidos(this.fechaSeleccionada(), this.estacionSolicitada()).subscribe({
+      next: (res) => {
         const ordenes = res.ordenes || [];
-        console.log('Pedidos recibidos count:', ordenes.length);
-        console.log('Pedidos recibidos sample:', ordenes.slice(0,3).map((o: any) => ({ id: o.id, detalles_count: o.detalles?.length, detalles_sample: (o.detalles || []).slice(0,3).map((d: any) => ({ id: d.id, estacion_id: d.estacion_id, producto_id: d.producto?.id, producto_estacion_id: d.producto?.estacion_id })) })));
-        this.ordenes.set(ordenes.map((orden: KdsOrden) => this.filtrarOrdenPorEstacion(orden)));
+        this.estacionActual.set(res.estacion);
+        this.estacionId.set(res.estacion.id);
+        this.estacionesDisponibles.set(res.estaciones_disponibles || []);
+        this.ordenes.set(ordenes);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false),
     });
+  }
+
+  seleccionarEstacion(estacion: KdsEstacion): void {
+    this.estacionSolicitada.set(estacion.codigo.toLowerCase());
+    this.categoriaSeleccionada.set('todos');
+    this.router.navigate(['/app/kds', estacion.codigo.toLowerCase()]);
+    this.cargarPedidos();
   }
 
   onFechaChange(event: Event): void {
@@ -408,11 +418,13 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   marcarServido(detalle: KdsDetalle, servido: boolean): void {
+    const estacionId = this.estacionActual()?.id;
+    if (!estacionId) return;
     this.detalleActualizando.set(detalle.id);
-    this.cocinaService.actualizarEstadoDetalle(detalle.id, servido ? 'servido' : 'pendiente').subscribe({
+    this.cocinaService.actualizarEstadoDetalle(detalle.id, estacionId, servido ? 'servido' : 'pendiente').subscribe({
       next: (respuesta) => {
         this.detalleActualizando.set(null);
-        this.actualizarDetalleLocal(respuesta);
+        this.cargarPedidos(false);
       },
       error: () => this.detalleActualizando.set(null),
     });

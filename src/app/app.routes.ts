@@ -208,6 +208,16 @@ export const routes: Routes = [
               import('./features/gastos-caja/pages/gasto-create/gasto-create').then(m => m.GastoCreate)
           }
         ]
+      },
+      {
+        path: 'kds',
+        loadComponent: () =>
+          import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
+      },
+      {
+        path: 'kds/:estacion',
+        loadComponent: () =>
+          import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
       }
     ]
   },

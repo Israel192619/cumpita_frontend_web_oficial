@@ -29,6 +29,18 @@ export interface KdsDetalle {
   producto: KdsProducto;
   estacion_id?: number | null;
   estacion?: KdsEstacion | null;
+  estado_estacion_id?: number;
+  incluye_producto?: boolean;
+  opciones?: KdsDetalleOpcion[];
+}
+
+export interface KdsDetalleOpcion {
+  id: number;
+  modificador_opcion?: {
+    id: number;
+    nombre: string;
+    modificador?: { id: number; nombre: string; estacion_id?: number | null } | null;
+  } | null;
 }
 
 export interface KdsCambioOrden {
@@ -60,6 +72,12 @@ export interface ActualizacionEstadoCocinaResponse {
   orden_id: number;
 }
 
+export interface KdsPedidosResponse {
+  ordenes: KdsOrden[];
+  estacion: KdsEstacion;
+  estaciones_disponibles: KdsEstacion[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -68,11 +86,13 @@ export class CocinaService {
 
   constructor(private http: HttpClient) {}
 
-  obtenerPedidos(fecha: string): Observable<{ ordenes: KdsOrden[] }> {
-    return this.http.get<{ ordenes: KdsOrden[] }>(`${this.apiUrl}/cocina/pedidos`, { params: { fecha } });
+  obtenerPedidos(fecha: string, estacion?: string | number | null): Observable<KdsPedidosResponse> {
+    const params: Record<string, string> = { fecha };
+    if (estacion !== null && estacion !== undefined) params['estacion'] = String(estacion);
+    return this.http.get<KdsPedidosResponse>(`${this.apiUrl}/kds/pedidos`, { params });
   }
 
-  actualizarEstadoDetalle(id: number, estado_cocina: 'pendiente' | 'en_preparacion' | 'listo_para_recoger' | 'recogido' | 'servido'): Observable<ActualizacionEstadoCocinaResponse> {
-    return this.http.patch<ActualizacionEstadoCocinaResponse>(`${this.apiUrl}/cocina/detalles/${id}`, { estado_cocina });
+  actualizarEstadoDetalle(id: number, estacion_id: number, estado_cocina: 'pendiente' | 'en_preparacion' | 'listo_para_recoger' | 'recogido' | 'servido'): Observable<ActualizacionEstadoCocinaResponse> {
+    return this.http.patch<ActualizacionEstadoCocinaResponse>(`${this.apiUrl}/kds/detalles/${id}`, { estacion_id, estado_cocina });
   }
 }

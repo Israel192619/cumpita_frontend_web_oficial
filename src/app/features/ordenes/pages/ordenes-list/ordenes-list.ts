@@ -44,24 +44,9 @@ export class OrdenesList implements OnInit, OnDestroy {
     this.reverbSub = this.reverb
       .escucharCanal('canal-ordenes', '.OrdenCreada')
       .subscribe((data: any) => {
-        const nuevaOrdenRaw = data.orden;
-
-        if (nuevaOrdenRaw) {
-          // Aplanamos las propiedades de la nueva orden para que coincida con tu formato de la tabla
-          const ordenFormateada: any = {
-            ...nuevaOrdenRaw,
-            numero_orden: `#${nuevaOrdenRaw.id}`,
-            cliente_nombre: nuevaOrdenRaw.cliente 
-              ? nuevaOrdenRaw.cliente.nombre 
-              : (nuevaOrdenRaw.observaciones || 'Venta Rápida'),
-            total: parseFloat(nuevaOrdenRaw.total)
-          };
-
-          // Actualizamos el Signal agregando la nueva orden al inicio de la lista
-          this.ordenes.update((listaActual) => [ordenFormateada, ...listaActual]);
-          
-          // Opcional: Mostrar una pequeña notificación visual en la esquina
-          this.toastr.info(`Nueva orden ${ordenFormateada.numero_orden} recibida`, 'Tiempo Real');
+        if (data?.orden_id) {
+          this.obtenerOrdenes();
+          this.toastr.info(`Nueva orden #${data.orden_id} recibida`, 'Tiempo Real');
         }
       });
   }

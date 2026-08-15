@@ -185,26 +185,14 @@ export class CocinaControlPage implements OnInit, OnDestroy {
             this.puesto.update((puesto) => puesto ? { ...puesto, ...data.puesto } : puesto);
           }
         }
-        if (data?.orden?.id) {
-          const finishedId = data.orden.id;
+        if (data?.orden_id) {
+          const finishedId = data.orden_id;
           this.ordenesDisponibles.update((ordenes) => ordenes.filter((o) => o.id !== finishedId));
         }
       }),
       // Escuchar actualizaciones de ordenes (nuevas ordenes / cambios)
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((data: any) => {
-        console.log('Evento recibido OrdenCocinaActualizada', data);
-        const orden = data?.orden ?? null;
-        if (!orden) return;
-        // Determinar estación del usuario o del puesto
-        const stationId = this.usuario()?.estacion_id ?? this.puesto()?.estacion_id ?? (this.puestos()?.length ? this.puestos()[0]?.estacion_id : null);
-        const tieneDetallesPendientes = (orden.detalles || []).some((d: any) => d.estacion_id === stationId && d.estado_cocina === 'pendiente');
-        if (tieneDetallesPendientes) {
-          this.ordenesDisponibles.update((lista) => {
-            const exists = lista.some((o) => o.id === orden.id);
-            if (!exists) return [orden, ...lista];
-            return lista.map((o) => o.id === orden.id ? orden : o);
-          });
-        }
+        if (data?.orden_id) this.cargarControl();
       }),
     );
   }

@@ -861,6 +861,7 @@ export class PosHome implements OnInit, OnDestroy {
           this.mostrarExito('Orden adeudada creada exitosamente');
         },
         error: (err) => {
+          console.log(err);
           this.error.set('Error al procesar la orden adeudada');
           this.isProcessingCheckout.set(false);
         },

@@ -2,10 +2,16 @@
   <header class="kds-header">
     <div class="kds-title">
       <div>
-        <h1>Vista de cocina</h1>
+        <h1>KDS · {{ estacionActual()?.nombre || 'Estación' }}</h1>
         <p>{{ ordenesVisibles().length }} pedidos activos</p>
       </div>
     </div>
+
+    <nav *ngIf="puedeCambiarEstacion()" class="kds-stations" aria-label="Estación del KDS">
+      <button *ngFor="let estacion of estacionesDisponibles()" type="button"
+        [class.kds-station--active]="estacionActual()?.id === estacion.id"
+        (click)="seleccionarEstacion(estacion)">{{ estacion.nombre }}</button>
+    </nav>
 
     <div class="kds-filters">
       <select [value]="categoriaSeleccionada()" (change)="onCategoriaChange($event)" aria-label="Filtrar por categoría">
@@ -14,7 +20,7 @@
       </select>
       <input type="date" [value]="fechaSeleccionada()" (change)="onFechaChange($event)" aria-label="Fecha de pedidos">
       <input type="search" placeholder="Buscar cliente o producto" [value]="busqueda()" (input)="onBusquedaChange($event)">
-      <button type="button" class="kds-button kds-button--secondary" (click)="abrirSeleccionPuesto()">
+      <button *ngIf="estacionActual()?.codigo === 'COCINA'" type="button" class="kds-button kds-button--secondary" (click)="abrirSeleccionPuesto()">
         {{ puestoActual() ? 'Mi puesto: ' + puestoActual()?.nombre : 'Seleccionar puesto' }}
       </button>
     </div>
@@ -78,7 +84,7 @@
   </aside>
 
   <section class="kds-board" aria-live="polite">
-    <div *ngIf="isLoading()" class="kds-empty">Cargando pedidos de cocina…</div>
+    <div *ngIf="isLoading()" class="kds-empty">Cargando pedidos de {{ estacionActual()?.nombre || 'la estación' }}…</div>
     <div *ngIf="!isLoading() && ordenesVisibles().length === 0" class="kds-empty">
       <span>✓</span>
       <h2>No hay pedidos pendientes</h2>
@@ -117,6 +123,9 @@
           <div class="ticket-item__product">
             <strong><span>{{ detalle.cantidad }}×</span> {{ detalle.producto.nombre }}</strong>
             <small *ngIf="detalle.nota">Nota: {{ detalle.nota }}</small>
+            <ul *ngIf="detalle.opciones?.length" class="ticket-options">
+              <li *ngFor="let opcion of detalle.opciones">{{ opcion.modificador_opcion?.nombre }}</li>
+            </ul>
           </div>
           <label class="serve-switch" [class.serve-switch--loading]="detalleActualizando() === detalle.id">
             <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="detalleActualizando() === detalle.id" (change)="marcarServido(detalle, $any($event.target).checked)">
