@@ -54,6 +54,57 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   puedeCambiarEstacion = computed(() => this.estacionesDisponibles().length > 1);
 
+  produccionParrilla = computed(() => {
+    const productos = new Map<string, { etiqueta: string; cantidad: number; terminos: Map<string, number> }>();
+    for (const orden of this.ordenes()) {
+      for (const detalle of orden.detalles) {
+        const precio = Number(detalle.precio_unitario ?? 0);
+        const clave = `${detalle.producto.id}|${precio.toFixed(2)}`;
+        const actual = productos.get(clave) ?? {
+          etiqueta: `${detalle.producto.nombre}${precio > 0 ? ` Bs${this.formatearPrecio(precio)}` : ''}`,
+          cantidad: 0,
+          terminos: new Map<string, number>(),
+        };
+        actual.cantidad += detalle.cantidad;
+        for (const opcion of detalle.opciones ?? []) {
+          const modificador = this.normalizar(opcion.modificador_opcion?.modificador?.nombre ?? '');
+          if (modificador.includes('termino') || modificador.includes('coccion') || modificador.includes('punto')) {
+            const termino = opcion.modificador_opcion?.nombre ?? 'Sin término';
+            actual.terminos.set(termino, (actual.terminos.get(termino) ?? 0) + detalle.cantidad);
+          }
+        }
+        productos.set(clave, actual);
+      }
+    }
+    return [...productos.values()].map(item => ({
+      etiqueta: item.etiqueta,
+      cantidad: item.cantidad,
+      terminos: [...item.terminos.entries()].map(([nombre, cantidad]) => ({ nombre, cantidad })),
+    }));
+  });
+
+  produccionCocina = computed(() => {
+    const totales = new Map<string, { nombre: string; cantidad: number }>();
+    const sumar = (clave: string, nombre: string, cantidad: number) => {
+      const actual = totales.get(clave);
+      totales.set(clave, { nombre, cantidad: (actual?.cantidad ?? 0) + cantidad });
+    };
+    for (const orden of this.ordenes()) {
+      for (const detalle of orden.detalles) {
+        if (detalle.incluye_producto) sumar(`p-${detalle.producto.id}`, detalle.producto.nombre, detalle.cantidad);
+        for (const opcion of detalle.opciones ?? []) {
+          const seleccion = opcion.modificador_opcion;
+          if (seleccion) sumar(`o-${seleccion.id}`, seleccion.nombre, detalle.cantidad);
+        }
+      }
+    }
+    return [...totales.values()].sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre));
+  });
+
+  tieneProduccionPendiente = computed(() => this.estacionActual()?.codigo === 'PARRILLA'
+    ? this.produccionParrilla().length > 0
+    : this.produccionCocina().length > 0);
+
   categorias = computed(() => {
     const categorias = new Set<string>();
     this.ordenes().forEach((orden) => orden.detalles.forEach((detalle) => {
@@ -596,6 +647,14 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   etiquetaTipoOrden(orden: KdsOrden): string {
     return orden.tipo_orden === 'dine-in' ? `Mesa ${orden.mesa?.numero || '—'}` : orden.tipo_orden === 'delivery' ? 'Delivery' : 'Para llevar';
+  }
+
+  private formatearPrecio(precio: number): string {
+    return Number.isInteger(precio) ? String(precio) : precio.toFixed(2);
+  }
+
+  private normalizar(valor: string): string {
+    return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
 
   private fechaDeHoy(): string {

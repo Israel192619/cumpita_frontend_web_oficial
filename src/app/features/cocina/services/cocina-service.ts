@@ -23,6 +23,7 @@ export interface KdsEstacion {
 export interface KdsDetalle {
   id: number;
   cantidad: number;
+  precio_unitario?: number | string;
   nota?: string | null;
   // Expanded states for the detail lifecycle. UI will remain backwards-compatible.
   estado_cocina: 'pendiente' | 'en_preparacion' | 'listo_para_recoger' | 'recogido' | 'servido';

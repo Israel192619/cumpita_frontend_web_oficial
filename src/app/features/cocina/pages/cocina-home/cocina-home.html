@@ -70,6 +70,29 @@
     </div>
   </header>
 
+  <section class="production-summary" aria-label="Producción pendiente">
+    <strong class="production-summary__title">Producción pendiente</strong>
+
+    <div *ngIf="estacionActual()?.codigo === 'PARRILLA'" class="production-list production-list--grill">
+      <div *ngFor="let item of produccionParrilla()" class="production-item production-item--grill">
+        <span class="production-item__product">{{ item.etiqueta }} <b>×{{ item.cantidad }}</b></span>
+        <span *ngIf="item.terminos.length" class="production-item__terms">
+          <ng-container *ngFor="let termino of item.terminos; let ultimo = last">
+            {{ termino.nombre }} {{ termino.cantidad }}<span *ngIf="!ultimo"> · </span>
+          </ng-container>
+        </span>
+      </div>
+    </div>
+
+    <div *ngIf="estacionActual()?.codigo !== 'PARRILLA'" class="production-list production-list--kitchen">
+      <span *ngFor="let item of produccionCocina(); let ultimo = last" class="production-token">
+        {{ item.nombre }} <b>×{{ item.cantidad }}</b><i *ngIf="!ultimo">|</i>
+      </span>
+    </div>
+
+    <span *ngIf="!isLoading() && !tieneProduccionPendiente()" class="production-summary__empty">Sin producción pendiente</span>
+  </section>
+
   <aside class="kds-service-panel" *ngIf="ordenEnServicio() as ordenEnServicio">
     <div class="service-panel__label">En servicio</div>
     <div class="service-panel__card">
@@ -123,9 +146,11 @@
           <div class="ticket-item__product">
             <strong><span>{{ detalle.cantidad }}×</span> {{ detalle.producto.nombre }}</strong>
             <small *ngIf="detalle.nota">Nota: {{ detalle.nota }}</small>
-            <ul *ngIf="detalle.opciones?.length" class="ticket-options">
-              <li *ngFor="let opcion of detalle.opciones">{{ opcion.modificador_opcion?.nombre }}</li>
-            </ul>
+            <span *ngIf="detalle.opciones?.length" class="ticket-options-inline">
+              <ng-container *ngFor="let opcion of detalle.opciones; let ultimo = last">
+                {{ opcion.modificador_opcion?.nombre }}<span *ngIf="!ultimo"> · </span>
+              </ng-container>
+            </span>
           </div>
           <label class="serve-switch" [class.serve-switch--loading]="detalleActualizando() === detalle.id">
             <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="detalleActualizando() === detalle.id" (change)="marcarServido(detalle, $any($event.target).checked)">
