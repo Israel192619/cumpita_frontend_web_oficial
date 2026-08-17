@@ -24,9 +24,7 @@
               <strong>{{ puesto.nombre }}</strong>
               <p>{{ puesto.user_id ? 'Ocupado por ' + puesto.user_nombre : 'Disponible' }}</p>
             </div>
-            <button class="button button--primary" [disabled]="puesto.user_id !== null" (click)="ocuparPuesto(puesto)">
-              Ocupar
-            </button>
+            <app-button text="Ocupar" size="small" [disabled]="puesto.user_id !== null" (buttonClick)="ocuparPuesto(puesto)" />
           </article>
         </div>
       </div>
@@ -49,14 +47,14 @@
             </ul>
           </div>
           <div class="order-actions">
-            <button class="button button--primary" (click)="marcarLista()">MARCAR LISTO</button>
-            <button class="button button--secondary" (click)="cambiarPedido()">CAMBIAR PEDIDO</button>
+            <app-button text="MARCAR LISTO" color="success" size="large" (buttonClick)="marcarLista()" />
+            <app-button text="CAMBIAR PEDIDO" color="secondary" size="large" (buttonClick)="cambiarPedido()" />
           </div>
         </div>
 
         <ng-template #sinOrden>
           <p class="control-empty">Sin orden asignada — esperando asignación automática</p>
-          <button class="button button--secondary" (click)="cambiarPedido()">CAMBIAR ORDEN (excepción)</button>
+          <app-button text="CAMBIAR ORDEN (excepción)" color="secondary" (buttonClick)="cambiarPedido()" />
         </ng-template>
       </div>
     </ng-template>
@@ -66,7 +64,7 @@
       <section class="modal-content">
         <header class="modal-header">
           <h2>Pedidos disponibles</h2>
-          <button class="kds-button kds-button--secondary" (click)="mostrarSeleccionOrden.set(false)">Cerrar</button>
+          <app-button text="Cerrar" color="secondary" size="small" (buttonClick)="mostrarSeleccionOrden.set(false)" />
         </header>
         <div class="modal-body">
           <p>Selecciona una orden para comenzar la preparación.</p>
@@ -86,8 +84,8 @@
           </div>
         </div>
         <footer class="modal-footer">
-          <button class="button button--primary" [disabled]="!ordenSeleccionadaId()" (click)="asignarOrden()">TOMAR PEDIDO</button>
-          <button class="button button--secondary" (click)="mostrarSeleccionOrden.set(false)">Cancelar</button>
+          <app-button text="TOMAR PEDIDO" size="large" [disabled]="!ordenSeleccionadaId()" (buttonClick)="asignarOrden()" />
+          <app-button text="Cancelar" color="secondary" size="large" (buttonClick)="mostrarSeleccionOrden.set(false)" />
         </footer>
       </section>
     </div>

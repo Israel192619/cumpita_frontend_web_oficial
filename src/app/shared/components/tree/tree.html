@@ -1,132 +1,49 @@
-<div class="card">
-
-  <!-- HEADER -->
-  <div class="header">
-    <h2>{{ title }}</h2>
-
-    <div class="actions">
-      <app-button 
-        *ngIf="createLink"
-        [link]="createLink"
-        text="+ Crear"
-        color="success">
-      </app-button>
-
-      <app-button 
-        text="Recargar"
-        color="info"
-        (click)="refresh.emit()">
-      </app-button>
+<section class="tree-card">
+  <header class="tree-header">
+    <h2 class="tree-title">{{ title }}</h2>
+    <div class="tree-header-actions">
+      @if (createLink) {
+        <a class="tree-create" [routerLink]="createLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Crear</span></a>
+      }
+      <button class="tree-refresh" type="button" (click)="refresh.emit()" [disabled]="loading" title="Recargar árbol" aria-label="Recargar árbol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
     </div>
-  </div>
+  </header>
 
-  <!-- LOADING -->
-  <app-loader [loading]="loading"></app-loader>
+  @if (loading) {
+    <div class="tree-loading" role="status" aria-label="Cargando árbol">@for (row of [1, 2, 3, 4]; track row) { <div class="tree-loading-row"></div> }</div>
+  } @else {
+    <app-error-message [message]="error" [linkRedireccion]="errorMessageLink" [linkTexto]="errorMessageText"></app-error-message>
+  }
 
-  <!-- ERROR -->
-  <app-error-message 
-    *ngIf="!loading"
-    [message]="error"
-    [linkRedireccion]="errorMessageLink"
-    [linkTexto]="errorMessageText">
-  </app-error-message>
-
-  <!-- TABLE -->
-  <div class="table-container">
-
-    <table *ngIf="!loading && flatData.length && !error" class="table">
-
-      <!-- HEAD -->
-      <thead>
-        <tr>
-          <th *ngFor="let col of columns">
-            {{ col.label }}
-          </th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-
-      <!-- BODY -->
-      <tbody>
-
-        <ng-container *ngFor="let item of flatData">
-          <tr *ngIf="isVisible(item)">
-
-            <td *ngFor="let col of columns">
-
-              <!-- 🌳 SOLO nombre -->
-              <ng-container *ngIf="col.key === 'nombre'; else normalCell">
-
-                <div 
-                  class="tree-cell"
-                  [style.padding-left.px]="item.level * 20"
-                >
-
-                  <!-- toggle -->
-                  <span 
-                    *ngIf="item.children?.length"
-                    (click)="toggle(item.id)"
-                    class="toggle"
-                  >
-                    {{ isExpanded(item.id) ? '▼' : '▶' }}
-                  </span>
-
-                  <span 
-                    *ngIf="!item.children?.length"
-                    class="toggle-placeholder">
-                  </span>
-
-                  {{ item.children?.length ? '' : '' }}
-                  {{ item.nombre }}
-
-                </div>
-
-              </ng-container>
-
-              <!-- 📄 columnas normales -->
-              <ng-template #normalCell>
-
-                <!-- fecha -->
-                <span *ngIf="col.type === 'date'">
-                  {{ getValue(item, col.key) | date:'short' }}
-                </span>
-
-                <!-- texto -->
-                <span *ngIf="!col.type">
-                  {{ getValue(item, col.key) }}
-                </span>
-
-              </ng-template>
-
-            </td>
-
-            <!-- acciones -->
-            <td class="actions-cell">
-              <button class="action-btn action-btn--edit" (click)="nodeAction.emit({type:'edit', node: item})"
-                title="Editar">
-                <i class="ti ti-edit"></i>
-            </button>
-
-              <button 
-                class="action-btn action-btn--delete"
-                (click)="nodeAction.emit({type:'delete', node: item})"
-                title="Eliminar">
-                <i class="ti ti-trash"></i>
-              </button>
-            </td>
-
-          </tr>
-        </ng-container>
-
-      </tbody>
-
-    </table>
-
-    <!-- EMPTY -->
-    <div *ngIf="!loading && !flatData.length && !error" class="sinDatos">
-      No hay datos
+  @if (!loading && !error && flatData.length) {
+    <div class="tree-scroll" tabindex="0" aria-label="Árbol de elementos">
+      <table class="tree-table">
+        <thead><tr><th>Nombre</th><th>Descripción</th><th>Creado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          @for (item of flatData; track item.id) {
+            @if (isVisible(item)) {
+              <tr class="tree-row" tabindex="0" [class.selected]="selected() === item.id" [class.inactive]="item.activo === false || item.estado === 'Inactivo'" (click)="selectNode(item)" (keydown.enter)="selectNode(item)">
+                <td><div class="tree-node" [class.has-children]="item.children?.length" [style.--tree-level]="item.level">
+                  @if (item.children?.length) {
+                    <button class="tree-toggle" type="button" (click)="$event.stopPropagation(); toggle(item.id)" [attr.aria-expanded]="isExpanded(item.id)" [attr.aria-label]="isExpanded(item.id) ? 'Contraer ' + item.nombre : 'Expandir ' + item.nombre"><span class="tree-chevron" [class.expanded]="isExpanded(item.id)"></span></button>
+                  } @else { <span class="tree-toggle-placeholder"></span> }
+                  <svg class="tree-node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">@if (item.children?.length) { <path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/> } @else { <path d="M7 3h7l4 4v18H7Z"/><path d="M14 3v5h5"/> }</svg>
+                  <span class="tree-node-name">{{ item.nombre }}</span>
+                  @if (stateLabel(item); as state) { <small class="tree-state" [class.active]="state === 'Activo' || state === 'ACTIVO'">{{ state }}</small> }
+                </div></td>
+                <td><span class="tree-description">{{ item.descripcion || '—' }}</span></td>
+                <td><span class="tree-date">{{ item.created_at ? (item.created_at | date:'short') : '—' }}</span></td>
+                <td><div class="tree-actions">
+                  <button type="button" class="tree-action" title="Editar" aria-label="Editar" (click)="emitAction($event, 'edit', item)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14 5 5 5M4 20l4-1 11-11-4-4L4 15Z"/></svg></button>
+                  <button type="button" class="tree-action danger" title="Eliminar" aria-label="Eliminar" (click)="emitAction($event, 'delete', item)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5M14 11v5"/></svg></button>
+                </div></td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
     </div>
-
-  </div>
-
-</div>
+  } @else if (!loading && !error) {
+    <div class="tree-empty"><svg class="tree-empty-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M24 8v12M12 30v-6h24v6M12 30v8M24 24v14M36 30v8"/><circle cx="24" cy="7" r="4"/><rect x="7" y="37" width="10" height="6" rx="2"/><rect x="19" y="37" width="10" height="6" rx="2"/><rect x="31" y="37" width="10" height="6" rx="2"/></svg><p>{{ emptyMessage }}</p></div>
+  }
+</section>

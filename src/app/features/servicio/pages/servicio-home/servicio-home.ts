@@ -7,14 +7,15 @@ import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../../core/services/auth-service';
 import { ReverbService } from '../../../../core/services/reverb-service';
 import { ServicioFicha, ServicioService, ServicioSesion } from '../../services/servicio-service';
+import { Button } from '../../../../shared/components/button/button';
 
 interface Mesero { id: number; name: string; }
 
 @Component({
   selector: 'app-servicio-home',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, Button],
   templateUrl: './servicio-home.html',
-  styleUrl: './servicio-home.css'
+  styleUrls: ['./servicio-home.css', './servicio-theme.css']
 })
 export class ServicioHome implements OnInit, OnDestroy {
   sesiones = signal<ServicioSesion[]>([]);

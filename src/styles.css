@@ -1,22 +1,43 @@
 :root {
-  --app-bg: #f4f6f9; --surface: #ffffff; --surface-muted: #f7f8fb; --surface-hover: #eef2f7;
-  --text: #1f2937; --text-muted: #64748b; --text-subtle: #94a3b8; --border: #e5e9f0;
-  --primary: #4680ff; --primary-strong: #2563eb; --primary-soft: #eef4ff;
-  --danger: #dc3545; --danger-soft: #fff0f1; --success: #16a34a; --warning: #d97706;
+  /* Paleta oficial Toñito — tema claro. */
+  --color-primary: #4680ff; --color-primary-hover: #2563eb;
+  --color-secondary: #64748b; --color-secondary-hover: #475569;
+  --color-success: #16a34a; --color-warning: #d97706; --color-danger: #dc3545; --color-info: #0891b2;
+  --color-bg: #f4f6f9; --color-surface: #ffffff; --color-sidebar: #ffffff; --color-header: #ffffff;
+  --color-border: #e5e9f0; --color-text: #1f2937; --color-text-secondary: #64748b; --color-text-muted: #94a3b8;
+  --color-text-disabled: #a8b2c1; --color-hover: #f1f5f9; --color-focus: rgb(70 128 255 / .22);
+  --color-on-brand: #ffffff; --color-neutral: #1f2937; --color-neutral-hover: #111827;
+  --color-disabled: #e2e8f0; --color-disabled-text: #94a3b8;
+
+  /* Alias de compatibilidad: todos derivan de la paleta central. */
+  --app-bg: var(--color-bg); --surface: var(--color-surface); --surface-muted: var(--color-hover); --surface-hover: color-mix(in srgb, var(--color-hover) 75%, var(--color-border));
+  --text: var(--color-text); --text-muted: var(--color-text-secondary); --text-subtle: var(--color-text-muted); --border: var(--color-border);
+  --primary: var(--color-primary); --primary-strong: var(--color-primary-hover); --primary-soft: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  --danger: var(--color-danger); --danger-soft: color-mix(in srgb, var(--color-danger) 9%, transparent); --success: var(--color-success); --warning: var(--color-warning);
   --sidebar-width: 260px; --sidebar-collapsed: 72px; --header-height: 70px; --footer-height: 58px;
   --radius-sm: 7px; --radius-md: 11px; --radius-lg: 16px;
   --shadow-sm: 0 2px 8px rgb(15 23 42 / .06); --shadow-lg: 0 18px 45px rgb(15 23 42 / .16);
 
-  /* Variables conservadas para POS, que tiene su diseño oscuro independiente. */
-  --bg-main: #1f1d2b; --bg-surface: #252836; --color-accent: #ea7c69; --color-danger: #ff7b7b;
-  --text-primary: #ffffff; --border-color: #393c49;
+  /* Puente de compatibilidad para POS: conserva sus nombres sin mantener otra paleta. */
+  --bg-main: var(--color-bg); --bg-surface: var(--color-surface); --color-accent: var(--color-primary);
+  --text-primary: var(--color-text); --text-secondary: var(--color-text-secondary); --border-color: var(--color-border);
 }
 
 :root[data-theme='dark'] {
-  --app-bg: #111827; --surface: #182131; --surface-muted: #202b3c; --surface-hover: #293548;
-  --text: #eef3f9; --text-muted: #a8b3c3; --text-subtle: #748196; --border: #2b3749;
-  --primary: #75a0ff; --primary-strong: #4f83f1; --primary-soft: rgb(70 128 255 / .14);
-  --danger-soft: rgb(220 53 69 / .14); --shadow-sm: 0 2px 8px rgb(0 0 0 / .18); --shadow-lg: 0 18px 45px rgb(0 0 0 / .32);
+  /* Paleta oficial Toñito — tema oscuro. */
+  --color-primary: #75a0ff; --color-primary-hover: #94b7ff;
+  --color-secondary: #a8b3c3; --color-secondary-hover: #c2cad6;
+  --color-success: #4ade80; --color-warning: #fbbf24; --color-danger: #fb7185; --color-info: #38bdf8;
+  --color-bg: #111827; --color-surface: #182131; --color-sidebar: #182131; --color-header: #182131;
+  --color-border: #2b3749; --color-text: #eef3f9; --color-text-secondary: #a8b3c3; --color-text-muted: #748196;
+  --color-text-disabled: #657186; --color-hover: #202b3c; --color-focus: rgb(117 160 255 / .28);
+  --color-on-brand: #081120; --color-neutral: #334155; --color-neutral-hover: #475569;
+  --color-disabled: #283447; --color-disabled-text: #6f7c91;
+  --app-bg: var(--color-bg); --surface: var(--color-surface); --surface-muted: var(--color-hover); --surface-hover: color-mix(in srgb, var(--color-hover) 75%, var(--color-border));
+  --text: var(--color-text); --text-muted: var(--color-text-secondary); --text-subtle: var(--color-text-muted); --border: var(--color-border);
+  --primary: var(--color-primary); --primary-strong: var(--color-primary-hover); --primary-soft: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  --danger: var(--color-danger); --danger-soft: color-mix(in srgb, var(--color-danger) 14%, transparent); --success: var(--color-success); --warning: var(--color-warning);
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / .18); --shadow-lg: 0 18px 45px rgb(0 0 0 / .32);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -39,7 +60,7 @@ h1, h2, h3, h4, h5, h6, p { margin-top: 0; } ::selection { color: white; backgro
 .text-center { text-align: center !important; }.text-end { text-align: right !important; }.text-muted { color: var(--text-muted) !important; }.text-body { color: var(--text) !important; }.text-white { color: white !important; }.text-danger { color: var(--danger) !important; }.small, small { font-size: .8em; }.text-sm { font-size: .82rem !important; }.f-w-600 { font-weight: 600 !important; }.float-end { float: right !important; }.opacity-50 { opacity: .5; }.opacity-75 { opacity: .75; }
 .rounded { border-radius: var(--radius-sm) !important; }.rounded-pill { border-radius: 999px !important; }
 .card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }.card-body { padding: 1.25rem; }.card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
-.btn { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: .45rem; padding: .5rem .9rem; border: 1px solid transparent; border-radius: 8px; color: white; background: var(--primary); font-weight: 600; text-decoration: none; cursor: pointer; }.btn:hover { filter: brightness(.97); }.btn:disabled { opacity: .55; cursor: not-allowed; }.btn-secondary { background: #64748b; }.btn-danger { background: var(--danger); }.btn-success { background: var(--success); }.btn-light, .btn-light-secondary { color: var(--text); border-color: var(--border); background: var(--surface-muted); }.btn-sm { min-height: 32px; padding: .35rem .65rem; font-size: .8rem; }
+.btn { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: .45rem; padding: .5rem .9rem; border: 1px solid transparent; border-radius: 8px; color: var(--color-on-brand); background: var(--color-primary); font-weight: 600; text-decoration: none; cursor: pointer; }.btn:hover { background: var(--color-primary-hover); }.btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }.btn:disabled { color: var(--color-disabled-text); background: var(--color-disabled); opacity: 1; cursor: not-allowed; }.btn-secondary { background: var(--color-secondary); }.btn-secondary:hover { background: var(--color-secondary-hover); }.btn-danger { background: var(--color-danger); }.btn-success { background: var(--color-success); }.btn-warning { background: var(--color-warning); }.btn-info { background: var(--color-info); }.btn-dark { background: var(--color-neutral); }.btn-light, .btn-light-secondary { color: var(--color-text); border-color: var(--color-border); background: var(--color-hover); }.btn-sm { min-height: 32px; padding: .35rem .65rem; font-size: .8rem; }
 .badge { display: inline-flex; align-items: center; padding: .25rem .55rem; border-radius: 6px; font-size: .72rem; font-weight: 700; }.bg-light { background: var(--surface-muted) !important; }.bg-light-danger { color: var(--danger); background: var(--danger-soft); }.bg-light-success { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }.bg-light-warning { color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, transparent); }
 .form-control, .form-select { display: block; width: 100%; min-height: 40px; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: 8px; outline: none; color: var(--text); background: var(--surface); }.form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent); }.border-0 { border: 0 !important; }.shadow-none { box-shadow: none !important; }
 .list-unstyled { margin: 0; padding: 0; list-style: none; }.list-group { display: grid; padding: 0; list-style: none; }.list-group-item { padding: .85rem 1rem; border-bottom: 1px solid var(--border); background: var(--surface); }.list-group-flush .list-group-item:last-child { border-bottom: 0; }

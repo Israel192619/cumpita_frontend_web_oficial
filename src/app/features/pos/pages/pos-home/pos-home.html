@@ -10,7 +10,7 @@
     <div class="edit-mode-content">
       <span class="edit-mode-icon">✎</span>
       <span class="edit-mode-text">Editando Orden #{{ editingOrder()?.numero_orden || editingOrderId() }}</span>
-      <button type="button" class="btn-exit-edit" (click)="onCancelEditMode()">Cancelar</button>
+      <app-button text="Cancelar" color="secondary" size="small" (buttonClick)="onCancelEditMode()" />
     </div>
   </div>
 
@@ -159,10 +159,8 @@
         <textarea rows="3" [value]="observacionCaja()" (input)="observacionCaja.set($any($event.target).value)" placeholder="Ej.: cambio inicial o detalle del arqueo"></textarea>
       </div>
       <footer>
-        <button type="button" class="btn-caja-cancel" (click)="cerrarModalCaja()" [disabled]="isProcessingCaja()">Cancelar</button>
-        <button type="button" class="btn-caja-confirm" (click)="confirmarCaja()" [disabled]="isProcessingCaja()">
-          {{ isProcessingCaja() ? 'Guardando…' : (cajaModalMode() === 'abrir' ? 'Abrir caja' : 'Confirmar cierre') }}
-        </button>
+        <app-button text="Cancelar" color="secondary" [disabled]="isProcessingCaja()" (buttonClick)="cerrarModalCaja()" />
+        <app-button [text]="cajaModalMode() === 'abrir' ? 'Abrir caja' : 'Confirmar cierre'" [loading]="isProcessingCaja()" (buttonClick)="confirmarCaja()" />
       </footer>
     </section>
   </div>
@@ -218,7 +216,7 @@
         </div>
       </div>
       <div class="payment-history-footer">
-        <button type="button" class="btn btn-secondary" (click)="closeHistoryModal()">Cerrar</button>
+        <app-button text="Cerrar" color="secondary" (buttonClick)="closeHistoryModal()" />
       </div>
     </div>
   </div>
@@ -259,8 +257,8 @@
           <div class="pending-order-row">
             <div class="pending-order-summary">Total: {{ formatPrice(orden.total) }}</div>
             <div class="pending-order-actions">
-              <button type="button" class="btn btn-small btn-secondary" (click)="onEditPendingOrder(orden.id)">Editar</button>
-              <button type="button" class="btn btn-small btn-confirm" (click)="onPayPendingOrder(orden.id)">Pagar</button>
+              <app-button text="Editar" color="secondary" size="small" (buttonClick)="onEditPendingOrder(orden.id)" />
+              <app-button text="Pagar" size="small" (buttonClick)="onPayPendingOrder(orden.id)" />
             </div>
           </div>
         </div>

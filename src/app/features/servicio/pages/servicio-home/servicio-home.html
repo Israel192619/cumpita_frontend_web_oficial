@@ -1,7 +1,7 @@
 <main class="service-page">
   <header class="service-header">
     <div class="brand"><span>DESPACHO</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
-    @if (permiteSesionesPin()) { <button type="button" class="add-waiter" (click)="abrirIngreso()">+ Ingresar mesero</button> }
+    @if (permiteSesionesPin()) { <app-button text="+ Ingresar mesero" (buttonClick)="abrirIngreso()" /> }
   </header>
 
   <section class="sessions" aria-label="Sesiones activas">
@@ -18,7 +18,7 @@
       } }
     </div>
     @if (sesionSeleccionada(); as activa) {
-      <div class="session-actions"><span>Atendiendo como <b>{{ activa.user.name }}</b></span><button type="button" (click)="cerrarMiSesion()" [disabled]="procesando() === 'cerrar'">Cerrar mi sesión</button></div>
+      <div class="session-actions"><span>Atendiendo como <b>{{ activa.user.name }}</b></span><app-button text="Cerrar mi sesión" color="danger" size="small" [disabled]="procesando() === 'cerrar'" (buttonClick)="cerrarMiSesion()" /></div>
     }
   </section>
 
@@ -56,7 +56,7 @@
     <div class="section-heading"><div><span>COLA COMÚN</span><h2>Disponibles</h2></div><strong>{{ disponibles().length }}</strong></div>
     <div class="available-grid">
       @for (ficha of disponibles(); track ficha.id) {
-        <article class="available-ticket"><div><span>FICHA</span><h3>#{{ ficha.numero_orden }}</h3><p>{{ ficha.mesa ? 'Mesa ' + ficha.mesa + ' · ' : '' }}{{ ficha.total_items }} productos</p></div><button type="button" [disabled]="procesando() === 'tomar-' + ficha.id" (click)="tomar(ficha)">TOMAR</button></article>
+        <article class="available-ticket"><div><span>FICHA</span><h3>#{{ ficha.numero_orden }}</h3><p>{{ ficha.mesa ? 'Mesa ' + ficha.mesa + ' · ' : '' }}{{ ficha.total_items }} productos</p></div><app-button text="TOMAR" size="large" [disabled]="procesando() === 'tomar-' + ficha.id" (buttonClick)="tomar(ficha)" /></article>
       } @empty { <div class="empty-card">No hay fichas disponibles.</div> }
     </div>
   </section>

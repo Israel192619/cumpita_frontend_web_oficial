@@ -9,6 +9,7 @@ import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, Payme
 import { CategoriaService } from '../../../categorias/services/categoria-service';
 import { ProductoService } from '../../../productos/services/producto-service';
 import { ToastrService } from 'ngx-toastr';
+import { Button } from '../../../../shared/components/button/button';
 
 @Component({
   selector: 'app-pos-home',
@@ -19,6 +20,7 @@ import { ToastrService } from 'ngx-toastr';
     ProductGridComponent,
     CartPanelComponent,
     CheckoutModalComponent,
+    Button,
   ],
   templateUrl: './pos-home.html',
   styleUrl: './pos-home.css',

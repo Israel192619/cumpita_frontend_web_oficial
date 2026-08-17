@@ -6,13 +6,14 @@ import { AuthService } from '@app/core/services/auth-service';
 import { ReverbService } from '@app/core/services/reverb-service';
 import { PuestosCocinaService, PuestoCocina, CocinaControlResponse } from '../../services/puestos-cocina';
 import { KdsOrden } from '../../services/cocina-service';
+import { Button } from '../../../../shared/components/button/button';
 
 @Component({
   selector: 'app-cocina-control',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, Button],
   templateUrl: './cocina-control.html',
-  styleUrl: './cocina-control.css',
+  styleUrls: ['./cocina-control.css', '../cocina-home/cocina-theme.css'],
 })
 export class CocinaControlPage implements OnInit, OnDestroy {
   usuario = signal<CocinaControlResponse['usuario'] | null>(null);

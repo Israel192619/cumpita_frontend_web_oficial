@@ -1,0 +1,24 @@
+:host{background:var(--color-bg);color:var(--color-text)}
+.kds-shell,.kds-board,.control-page{background:var(--color-bg);color:var(--color-text)}
+.kds-header,.control-header{background:var(--color-neutral);color:var(--color-on-brand);border-color:var(--color-border)}
+.kds-controls input,.kds-controls select,.puesto-card__assignment select{background:var(--color-surface);border-color:var(--color-border);color:var(--color-text)}
+.kds-controls input:focus,.kds-controls select:focus,.puesto-card__assignment select:focus{border-color:var(--color-primary);outline:3px solid var(--color-focus)}
+.kds-button--primary,.button--primary{background:var(--color-primary);color:var(--color-on-brand)}
+.kds-button--secondary,.button--secondary{background:var(--color-secondary);color:var(--color-on-brand)}
+.kds-ticket,.puesto-card,.service-panel__card,.puesto-modal__panel,.control-card,.modal-content,.puesto-item,.orden-item{background:var(--color-surface);border-color:var(--color-border);color:var(--color-text)}
+.ticket-header,.ticket-item,.ticket-meta{border-color:var(--color-border)}
+.ticket-client h2,.ticket-item__product strong,.serve-switch b{color:var(--color-text)}
+.ticket-client .ticket-label,.ticket-options-inline,.ticket-options,.puesto-card__assigned{color:var(--color-text-secondary)}
+.ticket-item__product strong span,.production-item__product b,.production-token b{color:var(--color-primary)}
+.ticket-state,.dependency-state--ready{background:color-mix(in srgb,var(--color-info) 13%,var(--color-surface));color:var(--color-info)}
+.ticket-state--cancelled{background:color-mix(in srgb,var(--color-danger) 11%,var(--color-surface));color:var(--color-danger)}
+.ticket-item--locked,.dependency-state--locked{background:var(--color-hover);color:var(--color-text-secondary)}
+.kds-ticket--ready-attention{border-color:var(--color-info);box-shadow:0 8px 24px color-mix(in srgb,var(--color-info) 24%,transparent)}
+.ticket-item--ready-attention{background:color-mix(in srgb,var(--color-info) 10%,var(--color-surface));box-shadow:inset 3px 0 var(--color-info)}
+.production-summary{background:color-mix(in srgb,var(--color-surface) 96%,transparent);border-color:var(--color-border);color:var(--color-text);box-shadow:var(--shadow-sm)}
+.production-summary__title,.production-item__terms,.production-summary__empty{color:var(--color-text-secondary)}
+.serve-switch span{background:var(--color-disabled)}.serve-switch input:checked+span{background:var(--color-success)}
+.kds-empty{color:var(--color-text-muted)}.kds-empty h2{color:var(--color-text)}.kds-empty span{color:var(--color-success)}
+.kds-ticket--cancelled{border-color:var(--color-danger);background:color-mix(in srgb,var(--color-danger) 5%,var(--color-surface))}
+.cancelled-stamp{border-color:var(--color-danger);color:var(--color-danger);background:color-mix(in srgb,var(--color-surface) 86%,transparent)}
+.ticket-cancelled-footer button{background:var(--color-danger);color:var(--color-on-brand)}
