@@ -1,112 +1,107 @@
-<div class="card">
-    <div class="header">
-        <h2>{{ title }}</h2>
-        <div class="actions">
-            <app-button 
-                *ngIf="createLink" 
-                [link]="createLink" 
-                [text]="createText"
-                color="primary"
-                size="medium">
-            </app-button>
-            <app-button 
-                text="Recargar"
-                color="dark"
-                size="medium"
-                (click)="refresh.emit()">
-            </app-button>
+<section class="data-card">
+  <header class="table-header">
+    <div class="title-block"><h2>{{ title }}</h2><span>{{ filteredCount }} registro{{ filteredCount === 1 ? '' : 's' }}</span></div>
+    <div class="header-actions">
+      @if (createLink) { <a class="create-button" [routerLink]="createLink">{{ createText }}</a> }
+      <button class="refresh-button" type="button" (click)="refresh.emit()" [disabled]="loading" title="Recargar datos">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg><span>Recargar</span>
+      </button>
+    </div>
+  </header>
+
+  @if ((searchable || filters.length) && !loading && !error) {
+    <div class="table-tools">
+      @if (searchable) {
+        <label class="search-control">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input type="search" [value]="searchTerm" [placeholder]="searchPlaceholder" (input)="onSearch($event)">
+          @if (searchTerm) { <button type="button" (click)="clearSearch()" aria-label="Limpiar búsqueda">×</button> }
+        </label>
+      }
+      @if (filters.length) {
+        <div class="filter-list">
+          @for (filter of filters; track filter.key) {
+            <label class="filter-control"><span>{{ filter.label }}</span><select [value]="filterValues[filter.key] ?? ''" (change)="onFilterChange(filter, $event)"><option value="">Todos</option>@for (option of filter.options; track option.label) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+          }
         </div>
+      }
     </div>
-    <app-loader [loading]="loading"></app-loader>
-    <app-error-message *ngIf="!loading" [message]="error" [linkRedireccion]="errorMessageLink"
-        [linkTexto]="errorMessageText"></app-error-message>
+  }
 
-    <div class="table-container">
-        <table *ngIf="!loading && data.length && !error" class="table">
-            <thead>
-                <tr>
-                    <th *ngFor="let col of columns">
-                        {{ col.label }}
-                    </th>
-                    <th *ngIf="rowActions === undefined || rowActions.length">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr *ngFor="let item of data">
-                    <td *ngFor="let col of columns">
-                        <ng-container [ngSwitch]="col.type">
+  @if (loading) {
+    <div class="loading-state" role="status" aria-live="polite">
+      <div class="loading-heading"><span class="spinner"></span><span>Actualizando información…</span></div>
+      @for (row of [1,2,3,4,5]; track row) { <div class="skeleton-row"><i></i><i></i><i></i><i></i></div> }
+    </div>
+  }
 
-                            <div *ngSwitchCase="'image'" class="avatar-cell">
-                                <img [src]="getValue(item, col.key)" class="avatar-img" />
-                            </div>
+  @if (!loading) {
+    <app-error-message [message]="error" [linkRedireccion]="errorMessageLink" [linkTexto]="errorMessageText"></app-error-message>
+  }
 
-                            <span *ngSwitchCase="'date'">
-                                {{ getValue(item, col.key) | date:'short' }}
-                            </span>
-
-                            <span *ngSwitchCase="'movementAmount'"
-                                [class.amount-income]="item.tipo === 'INGRESO'"
-                                [class.amount-withdrawal]="item.tipo === 'RETIRO'">
-                                {{ item.tipo === 'INGRESO' ? '+' : '-' }} Bs {{ getValue(item, col.key) | number:'1.2-2' }}
-                            </span>
-
-                            <span *ngSwitchCase="'expenseAmount'" class="amount-withdrawal">
-                                - Bs {{ getValue(item, col.key) | number:'1.2-2' }}
-                            </span>
-
-                            <span *ngSwitchCase="'status'" class="status-badge"
-                                [class.status-cancelled]="getValue(item, col.key) === 'ANULADO'"
-                                [class.status-inactive]="getValue(item, col.key) === 'Inactivo'">
-                                {{ getValue(item, col.key) }}
-                            </span>
-
-                            <span *ngSwitchDefault>
-                                {{ getValue(item, col.key) }}
-                            </span>
-
-                        </ng-container>
-                    </td>
-                    <td *ngIf="rowActions === undefined || rowActions.length" class="actions-cell">
-                        <div *ngIf="rowActions === undefined" class="actions-buttons">
-                            <button class="action-btn action-btn--edit" (click)="action.emit({type:'edit', item})"
-                                title="Editar">
-                                <i class="ti ti-edit"></i>
-                            </button>
-
-                            <button class="action-btn action-btn--view" (click)="action.emit({type:'view', item})"
-                                title="Ver">
-                                <i class="ti ti-eye"></i>
-                            </button>
-
-                            <button class="action-btn action-btn--delete" (click)="action.emit({type:'delete', item})"
-                                title="Eliminar">
-                                <i class="ti ti-trash"></i>
-                            </button>
-                        </div>
-                        <div *ngIf="rowActions !== undefined" class="actions-buttons">
-                            <button *ngFor="let rowAction of availableActions(item)"
-                                class="action-btn" [ngClass]="rowAction.class"
-                                (click)="action.emit({type: rowAction.type, item})"
-                                [title]="rowAction.label">
-                                <i *ngIf="rowAction.icon" [class]="rowAction.icon"></i>
-                                <span *ngIf="!rowAction.icon">{{ rowAction.label }}</span>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+  @if (!loading && !error && visibleData.length) {
+    <div class="table-scroll" tabindex="0" aria-label="Tabla con desplazamiento horizontal">
+      <table>
+        <thead><tr>
+          @for (col of columns; track col.key) {
+            <th [class.is-sortable]="isSortable(col)" [attr.aria-sort]="sortKey === col.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : null">
+              <button type="button" (click)="toggleSort(col)" [disabled]="!isSortable(col)"><span>{{ col.label }}</span>@if (isSortable(col)) { <span class="sort-icon" [class.active]="sortKey === col.key">{{ sortKey === col.key ? (sortDirection === 'asc' ? '↑' : '↓') : '↕' }}</span> }</button>
+            </th>
+          }
+          @if (rowActions === undefined || rowActions.length) { <th class="actions-heading">Acciones</th> }
+        </tr></thead>
+        <tbody>
+          @for (item of visibleData; track $index) {
+            <tr>
+              @for (col of columns; track col.key) {
+                <td [attr.data-label]="col.label">
+                  @switch (col.type) {
+                    @case ('image') { <div class="avatar-cell"><img [src]="getValue(item, col.key)" class="avatar-img" alt=""></div> }
+                    @case ('date') { <span class="date-value">{{ getValue(item, col.key) | date:'short' }}</span> }
+                    @case ('currency') { <span class="number-value">Bs {{ getValue(item, col.key) | number:'1.2-2' }}</span> }
+                    @case ('boolean') { <span class="neutral-badge">{{ displayBoolean(getValue(item, col.key)) }}</span> }
+                    @case ('movementAmount') { <span class="amount-value" [class.amount-income]="item.tipo === 'INGRESO'" [class.amount-withdrawal]="item.tipo === 'RETIRO'">{{ item.tipo === 'INGRESO' ? '+' : '-' }} Bs {{ getValue(item, col.key) | number:'1.2-2' }}</span> }
+                    @case ('expenseAmount') { <span class="amount-value amount-withdrawal">- Bs {{ getValue(item, col.key) | number:'1.2-2' }}</span> }
+                    @case ('status') { <span class="status-badge" [class.status-cancelled]="getValue(item, col.key) === 'ANULADO'" [class.status-inactive]="getValue(item, col.key) === 'Inactivo'">{{ getValue(item, col.key) }}</span> }
+                    @default { <span>{{ getValue(item, col.key) ?? '—' }}</span> }
+                  }
+                </td>
+              }
+              @if (rowActions === undefined || rowActions.length) {
+                <td class="actions-cell" data-label="Acciones"><div class="row-actions">
+                  @if (rowActions === undefined) {
+                    <button class="row-action edit" type="button" (click)="action.emit({type:'edit', item})" title="Editar"><i class="ti ti-edit"></i><span class="sr-only">Editar</span></button>
+                    <button class="row-action view" type="button" (click)="action.emit({type:'view', item})" title="Ver"><i class="ti ti-eye"></i><span class="sr-only">Ver</span></button>
+                    <button class="row-action delete" type="button" (click)="action.emit({type:'delete', item})" title="Eliminar"><i class="ti ti-trash"></i><span class="sr-only">Eliminar</span></button>
+                  } @else {
+                    @for (rowAction of availableActions(item); track rowAction.type) {
+                      <button type="button" class="row-action custom-action" [ngClass]="rowAction.class" (click)="action.emit({type: rowAction.type, item})" [title]="rowAction.label"><i *ngIf="rowAction.icon" [class]="rowAction.icon"></i><span [class.sr-only]="rowAction.icon">{{ rowAction.label }}</span></button>
+                    }
+                  }
+                </div></td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
     </div>
 
-    <div *ngIf="!loading && !data.length && !error" class="sinDatos">
-
-        <div class="icon">
-            <svg viewBox="0 0 64 64" fill="none">
-                <rect x="8" y="16" width="48" height="32" rx="8" fill="#e0e7ff" />
-                <path d="M16 24h32M16 32h20" stroke="#6366f1" stroke-width="2" stroke-linecap="round" />
-            </svg>
-        </div>
-
-        <span>No hay datos para mostrar.</span>
+    @if (pagination) {
+      <footer class="table-footer">
+        <div class="page-size"><span>Mostrar</span><select [value]="internalPageSize" (change)="onPageSizeChange($event)">@for (size of pageSizeOptions; track size) { <option [value]="size">{{ size }}</option> }</select><span>por página</span></div>
+        <div class="range">{{ rangeStart }}–{{ rangeEnd }} de {{ filteredCount }}</div>
+        <nav class="pagination" aria-label="Paginación">
+          <button type="button" (click)="goToPage(internalPage - 1)" [disabled]="internalPage === 1" aria-label="Página anterior">‹</button>
+          @for (page of pageNumbers; track page) { <button type="button" [class.active]="page === internalPage" (click)="goToPage(page)">{{ page }}</button> }
+          <button type="button" (click)="goToPage(internalPage + 1)" [disabled]="internalPage === totalPages" aria-label="Página siguiente">›</button>
+        </nav>
+      </footer>
+    }
+  } @else if (!loading && !error) {
+    <div class="empty-state">
+      <div class="empty-icon"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="11" width="34" height="27" rx="5"/><path d="M13 19h22M13 25h15M13 31h10"/></svg></div>
+      <strong>{{ hasActiveQuery ? noResultsMessage : emptyMessage }}</strong>
+      @if (hasActiveQuery) { <button type="button" (click)="clearQuery()">Limpiar filtros</button> }
     </div>
-</div>
+  }
+</section>

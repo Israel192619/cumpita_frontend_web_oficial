@@ -20,7 +20,7 @@ export class Sidebar implements OnInit {
   readonly expanded = signal<string | null>(null);
   readonly groups: NavGroup[] = [
     { key: 'usuarios', label: 'Gestión usuarios', icon: 'U', children: [
-      { label: 'Usuarios', route: '/app/users' }, { label: 'Roles', route: '/app/roles' }
+      { label: 'Usuarios', route: '/app/users' }
     ]},
     { key: 'productos', label: 'Productos', icon: 'P', children: [
       { label: 'Productos', route: '/app/productos' }, { label: 'Categorías', route: '/app/categorias' },

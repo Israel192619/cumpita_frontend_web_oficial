@@ -47,3 +47,18 @@ h1, h2, h3, h4, h5, h6, p { margin-top: 0; } ::selection { color: white; backgro
 .modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgb(15 23 42 / .58); }
 @media (min-width: 768px) { .d-md-none { display: none !important; } }
 @media (max-width: 767px) { .row { margin-inline: -.3rem; }.row > * { padding-inline: .3rem; } }
+
+/* Estados compartidos del DataTable, prefijados para evitar afectar otros módulos. */
+app-data-table .loading-state { padding: 20px 22px 24px; }
+app-data-table .loading-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 16px; color: var(--text-muted); font-size: 12px; }
+app-data-table .spinner { width: 17px; height: 17px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: table-spin .75s linear infinite; }
+app-data-table .skeleton-row { display: grid; grid-template-columns: 1.2fr 2fr 1fr .7fr; gap: 20px; padding: 13px 0; border-top: 1px solid var(--border); }
+app-data-table .skeleton-row i { height: 11px; border-radius: 5px; background: linear-gradient(90deg, var(--surface-muted), var(--surface-hover), var(--surface-muted)); background-size: 220% 100%; animation: table-shimmer 1.3s ease infinite; }
+app-data-table .empty-state { display: grid; justify-items: center; padding: 50px 22px; color: var(--text-muted); text-align: center; }
+app-data-table .empty-icon { display: grid; width: 58px; height: 58px; margin-bottom: 13px; place-items: center; border: 1px solid var(--border); border-radius: 16px; color: var(--text-subtle); background: var(--surface-muted); }
+app-data-table .empty-icon svg { width: 31px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+app-data-table .empty-state strong { color: var(--text); font-size: 13px; }
+app-data-table .empty-state button { margin-top: 12px; border: 0; color: var(--primary); background: transparent; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+@keyframes table-spin { to { transform: rotate(360deg); } }
+@keyframes table-shimmer { to { background-position: -220% 0; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
