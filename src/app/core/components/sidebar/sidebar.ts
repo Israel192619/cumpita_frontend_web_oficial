@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
+import { AuthService } from '../../services/auth-service';
 
 @Component({
   selector: 'app-sidebar',
@@ -11,9 +12,15 @@ import { filter } from 'rxjs';
   styleUrl: './sidebar.css',
 })
 export class Sidebar {
-  constructor(private router: Router) {}
+  esSoloServicio = signal<boolean | null>(null);
+
+  constructor(private router: Router, private auth: AuthService) {}
 
   ngOnInit() {
+    this.auth.me().subscribe({
+      next: user => this.esSoloServicio.set(['mesero', 'despacho'].includes((user.role?.nombre ?? '').trim().toLocaleLowerCase())),
+      error: () => this.esSoloServicio.set(false)
+    });
     // Escucha cambios de ruta para cerrar menús que no correspondan
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)

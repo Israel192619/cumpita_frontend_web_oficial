@@ -36,6 +36,7 @@ export class UserCreate {
       avatar: null,
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
+      pin: ['', [Validators.pattern(/^\d{4,6}$/)]],
       role_id: [null, Validators.required],
       estacion_id: [null]
     });
@@ -65,6 +66,10 @@ export class UserCreate {
   }
   getControl(names: string): FormControl {
     return this.form.get(names) as FormControl;
+  }
+  esRolMesero(): boolean {
+    const roleId = Number(this.form.get('role_id')?.value);
+    return this.roles().some(role => Number(role.value) === roleId && role.label.trim().toLowerCase() === 'mesero');
   }
   private guardarUsuario(onSuccess: () => void) {
     if (this.form.invalid) {
@@ -122,6 +127,7 @@ export class UserCreate {
       name: '',
       email: '',
       password: '',
+      pin: '',
       role_id: null,
       estacion_id: null
     });

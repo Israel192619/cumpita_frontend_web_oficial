@@ -41,8 +41,17 @@ export class Login {
     };
     this.auth.login(creds). subscribe({
       next: () => {
-        this.loading.set(false);
-        this.router.navigateByUrl('/app');
+        this.auth.me().subscribe({
+          next: user => {
+            this.loading.set(false);
+            const rol = (user.role?.nombre ?? '').trim().toLocaleLowerCase();
+            this.router.navigateByUrl(['mesero', 'despacho'].includes(rol) ? '/app/servicio' : '/app');
+          },
+          error: () => {
+            this.loading.set(false);
+            this.error.set('No se pudo verificar el perfil del usuario.');
+          }
+        });
       },
       error: (err) => {
         if (err.status === 0) {

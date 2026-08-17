@@ -49,6 +49,7 @@
 
   <div class="ms-auto">
     <ul class="list-unstyled">
+      @if (!esSoloServicio()) {
       <li class="dropdown pc-h-item pc-mega-menu">
         <a
           class="pc-head-link head-link-secondary arrow-none me-0"
@@ -68,6 +69,7 @@
           <i class="ti ti-tools-kitchen-2"></i>
         </a>
       </li>
+      }
       <li class="dropdown pc-h-item pc-mega-menu">
         <a
           class="pc-head-link head-link-secondary dropdown-toggle arrow-none me-0"
@@ -296,6 +298,7 @@
           </div>
         </div>
       </li>
+      @if (!enServicio()) {
       <li class="dropdown pc-h-item header-user-profile">
         <a
           class="pc-head-link head-link-primary dropdown-toggle arrow-none me-0"
@@ -365,6 +368,7 @@
           </div>
         </div>
       </li>
+      }
     </ul>
   </div>
 </div>

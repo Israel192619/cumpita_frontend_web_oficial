@@ -195,6 +195,12 @@
 .kds-stations .kds-station--active { background: #fff; color: #0f172a; border-color: #fff; }
 .ticket-options { margin: .45rem 0 0 1.4rem; padding: 0; color: #334155; }
 .ticket-options li { margin: .2rem 0; font-weight: 600; }
+.kds-ticket--ready-attention { border: 2px solid #2583e8; box-shadow: 0 8px 24px rgba(37, 131, 232, .28); }
+.ticket-item--locked { opacity: .68; background: #f1f5f9; }
+.ticket-item--ready-attention { margin-inline: -.35rem; padding-inline: .35rem; border-radius: 9px; background: #eaf4ff; box-shadow: inset 3px 0 #2583e8; }
+.dependency-state { display: block; width: fit-content; margin-top: .25rem; border-radius: 999px; padding: .18rem .48rem; font-size: .66rem; font-weight: 850; text-transform: uppercase; }
+.dependency-state--locked { background: #e2e8f0; color: #475569; }
+.dependency-state--ready { background: #dbeafe; color: #1466c3; }
 
 /* Resumen calculado con la proyección ya cargada por el KDS. */
 .production-summary { position: sticky; top: 0; z-index: 1200; display: flex; align-items: center; gap: .75rem; min-height: 42px; padding: .5rem 1.35rem; border-bottom: 1px solid #cbd5e1; background: rgba(248, 250, 252, .97); color: #1e293b; box-shadow: 0 3px 12px rgba(15, 23, 42, .16); backdrop-filter: blur(8px); }

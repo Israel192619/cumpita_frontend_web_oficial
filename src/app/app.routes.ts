@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
 import { guestGuard } from './core/guards/guest-guard';
 import { resetTokenGuard } from './core/guards/reset-token-guard';
+import { servicioGuard, noMeseroGuard } from './core/guards/role-guards';
 
 export const routes: Routes = [
   // Rutas públicas (auth)
@@ -38,7 +39,7 @@ export const routes: Routes = [
   {
     path: 'app',
     loadComponent: () => import('./layout/main-layout/main-layout/main-layout').then(m => m.MainLayout),
-    canActivate: [authGuard],
+    canActivate: [authGuard, noMeseroGuard],
     children: [
       {
         path: '',
@@ -211,20 +212,28 @@ export const routes: Routes = [
       },
       {
         path: 'kds',
+        canActivate: [noMeseroGuard],
         loadComponent: () =>
           import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
       },
       {
         path: 'kds/:estacion',
+        canActivate: [noMeseroGuard],
         loadComponent: () =>
           import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
+      },
+      {
+        path: 'servicio',
+        canActivate: [servicioGuard],
+        loadComponent: () =>
+          import('./features/servicio/pages/servicio-home/servicio-home').then(m => m.ServicioHome)
       }
     ]
   },
   {
     path: 'pos',
     loadComponent: () => import('./layout/pos-layout/pos-layout').then(m => m.PosLayout),
-    canActivate: [authGuard],
+    canActivate: [authGuard, noMeseroGuard],
     children: [
       {
         path: '',
@@ -236,7 +245,7 @@ export const routes: Routes = [
   {
     path: 'cocina',
     loadComponent: () => import('./layout/cocina-layout/cocina-layout').then(m => m.CocinaLayout),
-    canActivate: [authGuard],
+    canActivate: [authGuard, noMeseroGuard],
     children: [
       {
         path: '',

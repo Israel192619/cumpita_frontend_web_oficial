@@ -11,6 +11,7 @@ import { User } from '../models';
 })
 export class AuthService {
   private apiUrl = environment.apiUrl;
+  private readonly servicioCerradoKey = 'servicio_celular_cerrado';
 
   constructor(private http: HttpClient, private router:Router) {}
 
@@ -19,6 +20,7 @@ export class AuthService {
       tap((res: any) => {
         if (res?.token) {
           localStorage.setItem('auth_token', res.token);
+          this.limpiarCierreServicioCelular();
         }
       })
     );
@@ -32,6 +34,7 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/logout`, {}).pipe(
       finalize(() => {
         localStorage.removeItem('auth_token');
+        this.limpiarCierreServicioCelular();
         this.router.navigate(['/login']);
       })
     );
@@ -57,5 +60,31 @@ export class AuthService {
         }
       })
     );
+  }
+  listarMeserosAccesoRapido(): Observable<{ meseros: { id: number; name: string }[] }> {
+    return this.http.get<{ meseros: { id: number; name: string }[] }>(`${this.apiUrl}/acceso-rapido/meseros`);
+  }
+
+  marcarCierreServicioCelular(): void {
+    sessionStorage.setItem(this.servicioCerradoKey, '1');
+  }
+
+  servicioCelularCerrado(): boolean {
+    return sessionStorage.getItem(this.servicioCerradoKey) === '1';
+  }
+
+  limpiarCierreServicioCelular(): void {
+    sessionStorage.removeItem(this.servicioCerradoKey);
+  }
+
+  loginConPin(userId: number, pin: string): Observable<{
+    token: string;
+    session_id: string;
+    expires_in: number;
+    user: User;
+  }>{
+    return this.http.post<any>(`${this.apiUrl}/acceso-rapido/pin`, { user_id: userId, pin }, {
+      headers: { 'X-Service-Login': '1' }
+    });
   }
 }

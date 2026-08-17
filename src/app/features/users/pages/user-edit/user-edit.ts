@@ -38,6 +38,7 @@ export class UserEdit {
       avatar: null,
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.minLength(8)]],
+      pin: ['', [Validators.pattern(/^\d{4,6}$/)]],
       role_id: [null, Validators.required],
       estacion_id: [null]
     });
@@ -83,6 +84,10 @@ export class UserEdit {
   getControl(names: string): FormControl {
     return this.form.get(names) as FormControl;
   }
+  esRolMesero(): boolean {
+    const roleId = Number(this.form.get('role_id')?.value);
+    return this.roles().some(role => Number(role.value) === roleId && role.label.trim().toLowerCase() === 'mesero');
+  }
 
   editarUsuario() {
     if (this.form.invalid) {
@@ -119,6 +124,9 @@ export class UserEdit {
 
     if (!this.form.value.password) {
       formData.delete('password');
+    }
+    if (!this.form.value.pin) {
+      formData.delete('pin');
     }
 
     //console.log([...formData]);

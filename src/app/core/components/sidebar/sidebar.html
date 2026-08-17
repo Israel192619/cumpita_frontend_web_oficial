@@ -6,6 +6,14 @@
     </div>
     <div class="navbar-content">
         <ul class="pc-navbar">
+            @if (esSoloServicio() === true) {
+            <li class="pc-item" routerLinkActive="active">
+                <a [routerLink]="['/app/servicio']" class="pc-link">
+                    <span class="pc-micon"><i class="ti ti-clipboard-check"></i></span>
+                    <span class="pc-mtext">SERVICIO</span>
+                </a>
+            </li>
+            } @else if (esSoloServicio() === false) {
             <li class="pc-item pc-caption">
                 <label>Dashboard</label>
                 <i class="ti ti-dashboard"></i>
@@ -80,6 +88,10 @@
                         <a [routerLink]="['/app/mesas']" class="pc-link">mesas</a>
                         <ul></ul>
                     </li>
+                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
+                        <a [routerLink]="['/app/servicio']" class="pc-link">Servicio</a>
+                        <ul></ul>
+                    </li>
                 </ul>
             </li>
             <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger" [routerLinkActiveOptions]="{ exact: false }">
@@ -108,6 +120,7 @@
                     </li>
                 </ul>
             </li>
+            }
         </ul>
         <div class="w-100 text-center">
             <div class="badge theme-version badge rounded-pill bg-light text-dark f-12"></div>

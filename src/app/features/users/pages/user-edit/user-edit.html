@@ -25,6 +25,12 @@
     placeholder="Poner solo si cambia contraseña ****">
   </app-input-form>
 
+  @if (esRolMesero()) {
+    <app-input-form label="Nuevo PIN de Servicio" type="password" [control]="getControl('pin')"
+      placeholder="Déjalo vacío para conservarlo">
+    </app-input-form>
+  }
+
 </app-form-card>
 
 <app-error-message [message]="error()"></app-error-message>

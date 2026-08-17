@@ -25,6 +25,11 @@
   <app-input-form label="Contraseña" type="password" [control]="getControl('password')" placeholder="********">
   </app-input-form>
 
+  @if (esRolMesero()) {
+    <app-input-form label="PIN de Servicio" type="password" [control]="getControl('pin')" placeholder="4 a 6 números">
+    </app-input-form>
+  }
+
 </app-form-card>
 
 <app-error-message [message]="error()"></app-error-message>

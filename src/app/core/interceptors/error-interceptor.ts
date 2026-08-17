@@ -16,6 +16,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const isAuthRequest = authRoutes.some(route =>
     req.url.includes(route)
   );
+  const esSesionServicio = req.headers.has('X-Service-Request') || req.headers.has('X-Service-Session') || req.headers.has('X-Service-Login');
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
@@ -27,7 +28,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
           break;
 
         case 401:
-          if (!isAuthRequest) {
+          if (!isAuthRequest && !esSesionServicio) {
             toastr.error('Sesión expirada');
             router.navigate(['/login']);
           }

@@ -1,0 +1,88 @@
+<main class="service-page">
+  <header class="service-header">
+    <div class="brand"><span>DESPACHO</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
+    @if (permiteSesionesPin()) { <button type="button" class="add-waiter" (click)="abrirIngreso()">+ Ingresar mesero</button> }
+  </header>
+
+  <section class="sessions" aria-label="Sesiones activas">
+    <div class="sessions-title"><span>Sesiones activas</span><strong>{{ sesiones().length }}</strong></div>
+    <div class="session-list">
+      @for (sesion of sesiones(); track sesion.session_id) {
+        <button type="button" class="session-pill" [class.selected]="sesionSeleccionada()?.session_id === sesion.session_id" (click)="seleccionarSesion(sesion)">
+          <span class="online"></span><b>{{ sesion.user.name }}</b>
+        </button>
+      } @empty { @if (permiteSesionesPin()) {
+        <button type="button" class="empty-session" (click)="abrirIngreso()">Ningún mesero ha iniciado sesión</button>
+      } @else {
+        <button type="button" class="empty-session" (click)="iniciarSesionPrincipal()">Sesión de Servicio cerrada</button>
+      } }
+    </div>
+    @if (sesionSeleccionada(); as activa) {
+      <div class="session-actions"><span>Atendiendo como <b>{{ activa.user.name }}</b></span><button type="button" (click)="cerrarMiSesion()" [disabled]="procesando() === 'cerrar'">Cerrar mi sesión</button></div>
+    }
+  </section>
+
+  @if (loading()) { <div class="loading">Actualizando fichas…</div> }
+
+  <section class="board-section my-tickets">
+    <div class="section-heading"><div><span>MI TURNO</span><h2>Mis fichas</h2></div><strong>{{ misFichas().length }}</strong></div>
+    @if (!sesionSeleccionada() && permiteSesionesPin()) {
+      <button type="button" class="signin-callout" (click)="abrirIngreso()"><b>Ingresar como mesero</b><span>Inicia una sesión para tomar y atender fichas.</span></button>
+    } @else if (!sesionSeleccionada() && esAccesoPrincipal()) {
+      <button type="button" class="signin-callout" (click)="iniciarSesionPrincipal()"><b>Entrar a Servicio</b><span>Tu sesión general continúa activa. No necesitas PIN.</span></button>
+    } @else {
+      <div class="my-grid">
+        @for (ficha of misFichas(); track ficha.id) {
+          <article class="work-ticket">
+            <div class="ticket-head"><div><span>FICHA</span><h3>#{{ ficha.numero_orden }}</h3><small>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="progress" [class.complete]="ficha.todo_listo"><b>{{ ficha.listos }}/{{ ficha.total_items }}</b><small>listos</small></div></div>
+            <div class="ticket-detail-meta"><span><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ etiquetaTipo(ficha) }}</span><span>{{ ficha.hora }}</span><span [class.wait-alert]="ficha.tiempo_espera_minutos >= 15">{{ ficha.tiempo_espera_minutos }} min esperando</span></div>
+            <div class="items">
+              @for (item of ficha.detalles; track item.id) {
+                <button type="button" class="item" [class.ready]="item.listo" [disabled]="item.listo || procesando() === 'detalle-' + item.id" (click)="confirmar(item.id)">
+                  <span class="check">{{ item.listo ? '✓' : '' }}</span>
+                  <span class="item-copy"><b>{{ item.producto }}</b>@if (item.opciones.length) { <small>{{ item.opciones.join(' · ') }}</small> }</span>
+                  <span class="state">{{ item.listo ? 'Listo' : 'Pendiente' }}</span>
+                </button>
+              }
+            </div>
+            <div class="ticket-actions"><button type="button" class="release" [disabled]="procesando() === 'liberar-' + ficha.id" (click)="solicitarLiberacion(ficha)">Liberar ficha</button><button type="button" class="deliver" [disabled]="!ficha.todo_listo || procesando() === 'entregar-' + ficha.id" (click)="entregar(ficha)">ENTREGAR</button></div>
+          </article>
+        } @empty { <div class="empty-card">No tienes fichas en atención.</div> }
+      </div>
+    }
+  </section>
+
+  <section class="board-section available">
+    <div class="section-heading"><div><span>COLA COMÚN</span><h2>Disponibles</h2></div><strong>{{ disponibles().length }}</strong></div>
+    <div class="available-grid">
+      @for (ficha of disponibles(); track ficha.id) {
+        <article class="available-ticket"><div><span>FICHA</span><h3>#{{ ficha.numero_orden }}</h3><p>{{ ficha.mesa ? 'Mesa ' + ficha.mesa + ' · ' : '' }}{{ ficha.total_items }} productos</p></div><button type="button" [disabled]="procesando() === 'tomar-' + ficha.id" (click)="tomar(ficha)">TOMAR</button></article>
+      } @empty { <div class="empty-card">No hay fichas disponibles.</div> }
+    </div>
+  </section>
+
+  @if (mostrarIngreso()) {
+    <div class="modal-backdrop" (click)="cerrarIngreso()">
+      <section class="signin-modal" role="dialog" aria-modal="true" aria-label="Ingresar como mesero" (click)="$event.stopPropagation()">
+        <button type="button" class="close" (click)="cerrarIngreso()">×</button>
+        @if (!meseroSeleccionado()) {
+          <span class="modal-label">NUEVA SESIÓN</span><h2>¿Quién está atendiendo?</h2><p>Selecciona tu nombre para iniciar.</p>
+          <div class="waiter-grid">@for (mesero of meseros(); track mesero.id) { <button type="button" (click)="elegirMesero(mesero)"><span>{{ mesero.name.charAt(0) }}</span><b>{{ mesero.name }}</b></button> }</div>
+        } @else {
+          <button type="button" class="back" (click)="meseroSeleccionado.set(null)">← Cambiar nombre</button>
+          <span class="modal-label">BIENVENIDO</span><h2>{{ meseroSeleccionado()?.name }}</h2><p>Introduce tu PIN una sola vez para esta jornada.</p>
+          <form (submit)="$event.preventDefault(); ingresar()"><input type="password" inputmode="numeric" maxlength="6" autocomplete="off" [formControl]="pin" placeholder="••••" autofocus />@if (pin.touched && pin.invalid) { <small>PIN de 4 a 6 números.</small> }<button type="submit" [disabled]="procesando() === 'ingreso'">{{ procesando() === 'ingreso' ? 'Verificando…' : 'INICIAR SESIÓN' }}</button></form>
+        }
+        @if (errorIngreso()) { <div class="modal-error">{{ errorIngreso() }}</div> }
+      </section>
+    </div>
+  }
+
+  @if (fichaALiberar(); as ficha) {
+    <div class="modal-backdrop" (click)="fichaALiberar.set(null)"><section class="confirm-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()"><span class="modal-label">LIBERAR FICHA</span><h2>Ficha #{{ ficha.numero_orden }}</h2><p>Volverá a la cola común y conservará todo su progreso.</p><div><button type="button" class="cancel" (click)="fichaALiberar.set(null)">Cancelar</button><button type="button" class="danger" (click)="confirmarLiberacion()">Liberar</button></div></section></div>
+  }
+
+  @if (confirmarCierre()) {
+    <div class="modal-backdrop" (click)="confirmarCierre.set(false)"><section class="confirm-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()"><span class="modal-label">CERRAR MI SESIÓN</span><h2>Tienes {{ misFichas().length }} ficha(s)</h2><p>Al cerrar, solamente tus fichas volverán a la cola. Los estados y el historial se conservarán.</p><div><button type="button" class="cancel" (click)="confirmarCierre.set(false)">Seguir atendiendo</button><button type="button" class="danger" (click)="cerrarYLiberar()">Liberar y cerrar</button></div></section></div>
+  }
+</main>

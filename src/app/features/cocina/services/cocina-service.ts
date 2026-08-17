@@ -32,6 +32,8 @@ export interface KdsDetalle {
   estacion?: KdsEstacion | null;
   estado_estacion_id?: number;
   incluye_producto?: boolean;
+  bloqueado?: boolean;
+  listo_para_atender?: boolean;
   opciones?: KdsDetalleOpcion[];
 }
 

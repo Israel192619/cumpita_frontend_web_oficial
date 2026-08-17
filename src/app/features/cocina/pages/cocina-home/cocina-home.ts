@@ -242,7 +242,7 @@ export class CocinaHome implements OnInit, OnDestroy {
       }),
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((data: { tipo?: string; orden_id?: number }) => {
         if (data.orden_id) {
-          this.cargarPedidos(false);
+          this.cargarPedidos(false, true);
         }
       }),
       this.reverb.escucharCanal('canal-ordenes', '.PuestoCocinaActualizado').subscribe((data: { id?: number; nombre?: string; estacion_id?: number; ocupado?: boolean; user_id?: number | null; user_nombre?: string | null; orden_id?: number | null; orden_numero?: number | null }) => {
@@ -279,8 +279,11 @@ export class CocinaHome implements OnInit, OnDestroy {
     );
   }
 
-  cargarPedidos(mostrarCarga = true): void {
+  cargarPedidos(mostrarCarga = true, detectarDesbloqueos = false): void {
     if (mostrarCarga) this.isLoading.set(true);
+    const bloqueadosAntes = new Set(this.ordenes().flatMap(orden =>
+      orden.detalles.filter(detalle => detalle.bloqueado).map(detalle => detalle.id)
+    ));
     this.cocinaService.obtenerPedidos(this.fechaSeleccionada(), this.estacionSolicitada()).subscribe({
       next: (res) => {
         const ordenes = res.ordenes || [];
@@ -288,6 +291,18 @@ export class CocinaHome implements OnInit, OnDestroy {
         this.estacionId.set(res.estacion.id);
         this.estacionesDisponibles.set(res.estaciones_disponibles || []);
         this.ordenes.set(ordenes);
+        if (detectarDesbloqueos && res.estacion.codigo === 'COCINA') {
+          const desbloqueados = ordenes.flatMap(orden => orden.detalles)
+            .filter(detalle => detalle.listo_para_atender && bloqueadosAntes.has(detalle.id));
+          desbloqueados.forEach(detalle => {
+            const guarniciones = (detalle.opciones ?? []).map(opcion => opcion.modificador_opcion?.nombre).filter(Boolean).join(' · ');
+            this.toastr.info(
+              `${detalle.producto.nombre}${guarniciones ? ' · ' + guarniciones : ''}`,
+              'Guarnición lista para atender',
+              { timeOut: 5000, progressBar: true }
+            );
+          });
+        }
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false),
@@ -469,6 +484,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   marcarServido(detalle: KdsDetalle, servido: boolean): void {
+    if (detalle.bloqueado) return;
     const estacionId = this.estacionActual()?.id;
     if (!estacionId) return;
     this.detalleActualizando.set(detalle.id);
