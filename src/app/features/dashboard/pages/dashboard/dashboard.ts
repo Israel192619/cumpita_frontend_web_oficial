@@ -7,5 +7,6 @@ import { Component } from '@angular/core';
   styleUrl: './dashboard.css',
 })
 export class Dashboard {
-
+  menuOpen = false;
+  period: 'month' | 'year' = 'month';
 }

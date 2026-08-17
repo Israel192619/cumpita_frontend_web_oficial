@@ -1,70 +1,60 @@
-import { Component, signal } from '@angular/core';
+import { Component, Input, OnInit, Output, EventEmitter, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../../services/auth-service';
 
+interface NavChild { label: string; route: string; }
+interface NavGroup { key: string; label: string; icon: string; children: NavChild[]; }
+
 @Component({
   selector: 'app-sidebar',
-  imports: [
-    RouterLink, RouterLinkActive
-  ],
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css',
 })
-export class Sidebar {
-  esSoloServicio = signal<boolean | null>(null);
+export class Sidebar implements OnInit {
+  @Input() collapsed = false;
+  @Output() linkSelected = new EventEmitter<void>();
+
+  readonly esSoloServicio = signal<boolean | null>(null);
+  readonly expanded = signal<string | null>(null);
+  readonly groups: NavGroup[] = [
+    { key: 'usuarios', label: 'Gestión usuarios', icon: 'U', children: [
+      { label: 'Usuarios', route: '/app/users' }, { label: 'Roles', route: '/app/roles' }
+    ]},
+    { key: 'productos', label: 'Productos', icon: 'P', children: [
+      { label: 'Productos', route: '/app/productos' }, { label: 'Categorías', route: '/app/categorias' },
+      { label: 'Estaciones de trabajo', route: '/app/estaciones-trabajo' }, { label: 'Modificadores', route: '/app/modificadores' }
+    ]},
+    { key: 'pedidos', label: 'Pedidos', icon: 'O', children: [
+      { label: 'Pedidos', route: '/app/pedidos' }, { label: 'POS', route: '/pos' },
+      { label: 'Mesas', route: '/app/mesas' }, { label: 'Servicio', route: '/app/servicio' }
+    ]},
+    { key: 'contactos', label: 'Contactos', icon: 'C', children: [{ label: 'Clientes', route: '/app/clientes' }] },
+    { key: 'cajas', label: 'Cajas', icon: '$', children: [
+      { label: 'Movimientos', route: '/app/movimientos-caja' }, { label: 'Gastos', route: '/app/gastos-caja' }
+    ]}
+  ];
 
   constructor(private router: Router, private auth: AuthService) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.auth.me().subscribe({
       next: user => this.esSoloServicio.set(['mesero', 'despacho'].includes((user.role?.nombre ?? '').trim().toLocaleLowerCase())),
       error: () => this.esSoloServicio.set(false)
     });
-    // Escucha cambios de ruta para cerrar menús que no correspondan
-    this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd)
-    ).subscribe(() => {
-      this.syncMenu();
+    this.syncExpanded(this.router.url);
+    this.router.events.pipe(filter(event => event instanceof NavigationEnd)).subscribe(event => {
+      this.syncExpanded(event.urlAfterRedirects);
+      this.linkSelected.emit();
     });
   }
 
-  ngAfterViewInit() {
-    this.initMenuLogic();
-  }
+  toggleGroup(key: string): void { this.expanded.update(current => current === key ? null : key); }
+  selectLink(): void { this.linkSelected.emit(); }
 
-  // Esta es tu antigua función menu_click convertida a TS
-  initMenuLogic() {
-    const pcLinks = document.querySelectorAll('.pc-navbar > li.pc-hasmenu > .pc-link');
-    
-    pcLinks.forEach(link => {
-      link.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const parent = (event.currentTarget as HTMLElement).parentElement;
-        
-        if (!parent) return;
-
-        if (parent.classList.contains('pc-trigger')) {
-          parent.classList.remove('pc-trigger');
-        } else {
-          // Cerrar otros menús abiertos
-          document.querySelectorAll('.pc-trigger').forEach(openItem => {
-            openItem.classList.remove('pc-trigger');
-          });
-          parent.classList.add('pc-trigger');
-        }
-      });
-    });
-  }
-
-  // Limpia y sincroniza el menú según la ruta actual
-  syncMenu() {
-    const allItems = document.querySelectorAll('.pc-item');
-    allItems.forEach(item => {
-      // Si Angular quitó el 'active', nosotros quitamos el 'pc-trigger'
-      if (!item.classList.contains('active')) {
-        item.classList.remove('pc-trigger');
-      }
-    });
+  private syncExpanded(url: string): void {
+    const group = this.groups.find(item => item.children.some(child => url.startsWith(child.route)));
+    if (group) this.expanded.set(group.key);
   }
 }

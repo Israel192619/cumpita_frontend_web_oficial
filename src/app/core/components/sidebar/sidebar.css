@@ -1,23 +1,16 @@
-/* 1. Ocultamos todos los submenús por defecto */
-.pc-submenu {
-    display: none !important;
-    visibility: hidden;
-}
-
-/* 2. Cuando el padre tiene 'pc-trigger', MOSTRAR el submenú */
-.pc-item.pc-trigger > .pc-submenu {
-    display: block !important;
-    visibility: visible;
-}
-
-/* 3. Animación de la flecha */
-.pc-item.pc-trigger .pc-arrow i {
-    transform: rotate(90deg);
-    display: inline-block;
-    transition: transform 0.2s ease-in-out;
-}
-
-.pc-arrow i {
-    display: inline-block;
-    transition: transform 0.2s ease-in-out;
-}
+:host { display: block; height: 100%; }
+.sidebar-shell { display: flex; flex-direction: column; height: 100%; overflow: hidden; color: var(--text); }
+.brand { display: flex; align-items: center; gap: 12px; height: var(--header-height); padding: 0 20px; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border); }
+.brand-mark { display: grid; flex: 0 0 38px; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: white; background: linear-gradient(135deg, var(--primary), var(--primary-strong)); font-size: 20px; font-weight: 800; box-shadow: 0 7px 16px color-mix(in srgb, var(--primary) 28%, transparent); }
+.brand-copy { display: grid; min-width: 0; line-height: 1.05; white-space: nowrap; }
+.brand-copy b { font-size: 19px; letter-spacing: -.3px; }.brand-copy small { margin-top: 5px; color: var(--text-muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.nav-list { flex: 1; overflow: auto; padding: 16px 12px; scrollbar-width: thin; }
+.nav-caption { margin: 18px 12px 7px; color: var(--text-subtle); font-size: 10px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.nav-link { display: flex; width: 100%; min-height: 44px; align-items: center; gap: 12px; padding: 9px 12px; border: 0; border-radius: 9px; color: var(--text-muted); background: transparent; font: inherit; font-size: 13px; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer; transition: color .18s ease, background .18s ease; }
+.nav-link:hover, .nav-link.active { color: var(--primary); background: var(--primary-soft); }
+.nav-icon { display: grid; flex: 0 0 30px; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: currentColor; background: color-mix(in srgb, currentColor 8%, transparent); font-size: 12px; font-weight: 800; }
+.nav-label { flex: 1; white-space: nowrap; text-transform: uppercase; letter-spacing: .02em; }.chevron { font-size: 22px; transition: transform .2s ease; }.open .chevron { transform: rotate(90deg); }
+.submenu { max-height: 0; overflow: hidden; transition: max-height .22s ease; }.open .submenu { max-height: 240px; }.submenu-link { display: block; margin-left: 53px; padding: 8px 10px; border-radius: 7px; color: var(--text-muted); font-size: 13px; text-decoration: none; }.submenu-link:hover, .submenu-link.active { color: var(--primary); background: var(--primary-soft); }
+.sidebar-version { display: flex; align-items: center; gap: 9px; margin: 10px 14px 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); }.sidebar-version span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 7px; background: var(--surface-muted); font-size: 10px; font-weight: 800; }.sidebar-version small { white-space: nowrap; }
+.is-collapsed .brand { padding: 0 15px; }.is-collapsed .brand-copy, .is-collapsed .nav-label, .is-collapsed .chevron, .is-collapsed .nav-caption, .is-collapsed .submenu, .is-collapsed .sidebar-version small { display: none; }.is-collapsed .nav-list { padding: 16px 9px; }.is-collapsed .nav-link { justify-content: center; padding-inline: 7px; }.is-collapsed .sidebar-version { justify-content: center; margin-inline: 9px; padding-inline: 7px; }
+@media (max-width: 900px) { .is-collapsed .brand-copy, .is-collapsed .nav-label, .is-collapsed .chevron, .is-collapsed .nav-caption, .is-collapsed .sidebar-version small { display: initial; } }

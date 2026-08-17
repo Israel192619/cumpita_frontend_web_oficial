@@ -1,129 +1,33 @@
-<div class="navbar-wrapper">
-    <div class="m-header">
-        <a href="#" class="b-brand text-primary">
-            <img src="images/logo-dark.svg" alt class="logo logo-lg" />
-        </a>
-    </div>
-    <div class="navbar-content">
-        <ul class="pc-navbar">
-            @if (esSoloServicio() === true) {
-            <li class="pc-item" routerLinkActive="active">
-                <a [routerLink]="['/app/servicio']" class="pc-link">
-                    <span class="pc-micon"><i class="ti ti-clipboard-check"></i></span>
-                    <span class="pc-mtext">SERVICIO</span>
-                </a>
-            </li>
-            } @else if (esSoloServicio() === false) {
-            <li class="pc-item pc-caption">
-                <label>Dashboard</label>
-                <i class="ti ti-dashboard"></i>
-            </li>
-            <li class="pc-item" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
-                <a [routerLink]="['/app']" class="pc-link">
-                    <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
-                    <span class="pc-mtext">Dashboard</span>
-                </a>
-            </li>
-            <li class="pc-item pc-caption">
-                <label>Paginas</label>
-                <i class="ti ti-news"></i>
-            </li>
-            <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger" [routerLinkActiveOptions]="{ exact: false }">
-                <a class="pc-link"><span class="pc-micon"><i
-                            class="ti ti-users"></i></span><span class="pc-mtext">GESTIÓN USUARIOS</span><span class="pc-arrow"><i
-                            data-feather="chevron-right"></i></span></a>
-                <ul class="pc-submenu">
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/users']" class="pc-link">Usuarios</a>
-                        <ul></ul>
-                    </li>
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/roles']" class="pc-link">Roles</a>
-                        <ul></ul>
-                    </li>
-                    <!-- <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/user/create']" class="pc-link">Crear Usuario</a>
-                        <ul></ul>
-                    </li> -->
-                </ul>
-            </li>
-            <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger" [routerLinkActiveOptions]="{ exact: false }">
-                <a class="pc-link"><span class="pc-micon"><i
-                            class="ti ti-package"></i></span><span class="pc-mtext">PRODUCTOS</span><span class="pc-arrow"><i
-                            data-feather="chevron-right"></i></span></a>
-                <ul class="pc-submenu">
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/productos']" class="pc-link">productos</a>
-                        <ul></ul>
-                    </li>
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/categorias']" class="pc-link">categorias</a>
-                        <ul></ul>
-                    </li>
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/estaciones-trabajo']" class="pc-link">Estaciones de trabajo</a>
-                        <ul></ul>
-                    </li>
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/modificadores']" class="pc-link">Modificadores</a>
-                        <ul></ul>
-                    </li>
+<div class="sidebar-shell" [class.is-collapsed]="collapsed">
+  <a class="brand" routerLink="/app" (click)="selectLink()" aria-label="Inicio Toñito">
+    <span class="brand-mark">T</span>
+    <span class="brand-copy"><b>Toñito</b><small>Restaurante</small></span>
+  </a>
 
-                </ul>
-            </li>
-            <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger" [routerLinkActiveOptions]="{ exact: false }">
-                <a class="pc-link"><span class="pc-micon"><i
-                            class="ti ti-clipboard-list"></i></span><span class="pc-mtext">PEDIDOS</span><span class="pc-arrow"><i
-                            data-feather="chevron-right"></i></span></a>
-                <ul class="pc-submenu">
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/pedidos']" class="pc-link">pedidos</a>
-                        <ul></ul>
-                    </li>
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/pos']" class="pc-link">POS</a>
-                        <ul></ul>
-                    </li>
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/mesas']" class="pc-link">mesas</a>
-                        <ul></ul>
-                    </li>
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/servicio']" class="pc-link">Servicio</a>
-                        <ul></ul>
-                    </li>
-                </ul>
-            </li>
-            <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger" [routerLinkActiveOptions]="{ exact: false }">
-                <a class="pc-link"><span class="pc-micon"><i
-                            class="ti ti-book"></i></span><span class="pc-mtext">CONTACTOS</span><span class="pc-arrow"><i
-                            data-feather="chevron-right"></i></span></a>
-                <ul class="pc-submenu">
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/clientes']" class="pc-link">clientes</a>
-                        <ul></ul>
-                    </li>
-                </ul>
-            </li>
-            <li class="pc-item pc-hasmenu" routerLinkActive="active pc-trigger" [routerLinkActiveOptions]="{ exact: false }">
-                <a class="pc-link"><span class="pc-micon"><i
-                            class="ti ti-wallet"></i></span><span class="pc-mtext">CAJAS</span><span class="pc-arrow"><i
-                            data-feather="chevron-right"></i></span></a>
-                <ul class="pc-submenu">
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/movimientos-caja']" class="pc-link">Movimientos</a>
-                        <ul></ul>
-                    </li>
-                    <li class="pc-item pc-hasmenu" routerLinkActive="active">
-                        <a [routerLink]="['/app/gastos-caja']" class="pc-link">Gastos</a>
-                        <ul></ul>
-                    </li>
-                </ul>
-            </li>
+  <nav class="nav-list">
+    @if (esSoloServicio() === true) {
+      <a class="nav-link" routerLink="/app/servicio" routerLinkActive="active" (click)="selectLink()">
+        <span class="nav-icon">S</span><span class="nav-label">Servicio</span>
+      </a>
+    } @else if (esSoloServicio() === false) {
+      <p class="nav-caption">Principal</p>
+      <a class="nav-link" routerLink="/app" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active" (click)="selectLink()">
+        <span class="nav-icon">D</span><span class="nav-label">Dashboard</span>
+      </a>
+      <p class="nav-caption">Administración</p>
+      @for (group of groups; track group.key) {
+        <section class="nav-group" [class.open]="expanded() === group.key">
+          <button type="button" class="nav-link group-trigger" (click)="toggleGroup(group.key)" [attr.aria-expanded]="expanded() === group.key">
+            <span class="nav-icon">{{ group.icon }}</span><span class="nav-label">{{ group.label }}</span><span class="chevron">›</span>
+          </button>
+          <div class="submenu">
+            @for (child of group.children; track child.route) {
+              <a [routerLink]="child.route" routerLinkActive="active" class="submenu-link" (click)="selectLink()">{{ child.label }}</a>
             }
-        </ul>
-        <div class="w-100 text-center">
-            <div class="badge theme-version badge rounded-pill bg-light text-dark f-12"></div>
-        </div>
-    </div>
+          </div>
+        </section>
+      }
+    }
+  </nav>
+  <div class="sidebar-version"><span>TV</span><small>Toñito v1</small></div>
 </div>

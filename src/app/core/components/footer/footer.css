@@ -1,3 +1,1 @@
-:host {
-  display: contents;
-}
+:host { display: block; }.footer-inner { display: flex; min-height: var(--footer-height); align-items: center; justify-content: space-between; gap: 16px; padding: 0 26px; border-top: 1px solid var(--border); color: var(--text-muted); background: var(--surface); }.footer-inner span { color: var(--text); font-size: 12px; font-weight: 700; }.footer-inner small { font-size: 11px; } @media (max-width: 560px) { .footer-inner { padding-inline: 14px; } }

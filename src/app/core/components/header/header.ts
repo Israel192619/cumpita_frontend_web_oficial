@@ -1,32 +1,35 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { AuthService } from '../../services/auth-service';
+import { Component, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter } from 'rxjs';
+import { User } from '../../models';
+import { AuthService } from '../../services/auth-service';
+import { AppTheme } from '../../services/theme-service';
 
-@Component({
-  selector: 'app-header',
-  imports: [
-    RouterLink
-  ],
-  templateUrl: './header.html',
-  styleUrl: './header.css',
-})
+@Component({ selector: 'app-header', imports: [RouterLink], templateUrl: './header.html', styleUrl: './header.css' })
 export class Header implements OnInit {
-  esSoloServicio = signal(false);
-  enServicio = signal(false);
+  @Input() theme: AppTheme = 'light';
+  @Output() menuToggle = new EventEmitter<void>();
+  @Output() themeToggle = new EventEmitter<void>();
+
+  readonly user = signal<User | null>(null);
+  readonly esSoloServicio = signal(false);
+  readonly enServicio = signal(false);
+  readonly userMenuOpen = signal(false);
+
   constructor(private auth: AuthService, private router: Router) {}
 
   ngOnInit(): void {
     this.enServicio.set(this.router.url.startsWith('/app/servicio'));
-    this.router.events.pipe(filter(evento => evento instanceof NavigationEnd)).subscribe(evento => {
-      this.enServicio.set(evento.urlAfterRedirects.startsWith('/app/servicio'));
+    this.router.events.pipe(filter(event => event instanceof NavigationEnd)).subscribe(event => {
+      this.enServicio.set(event.urlAfterRedirects.startsWith('/app/servicio'));
+      this.userMenuOpen.set(false);
     });
-    this.auth.me().subscribe({
-      next: user => this.esSoloServicio.set(['mesero', 'despacho'].includes((user.role?.nombre ?? '').trim().toLocaleLowerCase()))
-    });
+    this.auth.me().subscribe({ next: user => {
+      this.user.set(user);
+      this.esSoloServicio.set(['mesero', 'despacho'].includes((user.role?.nombre ?? '').trim().toLocaleLowerCase()));
+    }});
   }
-  
-  logout() {
-    this.auth.logout().subscribe();
-  }
+
+  initials(): string { return (this.user()?.name ?? 'T').split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase(); }
+  logout(): void { this.userMenuOpen.set(false); this.auth.logout().subscribe(); }
 }
