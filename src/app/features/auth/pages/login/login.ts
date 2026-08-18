@@ -5,6 +5,7 @@ import { AuthService } from '../../../../core/services/auth-service';
 import { CommonModule } from '@angular/common';
 import { timeout } from 'rxjs/operators';
 import { environment } from '../../../../../environments/environment';
+import { homeForUser } from '../../../../core/auth/role-access';
 
 @Component({
   selector: 'app-login',
@@ -44,8 +45,7 @@ export class Login {
         this.auth.me().subscribe({
           next: user => {
             this.loading.set(false);
-            const rol = (user.role?.nombre ?? '').trim().toLocaleLowerCase();
-            this.router.navigateByUrl(['mesero', 'despacho'].includes(rol) ? '/app/servicio' : '/app');
+            this.router.navigateByUrl(homeForUser(user));
           },
           error: () => {
             this.loading.set(false);

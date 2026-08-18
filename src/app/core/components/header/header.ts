@@ -1,9 +1,10 @@
-import { Component, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
+import { Component, computed, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter } from 'rxjs';
 import { User } from '../../models';
 import { AuthService } from '../../services/auth-service';
 import { AppTheme } from '../../services/theme-service';
+import { kdsStation, userCanAccess } from '../../auth/role-access';
 
 @Component({ selector: 'app-header', imports: [RouterLink], templateUrl: './header.html', styleUrl: './header.css' })
 export class Header implements OnInit {
@@ -12,7 +13,9 @@ export class Header implements OnInit {
   @Output() themeToggle = new EventEmitter<void>();
 
   readonly user = signal<User | null>(null);
-  readonly esSoloServicio = signal(false);
+  readonly canOpenPos = computed(() => !!this.user() && userCanAccess(this.user()!, 'pos'));
+  readonly canOpenKds = computed(() => !!this.user() && userCanAccess(this.user()!, 'kds'));
+  readonly kdsRoute = computed(() => this.user() ? `/app/kds/${kdsStation(this.user()!)}` : '/app/kds');
   readonly enServicio = signal(false);
   readonly userMenuOpen = signal(false);
 
@@ -26,7 +29,6 @@ export class Header implements OnInit {
     });
     this.auth.me().subscribe({ next: user => {
       this.user.set(user);
-      this.esSoloServicio.set(['mesero', 'despacho'].includes((user.role?.nombre ?? '').trim().toLocaleLowerCase()));
     }});
   }
 

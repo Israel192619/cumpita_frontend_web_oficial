@@ -23,7 +23,7 @@ import { Button } from '../../../../shared/components/button/button';
     Button,
   ],
   templateUrl: './pos-home.html',
-  styleUrl: './pos-home.css',
+  styleUrls: ['./pos-home.css', './pos-home-modals.css'],
 })
 export class PosHome implements OnInit, OnDestroy {
   categorias = signal<Categoria[]>([]);

@@ -11,11 +11,13 @@
   </div>
 
   <div class="topbar-actions">
-    @if (!esSoloServicio()) {
+    @if (canOpenPos()) {
       <a class="icon-button" routerLink="/pos" title="Abrir POS" aria-label="Abrir POS">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h2l2 10h10l2-7H6M9 20h.01M17 20h.01"/></svg>
       </a>
-      <a class="icon-button" routerLink="/app/kds" title="Abrir KDS" aria-label="Abrir KDS">
+    }
+    @if (canOpenKds()) {
+      <a class="icon-button" [routerLink]="kdsRoute()" title="Abrir KDS" aria-label="Abrir KDS">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v7M10 3v7M6 7h4M8 10v11M16 3c-2 3-2 7 1 9v9"/></svg>
       </a>
     }

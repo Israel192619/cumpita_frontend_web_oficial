@@ -1,0 +1,12 @@
+@if (open) {
+  <div class="modal-overlay" (mousedown)="onOverlay($event)" role="presentation">
+    <section class="modal-panel" [class]="'modal-panel size-' + size" role="dialog" aria-modal="true" [attr.aria-labelledby]="title ? titleId : null">
+      <header class="modal-header">
+        <div class="modal-heading"><ng-content select="[modal-prefix]"></ng-content>@if (title) { <h2 [id]="titleId">{{ title }}</h2> }</div>
+        @if (showClose) { <button type="button" class="modal-close" (click)="requestClose()" [disabled]="busy" aria-label="Cerrar modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button> }
+      </header>
+      <div class="modal-content"><ng-content></ng-content></div>
+      <footer class="modal-actions"><ng-content select="[modal-actions]"></ng-content></footer>
+    </section>
+  </div>
+}

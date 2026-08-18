@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
 import { guestGuard } from './core/guards/guest-guard';
 import { resetTokenGuard } from './core/guards/reset-token-guard';
-import { servicioGuard, noMeseroGuard } from './core/guards/role-guards';
+import { landingGuard, moduleAccessGuard } from './core/guards/role-guards';
 
 export const routes: Routes = [
   // Rutas públicas (auth)
@@ -39,15 +39,17 @@ export const routes: Routes = [
   {
     path: 'app',
     loadComponent: () => import('./layout/main-layout/main-layout/main-layout').then(m => m.MainLayout),
-    canActivate: [authGuard, noMeseroGuard],
+    canActivate: [authGuard],
     children: [
       {
         path: '',
+        canActivate: [landingGuard],
         loadComponent: () =>
           import('./features/dashboard/pages/dashboard/dashboard').then(m => m.Dashboard)
       },
       {
         path: 'users',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
         children: [
           {
             path: '',
@@ -68,6 +70,7 @@ export const routes: Routes = [
       },
       {
         path: 'clientes',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
         children: [
           {
             path: '',
@@ -88,6 +91,7 @@ export const routes: Routes = [
       },
       {
         path: 'categorias',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
         children: [
           {
             path: '',
@@ -108,11 +112,13 @@ export const routes: Routes = [
       },
       {
         path: 'estaciones-trabajo',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
         loadComponent: () =>
           import('./features/estaciones/pages/estaciones-list/estaciones-list').then(m => m.EstacionesList)
       },
       {
         path: 'productos',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
         children: [
           {
             path: '',
@@ -133,6 +139,7 @@ export const routes: Routes = [
       },
       {
         path: 'modificadores',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
         children: [
           {
             path: '',
@@ -152,6 +159,7 @@ export const routes: Routes = [
         ]
       },{
         path: 'pedidos',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
         children: [
           {
             path: '',
@@ -162,6 +170,7 @@ export const routes: Routes = [
       },
       {
         path: 'mesas',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
         children: [
           {
             path: '',
@@ -182,6 +191,7 @@ export const routes: Routes = [
       },
       {
         path: 'movimientos-caja',
+        canActivate: [moduleAccessGuard], data: { access: 'caja' },
         children: [
           {
             path: '',
@@ -197,6 +207,7 @@ export const routes: Routes = [
       },
       {
         path: 'gastos-caja',
+        canActivate: [moduleAccessGuard], data: { access: 'caja' },
         children: [
           {
             path: '',
@@ -212,19 +223,19 @@ export const routes: Routes = [
       },
       {
         path: 'kds',
-        canActivate: [noMeseroGuard],
+        canActivate: [moduleAccessGuard], data: { access: 'kds' },
         loadComponent: () =>
           import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
       },
       {
         path: 'kds/:estacion',
-        canActivate: [noMeseroGuard],
+        canActivate: [moduleAccessGuard], data: { access: 'kds' },
         loadComponent: () =>
           import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
       },
       {
         path: 'servicio',
-        canActivate: [servicioGuard],
+        canActivate: [moduleAccessGuard], data: { access: 'servicio' },
         loadComponent: () =>
           import('./features/servicio/pages/servicio-home/servicio-home').then(m => m.ServicioHome)
       }
@@ -233,7 +244,7 @@ export const routes: Routes = [
   {
     path: 'pos',
     loadComponent: () => import('./layout/pos-layout/pos-layout').then(m => m.PosLayout),
-    canActivate: [authGuard, noMeseroGuard],
+    canActivate: [authGuard, moduleAccessGuard], data: { access: 'pos' },
     children: [
       {
         path: '',
@@ -245,7 +256,7 @@ export const routes: Routes = [
   {
     path: 'cocina',
     loadComponent: () => import('./layout/cocina-layout/cocina-layout').then(m => m.CocinaLayout),
-    canActivate: [authGuard, noMeseroGuard],
+    canActivate: [authGuard, moduleAccessGuard], data: { access: 'kds' },
     children: [
       {
         path: '',
@@ -254,6 +265,7 @@ export const routes: Routes = [
       },
       {
             path: 'control',
+            canActivate: [moduleAccessGuard], data: { access: 'kds', station: 'cocina' },
             loadComponent: () => import('./features/cocina/pages/cocina-control/cocina-control').then(m => m.CocinaControlPage)
           },
       

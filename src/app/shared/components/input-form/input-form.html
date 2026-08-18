@@ -1,34 +1,27 @@
-<div class="input-group">
-  <label *ngIf="label">{{ label }}</label>
-
-  <input *ngIf="type !== 'file'" [type]="type" [formControl]="control" [placeholder]="placeholder">
-  <div *ngIf="type === 'file'" class="file-wrapper">
-
-    <img *ngIf="preview" [src]="preview" class="avatar-preview">
-
-    <div *ngIf="!preview" class="avatar-placeholder">
-      Sin imagen
+<div class="field" [class.field-error]="invalid" [class.field-disabled]="disabled || control?.disabled">
+  @if (label) { <label [for]="id">{{ label }}@if (required) { <span aria-hidden="true">*</span> }</label> }
+  @if (type === 'textarea') {
+    @if (control) {
+      <textarea [id]="id" [formControl]="control" [placeholder]="placeholder" [required]="required" [readonly]="readonly" [attr.maxlength]="maxlength" [attr.aria-invalid]="invalid" [attr.aria-describedby]="describedBy" (blur)="inputBlur.emit($event)"></textarea>
+    } @else {
+      <textarea [id]="id" [value]="value ?? ''" [placeholder]="placeholder" [required]="required" [disabled]="disabled" [readonly]="readonly" [attr.maxlength]="maxlength" [attr.aria-invalid]="invalid" [attr.aria-describedby]="describedBy" (input)="onNativeInput($event)" (blur)="inputBlur.emit($event)"></textarea>
+    }
+  } @else if (type !== 'file') {
+    @if (control) {
+      <input [id]="id" [type]="type" [formControl]="control" [placeholder]="placeholder" [required]="required" [readonly]="readonly" [attr.autocomplete]="autocomplete" [attr.min]="min" [attr.max]="max" [attr.step]="step" [attr.maxlength]="maxlength" [attr.inputmode]="inputmode" [attr.aria-invalid]="invalid" [attr.aria-describedby]="describedBy" (blur)="inputBlur.emit($event)">
+    } @else {
+      <input [id]="id" [type]="type" [value]="value ?? ''" [placeholder]="placeholder" [required]="required" [disabled]="disabled" [readonly]="readonly" [attr.autocomplete]="autocomplete" [attr.min]="min" [attr.max]="max" [attr.step]="step" [attr.maxlength]="maxlength" [attr.inputmode]="inputmode" [attr.aria-invalid]="invalid" [attr.aria-describedby]="describedBy" (input)="onNativeInput($event)" (blur)="inputBlur.emit($event)">
+    }
+  } @else {
+    <div class="file-wrapper">
+      @if (preview) { <img [src]="preview" class="avatar-preview" alt="Vista previa"> } @else { <div class="avatar-placeholder">Sin imagen</div> }
+      <div class="file-actions">
+        <input #fileInput [id]="id" type="file" accept="image/*" (change)="onFileChange($event)" class="file-input-hidden" [disabled]="disabled || !!control?.disabled">
+        <button type="button" (click)="fileInput.click()" class="file-button" [disabled]="disabled || !!control?.disabled">Seleccionar</button>
+        @if (preview) { <button type="button" (click)="clearImage(fileInput)" class="file-button danger" [disabled]="disabled || !!control?.disabled">Quitar</button> }
+      </div>
     </div>
-
-    <div class="file-actions">
-      <input #fileInput type="file" (change)="onFileChange($event)" class="file-input-hidden">
-
-      <button type="button" (click)="fileInput.click()" class="btn-upload">
-        Seleccionar
-      </button>
-
-      <button *ngIf="preview" type="button" (click)="clearImage(fileInput)" class="btn-clear">
-        Quitar
-      </button>
-    </div>
-
-  </div>
-
-  <div *ngIf="control.invalid && control.touched" class="error">
-    <small *ngIf="control.errors?.['required']">Este campo es obligatorio</small>
-    <small *ngIf="control.errors?.['email']">Correo inválido</small>
-    <small *ngIf="control.errors?.['minlength']">
-      Mínimo {{ control.errors?.['minlength']?.requiredLength }} caracteres
-    </small>
-  </div>
+  }
+  @if (validationMessage(); as message) { <small class="field-message error" [id]="id + '-error'" role="alert">{{ message }}</small> }
+  @else if (helpText) { <small class="field-message" [id]="id + '-help'">{{ helpText }}</small> }
 </div>

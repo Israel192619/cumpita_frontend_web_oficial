@@ -8,12 +8,14 @@ import { AuthService } from '../../../../core/services/auth-service';
 import { ReverbService } from '../../../../core/services/reverb-service';
 import { ServicioFicha, ServicioService, ServicioSesion } from '../../services/servicio-service';
 import { Button } from '../../../../shared/components/button/button';
+import { InputForm } from '../../../../shared/components/input-form/input-form';
+import { Modal } from '../../../../shared/components/modal/modal';
 
 interface Mesero { id: number; name: string; }
 
 @Component({
   selector: 'app-servicio-home',
-  imports: [CommonModule, ReactiveFormsModule, Button],
+  imports: [CommonModule, ReactiveFormsModule, Button, InputForm, Modal],
   templateUrl: './servicio-home.html',
   styleUrls: ['./servicio-home.css', './servicio-theme.css']
 })

@@ -13,7 +13,7 @@ import { PuestosCocinaService, PuestoCocina } from '../../services/puestos-cocin
   selector: 'app-cocina-home',
   imports: [CommonModule],
   templateUrl: './cocina-home.html',
-  styleUrls: ['./cocina-home.css', './cocina-theme.css'],
+  styleUrls: ['./cocina-home.css', './cocina-states.css', './cocina-theme.css'],
 })
 export class CocinaHome implements OnInit, OnDestroy {
   ordenes = signal<KdsOrden[]>([]);

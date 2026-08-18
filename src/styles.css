@@ -8,6 +8,8 @@
   --color-text-disabled: #a8b2c1; --color-hover: #f1f5f9; --color-focus: rgb(70 128 255 / .22);
   --color-on-brand: #ffffff; --color-neutral: #1f2937; --color-neutral-hover: #111827;
   --color-disabled: #e2e8f0; --color-disabled-text: #94a3b8;
+  --control-height: 42px; --control-bg: var(--color-surface); --control-border: var(--color-border);
+  --control-placeholder: var(--color-text-muted); --control-disabled-bg: var(--color-disabled);
 
   /* Alias de compatibilidad: todos derivan de la paleta central. */
   --app-bg: var(--color-bg); --surface: var(--color-surface); --surface-muted: var(--color-hover); --surface-hover: color-mix(in srgb, var(--color-hover) 75%, var(--color-border));
@@ -33,6 +35,8 @@
   --color-text-disabled: #657186; --color-hover: #202b3c; --color-focus: rgb(117 160 255 / .28);
   --color-on-brand: #081120; --color-neutral: #334155; --color-neutral-hover: #475569;
   --color-disabled: #283447; --color-disabled-text: #6f7c91;
+  --control-bg: var(--color-surface); --control-border: var(--color-border);
+  --control-placeholder: var(--color-text-muted); --control-disabled-bg: var(--color-disabled);
   --app-bg: var(--color-bg); --surface: var(--color-surface); --surface-muted: var(--color-hover); --surface-hover: color-mix(in srgb, var(--color-hover) 75%, var(--color-border));
   --text: var(--color-text); --text-muted: var(--color-text-secondary); --text-subtle: var(--color-text-muted); --border: var(--color-border);
   --primary: var(--color-primary); --primary-strong: var(--color-primary-hover); --primary-soft: color-mix(in srgb, var(--color-primary) 14%, transparent);

@@ -11,7 +11,7 @@ import { createDateTimeString, getCurrentTimeString, getTodayDateString, normali
   standalone: true,
   imports: [CommonModule, MesasModalComponent],
   templateUrl: './cart-panel.html',
-  styleUrl: './cart-panel.css',
+  styleUrls: ['./cart-panel.css', './cart-panel-items.css', './cart-panel-modifiers.css', './cart-panel-actions.css'],
 })
 export class CartPanelComponent {
   items = input<CartItem[]>([]);

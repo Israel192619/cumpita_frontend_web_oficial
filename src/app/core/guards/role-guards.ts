@@ -1,37 +1,44 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivateFn, Router } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
+import { AppAccess, homeForUser, isAdministrator, kdsStation, userCanAccess } from '../auth/role-access';
 import { AuthService } from '../services/auth-service';
 
-const nombreRol = (nombre?: string | null) => (nombre ?? '').trim().toLocaleLowerCase();
-
-export const servicioGuard: CanActivateFn = () => {
+const protect = (route: ActivatedRouteSnapshot) => {
   const auth = inject(AuthService);
   const router = inject(Router);
-
-  return auth.me().pipe(
-    map(user => ['mesero', 'despacho', 'admin', 'administrador', 'gerente'].includes(nombreRol(user.role?.nombre))
-      ? true
-      : router.createUrlTree(['/app'])),
-    catchError(() => of(router.createUrlTree(['/login'])))
-  );
-};
-
-export const noMeseroGuard: CanActivateFn = (_route, state) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-
-  if (auth.servicioCelularCerrado()) {
-    return router.createUrlTree(['/login']);
-  }
+  const access = route.data['access'] as AppAccess | undefined;
 
   return auth.me().pipe(
     map(user => {
-      const soloServicio = ['mesero', 'despacho'].includes(nombreRol(user.role?.nombre));
-      return !soloServicio || state.url.startsWith('/app/servicio')
-        ? true
-        : router.createUrlTree(['/app/servicio']);
+      if (!access || !userCanAccess(user, access)) return router.createUrlTree([homeForUser(user)]);
+      if (access === 'kds') {
+        const requestedStation = (route.paramMap.get('estacion') || route.data['station'])?.toLocaleLowerCase();
+        if (requestedStation && !isAdministrator(user) && requestedStation !== kdsStation(user)) {
+          return router.createUrlTree([`/app/kds/${kdsStation(user)}`]);
+        }
+      }
+      return true;
     }),
     catchError(() => of(router.createUrlTree(['/login'])))
   );
 };
+
+export const moduleAccessGuard: CanActivateFn = route => protect(route);
+
+export const landingGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.me().pipe(
+    map(user => isAdministrator(user) ? true : router.createUrlTree([homeForUser(user)])),
+    catchError(() => of(router.createUrlTree(['/login'])))
+  );
+};
+
+export const servicioGuard: CanActivateFn = route => {
+  route.data = { ...route.data, access: 'servicio' };
+  return protect(route);
+};
+
+// Compatibilidad para imports anteriores; las rutas nuevas deben declarar data.access.
+export const noMeseroGuard: CanActivateFn = route => protect(route);

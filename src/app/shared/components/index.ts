@@ -22,4 +22,7 @@ export { Loader } from './loader/loader';
 // Confirm Dialog Component
 export { ConfirmDialog } from './confirm-dialog/confirm-dialog';
 
+// Modal Component
+export { Modal, type ModalSize } from './modal/modal';
+
 export { Tree } from './tree/tree';

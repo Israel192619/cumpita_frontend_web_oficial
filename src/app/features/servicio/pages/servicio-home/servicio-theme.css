@@ -2,10 +2,9 @@
 .service-page{color:var(--color-text)}
 .service-header{background:linear-gradient(135deg,var(--color-neutral),var(--color-primary));color:var(--color-on-brand);box-shadow:var(--shadow-lg)}
 .brand p{color:color-mix(in srgb,var(--color-on-brand) 78%,transparent)}
-.add-waiter,.sessions,.work-ticket,.available-ticket,.signin-modal,.confirm-modal{background:var(--color-surface);border-color:var(--color-border);color:var(--color-text)}
-.add-waiter{color:var(--color-primary)}
-.sessions-title,.section-heading span,.ticket-head small,.available-ticket p,.signin-modal>p,.confirm-modal p,.ticket-detail-meta{color:var(--color-text-secondary)}
-.sessions-title strong,.section-heading>strong,.close{background:var(--color-hover);color:var(--color-primary)}
+.sessions, .work-ticket, .available-ticket{background:var(--color-surface);border-color:var(--color-border);color:var(--color-text)}
+.sessions-title, .section-heading span, .ticket-head small, .available-ticket p, .ticket-detail-meta{color:var(--color-text-secondary)}
+.sessions-title strong, .section-heading>strong{background:var(--color-hover);color:var(--color-primary)}
 .session-pill,.empty-session,.item,.waiter-grid button{background:var(--color-hover);border-color:var(--color-border);color:var(--color-text)}
 .session-pill.selected{background:color-mix(in srgb,var(--color-primary) 10%,var(--color-surface));border-color:var(--color-primary);color:var(--color-primary);box-shadow:0 0 0 3px var(--color-focus)}
 .online{background:var(--color-success);box-shadow:0 0 0 3px color-mix(in srgb,var(--color-success) 18%,transparent)}
@@ -15,13 +14,8 @@
 .progress.complete,.item.ready{background:color-mix(in srgb,var(--color-success) 10%,var(--color-surface));color:var(--color-success);border-color:color-mix(in srgb,var(--color-success) 32%,var(--color-border))}
 .item-copy small,.loading,.empty-card{color:var(--color-text-secondary)}
 .state,.wait-alert{color:var(--color-warning)!important}.ready .state{color:var(--color-success)}
-.deliver,.signin-modal form button{background:var(--color-success);color:var(--color-on-brand)}
+.deliver{background:var(--color-success);color:var(--color-on-brand)}
 .available-ticket button,.waiter-grid span{background:var(--color-primary);color:var(--color-on-brand)}
-.release,.confirm-modal .cancel{background:var(--color-surface);border-color:var(--color-border);color:var(--color-text-secondary)}
+.release{background:var(--color-surface);border-color:var(--color-border);color:var(--color-text-secondary)}
 .signin-callout{background:color-mix(in srgb,var(--color-primary) 7%,var(--color-surface));border-color:var(--color-primary);color:var(--color-primary)}
-.signin-modal input{background:var(--color-surface);border-color:var(--color-border);color:var(--color-text)}
-.signin-modal input:focus{border-color:var(--color-primary);outline:3px solid var(--color-focus)}
-.signin-modal form small,.modal-error{color:var(--color-danger)}
-.modal-error{background:color-mix(in srgb,var(--color-danger) 9%,var(--color-surface))}
-.modal-backdrop{background:color-mix(in srgb,var(--color-neutral) 68%,transparent)}
-.confirm-modal .danger{background:var(--color-danger);color:var(--color-on-brand)}
+.service-pin-form{display:grid;gap:12px}
