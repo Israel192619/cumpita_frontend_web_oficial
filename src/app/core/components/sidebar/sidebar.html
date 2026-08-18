@@ -15,9 +15,13 @@
         }
         <p class="nav-caption">Módulos</p>
         @for (group of visibleGroups(); track group.key) {
-          <section class="nav-group" [class.open]="expanded() === group.key">
+          <section class="nav-group" [class.open]="expanded() === group.key" (mouseenter)="positionFlyout($event, group.children.length)">
             <button type="button" class="nav-link group-trigger" (click)="toggleGroup(group.key)" [attr.aria-expanded]="expanded() === group.key"><span class="nav-icon">{{ group.icon }}</span><span class="nav-label">{{ group.label }}</span><span class="chevron">›</span></button>
             <div class="submenu">@for (child of group.children; track child.route) { <a [routerLink]="child.route" routerLinkActive="active" class="submenu-link" (click)="selectLink()">{{ child.label }}</a> }</div>
+            <div class="collapsed-flyout" [style.top.px]="flyoutTop()" role="menu" [attr.aria-label]="group.label">
+              <div class="flyout-title">{{ group.label }}</div>
+              <div class="flyout-links">@for (child of group.children; track child.route) { <a [routerLink]="child.route" routerLinkActive="active" class="flyout-link" role="menuitem" (click)="selectLink()">{{ child.label }}</a> }</div>
+            </div>
           </section>
         }
       } @else {

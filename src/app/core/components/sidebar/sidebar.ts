@@ -8,7 +8,7 @@ import { AuthService } from '../../services/auth-service';
 interface NavChild { label: string; route: string; }
 interface NavGroup { key: string; label: string; icon: string; children: NavChild[]; }
 
-@Component({ selector: 'app-sidebar', imports: [RouterLink, RouterLinkActive], templateUrl: './sidebar.html', styleUrl: './sidebar.css' })
+@Component({ selector: 'app-sidebar', imports: [RouterLink, RouterLinkActive], templateUrl: './sidebar.html', styleUrls: ['./sidebar.css', './sidebar-flyout.css'] })
 export class Sidebar implements OnInit {
   @Input() collapsed = false;
   @Output() linkSelected = new EventEmitter<void>();
@@ -16,6 +16,7 @@ export class Sidebar implements OnInit {
   readonly user = signal<User | null>(null);
   readonly loaded = signal(false);
   readonly expanded = signal<string | null>(null);
+  readonly flyoutTop = signal(8);
   readonly homeRoute = computed(() => this.user() ? homeForUser(this.user()!) : '/app');
   readonly directLinks = computed<NavChild[]>(() => {
     const user = this.user();
@@ -63,6 +64,12 @@ export class Sidebar implements OnInit {
   toggleGroup(key: string): void { this.expanded.update(current => current === key ? null : key); }
   selectLink(): void { this.linkSelected.emit(); }
   iconFor(label: string): string { return label.startsWith('KDS') ? 'K' : label === 'POS' ? 'P' : 'S'; }
+  positionFlyout(event: MouseEvent, itemCount: number): void {
+    if (!this.collapsed || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    const trigger = event.currentTarget as HTMLElement;
+    const estimatedHeight = Math.min(window.innerHeight - 16, 52 + itemCount * 38);
+    this.flyoutTop.set(Math.max(8, Math.min(trigger.getBoundingClientRect().top, window.innerHeight - estimatedHeight - 8)));
+  }
 
   private syncExpanded(url: string): void {
     const group = this.visibleGroups().find(item => item.children.some(child => url.startsWith(child.route)));
