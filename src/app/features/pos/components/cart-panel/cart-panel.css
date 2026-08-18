@@ -91,6 +91,8 @@
   color: var(--text-primary);
 }
 
+.work-date { width:min(190px,55%); }
+
 .mesa-only, .client-actions { display:flex; min-width:0; align-items:center; gap:.4rem; }
 .mesa-only { justify-content:space-between; padding:.12rem .1rem .2rem; }
 .client-actions { justify-content:flex-end; flex-wrap:wrap; }

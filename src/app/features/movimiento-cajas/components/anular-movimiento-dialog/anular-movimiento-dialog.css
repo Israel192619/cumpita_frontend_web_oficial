@@ -1,3 +1,1 @@
-label { display: block; margin: 1rem 0 .4rem; font-weight: 600; }
-textarea { width: 100%; box-sizing: border-box; padding: .75rem; border: 1px solid #cbd5e1; border-radius: .5rem; resize: vertical; }
-small { display: block; color: #b91c1c; margin-top: .35rem; }
+.anulacion-content p{margin:0;color:var(--color-text-secondary);font-size:.86rem;line-height:1.5}label{display:block;margin:1rem 0 .4rem;color:var(--color-text);font-size:.82rem;font-weight:700}textarea{width:100%;box-sizing:border-box;padding:.7rem .75rem;color:var(--color-text);background:var(--color-bg);border:1px solid var(--color-border);border-radius:8px;resize:vertical;font:inherit}textarea:focus{border-color:var(--color-primary);outline:3px solid var(--color-focus);outline-offset:1px}textarea:disabled{opacity:.6;cursor:not-allowed}small{display:block;margin-top:.35rem;color:var(--color-danger);font-size:.75rem}

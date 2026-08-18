@@ -75,7 +75,7 @@
                     <button class="row-action delete" type="button" (click)="action.emit({type:'delete', item})" title="Eliminar"><i class="ti ti-trash"></i><span class="sr-only">Eliminar</span></button>
                   } @else {
                     @for (rowAction of availableActions(item); track rowAction.type) {
-                      <button type="button" class="row-action custom-action" [ngClass]="rowAction.class" (click)="action.emit({type: rowAction.type, item})" [title]="rowAction.label"><i *ngIf="rowAction.icon" [class]="rowAction.icon"></i><span [class.sr-only]="rowAction.icon">{{ rowAction.label }}</span></button>
+                      <button type="button" class="row-action custom-action" [ngClass]="rowAction.class" (click)="action.emit({type: rowAction.type, item})" [title]="rowAction.label"><i *ngIf="rowAction.icon" [class]="rowAction.icon" aria-hidden="true"></i><span>{{ rowAction.label }}</span></button>
                     }
                   }
                 </div></td>

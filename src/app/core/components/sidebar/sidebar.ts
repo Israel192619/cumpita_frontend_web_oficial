@@ -43,7 +43,7 @@ export class Sidebar implements OnInit {
     ]},
     { key: 'productos', label: 'Productos', icon: 'P', children: [
       { label: 'Productos', route: '/app/productos' }, { label: 'Categorías', route: '/app/categorias' },
-      { label: 'Estaciones de trabajo', route: '/app/estaciones-trabajo' }, { label: 'Modificadores', route: '/app/modificadores' }
+      { label: 'Modificadores', route: '/app/modificadores' }
     ]},
     { key: 'contactos', label: 'Contactos', icon: 'C', children: [{ label: 'Clientes', route: '/app/clientes' }] },
     { key: 'usuarios', label: 'Administración', icon: 'U', children: [{ label: 'Usuarios', route: '/app/users' }] },

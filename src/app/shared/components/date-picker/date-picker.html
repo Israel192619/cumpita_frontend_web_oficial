@@ -1,0 +1,5 @@
+<div class="date-picker" [class.compact]="compact()" [class.with-time]="includeTime()">
+  <label><span>{{ label() }}<b *ngIf="required()"> *</b></span><input type="date" [value]="dateValue()" [min]="minDate()" [max]="maxDate()" [required]="required()" [disabled]="disabled()" (input)="onDate($any($event.target).value)"></label>
+  @if (includeTime()) { <label><span>{{ timeLabel() }}</span><input type="time" step="60" [value]="timeValue()" [disabled]="disabled() || !dateValue()" (input)="onTime($any($event.target).value)"></label> }
+  @if (clearable() && value()) { <button type="button" class="clear" (click)="clear()" [disabled]="disabled()" aria-label="Limpiar fecha">×</button> }
+</div>

@@ -1,112 +1,53 @@
-<div class="orden-modal">
-  <!-- Header -->
-  <div class="modal-header">
-    <div class="header-content">
-      <h2 class="modal-title">Orden #{{ orden()?.id }}</h2>
-      <button (click)="onClose()" class="close-btn">✕</button>
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  <div *ngIf="isLoading()" class="loading-container">
-    <div class="spinner"></div>
-    <p>Cargando orden...</p>
-  </div>
-
-  <!-- Error State -->
-  <div *ngIf="error() && !isLoading()" class="error-container">
-    <p class="error-message">{{ error() }}</p>
-  </div>
-
-  <!-- Content -->
-  <div *ngIf="orden() && !isLoading() && !error()" class="modal-content">
-    <!-- Info Section -->
-    <div class="info-section">
-      <div class="info-grid">
-        <div class="info-item">
-          <label>Cliente</label>
-          <p class="info-value">{{ orden()?.cliente_nombre || 'Sin cliente' }}</p>
-        </div>
-        <div class="info-item">
-          <label>Tipo de Orden</label>
-          <p class="info-value">
-            <span class="badge" [ngClass]="'tipo-' + orden()?.tipo_orden">
-              {{ orden()?.tipo_orden | titlecase }}
-            </span>
-          </p>
-        </div>
-        <div class="info-item">
-          <label>Estado</label>
-          <p class="info-value">
-            <span class="badge" [ngClass]="'estado-' + orden()?.estado">
-              {{ orden()?.estado | titlecase }}
-            </span>
-          </p>
-        </div>
-        <div class="info-item">
-          <label>Estado de Pago</label>
-          <p class="info-value">{{ orden()?.estado_pago | titlecase }}</p>
-        </div>
-        <div class="info-item">
-          <label>Fecha</label>
-          <p class="info-value">{{ orden()?.created_at | date:'short' }}</p>
-        </div>
-        <div class="info-item">
-          <label>Total</label>
-          <p class="info-value total-highlight">$ {{ orden()?.total | number:'1.2-2' }}</p>
-        </div>
+@if (isLoading()) {
+  <div class="feedback" role="status"><span class="spinner"></span><p>Cargando pedido…</p></div>
+} @else if (error()) {
+  <div class="feedback error">{{ error() }}</div>
+} @else if (orden(); as order) {
+  <div class="order-detail">
+    <section class="overview">
+      <div class="overview-title"><div><span>Pedido</span><strong>#{{ order.numero_orden || order.id }}</strong></div><span class="status">{{ order.estado || 'Sin estado' }}</span></div>
+      <div class="facts">
+        <div><span>Fecha y hora</span><strong>{{ (order.fecha_orden || order.created_at) | date:'dd/MM/yyyy HH:mm' }}</strong></div>
+        <div><span>Tipo</span><strong>{{ etiquetaTipo(order.tipo_orden) }}</strong></div>
+        @if (order.mesa) { <div><span>Mesa</span><strong>{{ order.mesa.numero }}</strong></div> }
+        @if (order.cliente || order.cliente_nombre) { <div><span>Cliente</span><strong>{{ order.cliente?.nombre || order.cliente_nombre }}</strong></div> }
+        @if (order.user) { <div><span>Registrado por</span><strong>{{ order.user.name }}</strong></div> }
+        @if (order.estado_pago) { <div><span>Pago</span><strong>{{ order.estado_pago | titlecase }}</strong></div> }
       </div>
-    </div>
+    </section>
 
-    <!-- Items Section -->
-    <div class="items-section">
-      <h3 class="section-title">Detalles de Orden</h3>
-      <div class="items-table">
-        <div class="table-header">
-          <div class="col-producto">Producto</div>
-          <div class="col-cantidad">Cantidad</div>
-          <div class="col-precio">Precio Unitario</div>
-          <div class="col-subtotal">Subtotal</div>
-        </div>
-        <div *ngFor="let detalle of orden()?.items" class="table-row">
-          <div class="col-producto">
-            <p class="producto-nombre">{{ detalle.producto.nombre }}</p>
-            <div *ngIf="detalle.modificadores && detalle.modificadores.length" class="modificadores-list">
-              <small *ngFor="let mod of detalle.modificadores" class="modificador-item">
-                • {{ mod.opcion_nombre }} <span class="mod-precio">+$ {{ mod.precio_extra | number:'1.2-2' }}</span>
-              </small>
+    <section class="section">
+      <h3>Productos</h3>
+      <div class="items">
+        <div class="item headings"><span>Producto</span><span>Cant.</span><span>Precio</span><span>Total</span></div>
+        @for (detail of detalles(); track detail.id ?? $index) {
+          <article class="item">
+            <div class="product">
+              <strong>{{ productoNombre(detail) }}</strong>
+              @if (opciones(detail).length) { <ul>@for (option of opciones(detail); track option.id ?? $index) { <li>{{ opcionNombre(option) }} @if (+option.precio_extra > 0) { <small>+ Bs {{ option.precio_extra | number:'1.2-2' }}</small> }</li> }</ul> }
+              @if (detail.nota) { <p class="note"><span>Nota:</span> {{ detail.nota }}</p> }
             </div>
-          </div>
-          <div class="col-cantidad">{{ detalle.cantidad }}</div>
-          <div class="col-precio">$ {{ detalle.precio_unitario | number:'1.2-2' }}</div>
-          <div class="col-subtotal">$ {{ calcularSubtotalDetalle(detalle.cantidad, detalle.precio_unitario) | number:'1.2-2' }}</div>
-        </div>
+            <span class="quantity" data-label="Cantidad">{{ detail.cantidad }}</span>
+            <span data-label="Precio">Bs {{ precioDetalle(detail) | number:'1.2-2' }}</span>
+            <strong data-label="Total">Bs {{ totalDetalle(detail) | number:'1.2-2' }}</strong>
+          </article>
+        } @empty { <div class="empty">El pedido no tiene productos registrados.</div> }
       </div>
-    </div>
+    </section>
 
-    <!-- Summary Section -->
-    <div class="summary-section">
-      <div class="summary-row">
-        <span>Subtotal:</span>
-        <span>$ {{ orden()?.subtotal | number:'1.2-2' }}</span>
-      </div>
-      <!-- <div *ngIf="orden()?.descuento && orden()!.descuento > 0" class="summary-row">
-        <span>Descuento:</span>
-        <span>-$ {{ orden()?.descuento | number:'1.2-2' }}</span>
-      </div>
-      <div *ngIf="orden()?.impuesto && orden()!.impuesto > 0" class="summary-row">
-        <span>Impuesto:</span>
-        <span>$ {{ orden()?.impuesto | number:'1.2-2' }}</span>
-      </div> -->
-      <div class="summary-row total">
-        <span>Total:</span>
-        <span>$ {{ orden()?.total | number:'1.2-2' }}</span>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="modal-footer">
-      <button (click)="onClose()" class="btn btn-secondary">Cerrar</button>
+    <div class="lower-grid">
+      @if (pagos().length) {
+        <section class="section payments"><h3>Pagos realizados</h3>
+          @for (payment of pagos(); track payment.id) { <div class="payment"><span><strong>{{ payment.metodo_pago | uppercase }}</strong><small>{{ payment.fecha_pago | date:'dd/MM/yyyy HH:mm' }}</small></span><strong>Bs {{ payment.monto_pagado | number:'1.2-2' }}</strong>@if (+payment.cambio_devuelto > 0) { <small>Cambio: Bs {{ payment.cambio_devuelto | number:'1.2-2' }}</small> }</div> }
+        </section>
+      }
+      <section class="section totals"><h3>Resumen</h3>
+        <div><span>Subtotal</span><strong>Bs {{ order.subtotal | number:'1.2-2' }}</strong></div>
+        @if (+order.descuento > 0) { <div><span>Descuento</span><strong>− Bs {{ order.descuento | number:'1.2-2' }}</strong></div> }
+        @if (+order.impuesto > 0) { <div><span>Otros cargos</span><strong>Bs {{ order.impuesto | number:'1.2-2' }}</strong></div> }
+        <div class="grand"><span>Total</span><strong>Bs {{ order.total | number:'1.2-2' }}</strong></div>
+        @if (pagos().length) { <div><span>Pagado</span><strong>Bs {{ totalPagado() | number:'1.2-2' }}</strong></div><div class="balance"><span>Saldo pendiente</span><strong>Bs {{ saldoPendiente() | number:'1.2-2' }}</strong></div> }
+      </section>
     </div>
   </div>
-</div>
+}

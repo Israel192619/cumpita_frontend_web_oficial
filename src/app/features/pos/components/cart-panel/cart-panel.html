@@ -2,15 +2,7 @@
   <!-- Header -->
   <div class="cart-header">
     <h2>Carrito</h2>
-    <input
-          id="order-date"
-          class="order-date-input"
-          [type]="isEditing() ? 'datetime-local' : 'date'"
-          step="1"
-          [value]="getOrderDateInputValue()"
-          (change)="onOrderDateChange($any($event.target).value)"
-          [disabled]="isProcessing()"
-        />
+    <app-date-picker class="work-date" label="Fecha de trabajo" [value]="getOrderDateInputValue()" [includeTime]="isEditing()" [compact]="true" [clearable]="false" [disabled]="isProcessing()" (valueChange)="onOrderDateChange($event || '')" />
     <span class="item-badge">{{ items().length }}</span>
   </div>
   <!-- Cliente quick-select -->

@@ -1,0 +1,9 @@
+<div class="range-picker">
+  @if (allowTimeToggle()) { <label class="time-toggle"><input type="checkbox" [checked]="includeTime()" [disabled]="disabled()" (change)="toggleTime($any($event.target).checked)"><span>Incluir hora</span></label> }
+  <div class="range-fields">
+    <app-date-picker label="Desde" [value]="from()" [includeTime]="includeTime()" [disabled]="disabled()" [min]="min()" [max]="to() || max()" [clearable]="false" (valueChange)="setFrom($event)" />
+    <app-date-picker label="Hasta" [value]="to()" [includeTime]="includeTime()" [disabled]="disabled()" [min]="from() || min()" [max]="max()" [clearable]="false" (valueChange)="setTo($event)" />
+    <button type="button" class="clear-range" (click)="clear()" [disabled]="disabled() || (!from() && !to())">Limpiar</button>
+  </div>
+  @if (error) { <p class="range-error" role="alert">{{ error }}</p> }
+</div>

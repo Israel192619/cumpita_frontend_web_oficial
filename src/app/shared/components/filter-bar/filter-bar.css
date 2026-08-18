@@ -1,0 +1,2 @@
+:host{display:block}.filter-bar{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px;padding:13px 15px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:11px}.filter-content{min-width:0;flex:1}.filter-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.filter-actions:empty{display:none}
+@media(max-width:700px){.filter-bar{align-items:stretch;flex-direction:column;padding:12px}.filter-actions{width:100%}}

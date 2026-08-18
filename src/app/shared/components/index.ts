@@ -26,3 +26,7 @@ export { ConfirmDialog } from './confirm-dialog/confirm-dialog';
 export { Modal, type ModalSize } from './modal/modal';
 
 export { Tree } from './tree/tree';
+export { DatePicker } from './date-picker/date-picker';
+export { DateRangePicker, type DateRangeValue } from './date-range-picker/date-range-picker';
+export { isWithinDateRange } from './date-range-picker/date-range-utils';
+export { FilterBar } from './filter-bar/filter-bar';

@@ -1,5 +1,8 @@
-<app-data-table title="Gastos de caja" [data]="gastos()" [columns]="columns"
+<app-filter-bar><app-date-range-picker [value]="dateRange()" (valueChange)="onDateRangeChange($event)" /></app-filter-bar>
+<app-data-table title="Gastos de caja" [data]="filteredGastos()" [columns]="columns"
   [loading]="loading()" [error]="error()" createLink="/app/gastos-caja/create"
   createText="+ Nuevo gasto" [rowActions]="rowActions" (refresh)="cargar()"
   (action)="handleAction($event)">
 </app-data-table>
+<app-anular-movimiento-dialog [open]="!!gastoAAnular()" [data]="gastoAAnular() ? { monto: gastoAAnular()!.monto, concepto: gastoAAnular()!.concepto, entidad: 'gasto' } : null" [busy]="anulando()"
+  (cancelled)="gastoAAnular.set(null)" (confirmed)="confirmarAnulacion($event)" />

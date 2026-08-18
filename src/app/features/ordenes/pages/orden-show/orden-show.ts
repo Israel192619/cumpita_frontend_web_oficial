@@ -1,52 +1,41 @@
-import { Component, Inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { Order, PosService } from '../../services';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatButtonModule } from '@angular/material/button';
+import { Component, OnInit, input, signal } from '@angular/core';
+import { PosService } from '../../services';
 
-@Component({
-  selector: 'app-orden-show',
-  imports: [CommonModule, MatDialogModule, MatTabsModule, MatButtonModule],
-  templateUrl: './orden-show.html',
-  styleUrl: './orden-show.css',
-})
+@Component({ selector: 'app-orden-show', imports: [CommonModule], templateUrl: './orden-show.html', styleUrl: './orden-show.css' })
 export class OrdenShow implements OnInit {
-  orden = signal<Order | null>(null);
+  orderId = input.required<number>();
+  orden = signal<any | null>(null);
   isLoading = signal(true);
   error = signal<string | null>(null);
 
-  constructor(
-    @Inject(MatDialogRef) public dialogRef: MatDialogRef<OrdenShow>,
-    @Inject(MAT_DIALOG_DATA) public data: { orderId: number },
-    private posService: PosService
-  ) {}
+  constructor(private posService: PosService) {}
 
-  ngOnInit(): void {
-    if (this.data?.orderId) {
-      this.cargarOrden(this.data.orderId);
-    }
+  ngOnInit(): void { this.cargarOrden(this.orderId()); }
+
+  detalles(): any[] { return this.orden()?.detalles ?? this.orden()?.items ?? []; }
+  pagos(): any[] { return this.orden()?.pagos ?? []; }
+  opciones(detalle: any): any[] { return detalle?.opciones ?? detalle?.modificadores ?? []; }
+  opcionNombre(opcion: any): string { return opcion?.modificador_opcion?.nombre ?? opcion?.opcion_nombre ?? opcion?.nombre ?? 'Opción'; }
+  productoNombre(detalle: any): string { return detalle?.producto?.nombre ?? detalle?.producto_nombre ?? 'Producto'; }
+  precioDetalle(detalle: any): number { return Number(detalle?.precio_unitario ?? 0); }
+  totalDetalle(detalle: any): number {
+    if (detalle?.subtotal != null) return Number(detalle.subtotal);
+    const extras = this.opciones(detalle).reduce((total, opcion) => total + Number(opcion?.precio_extra ?? 0), 0);
+    return Number(detalle?.cantidad ?? 0) * (this.precioDetalle(detalle) + extras);
   }
+  totalPagado(): number { return this.pagos().reduce((total, pago) => total + Number(pago?.monto_pagado ?? 0), 0); }
+  saldoPendiente(): number {
+    const orden = this.orden();
+    return orden?.saldo_pendiente != null ? Number(orden.saldo_pendiente) : Math.max(0, Number(orden?.total ?? 0) - this.totalPagado());
+  }
+  etiquetaTipo(tipo?: string): string { return ({ 'dine-in': 'Mesa', 'to-go': 'Para llevar', delivery: 'Delivery' } as Record<string, string>)[tipo ?? ''] ?? tipo ?? '—'; }
 
-  private cargarOrden(id: number) {
-    this.isLoading.set(true);
+  private cargarOrden(id: number): void {
+    this.isLoading.set(true); this.error.set(null);
     this.posService.obtenerOrdenPorId(id).subscribe({
-      next: (response) => {
-        this.orden.set(response.orden);
-        this.isLoading.set(false);
-      },
-      error: (err) => {
-        this.error.set('Error al cargar la orden');
-        this.isLoading.set(false);
-      }
+      next: response => { this.orden.set(response.orden); this.isLoading.set(false); },
+      error: () => { this.error.set('No se pudo cargar el detalle del pedido.'); this.isLoading.set(false); },
     });
-  }
-
-  onClose(): void {
-    this.dialogRef.close();
-  }
-
-  calcularSubtotalDetalle(cantidad: number, precio: number): number {
-    return cantidad * precio;
   }
 }

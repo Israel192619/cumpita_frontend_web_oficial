@@ -1,7 +1,0 @@
-.stations-page { padding: 1.5rem; max-width: 1100px; margin: auto; }
-h1 { margin: 0; } p { color: #64748b; }
-.station-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; background: #fff; padding: 1rem; border-radius: .75rem; box-shadow: 0 1px 4px #0001; }
-label { display: grid; gap: .35rem; font-weight: 600; } input, textarea { padding: .55rem; border: 1px solid #cbd5e1; border-radius: .4rem; font: inherit; } .description { grid-column: span 2; } .active { align-content: end; display: flex; padding-bottom: .55rem; } .actions { grid-column: 1 / -1; display: flex; gap: .5rem; }
-button { border: 0; border-radius: .4rem; padding: .55rem .9rem; background: #0f766e; color: #fff; cursor: pointer; } .secondary { background: #e2e8f0; color: #1e293b; }
-.station-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 1rem; margin-top: 1.25rem; } article { position: relative; padding: 1rem; border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff; } article.inactive { opacity: .65; } article div { display: flex; justify-content: space-between; gap: .5rem; } article span { font-size: .75rem; font-weight: 700; color: #0f766e; } article p { min-height: 2.4rem; } article button { margin-top: .75rem; } .empty { margin-top: 1rem; }
-@media (max-width: 700px) { .station-form { grid-template-columns: 1fr; } .description { grid-column: auto; } }

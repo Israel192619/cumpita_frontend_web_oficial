@@ -1,5 +1,5 @@
-<h2 mat-dialog-title>Anular {{ data.entidad || 'movimiento' }}</h2>
-<mat-dialog-content>
+<app-modal [open]="open()" [title]="'Anular ' + (data()?.entidad || 'movimiento')" size="small" [busy]="busy()" (closed)="cancelled.emit()">
+<div class="anulacion-content">
   <p>El registro se conservará como ANULADO. Esta acción no se puede revertir.</p>
   <label for="motivo-anulacion">Motivo de la anulación</label>
   <textarea id="motivo-anulacion" [formControl]="motivo" rows="4" maxlength="500"
@@ -7,8 +7,9 @@
   @if (motivo.touched && motivo.invalid) {
     <small>El motivo de anulación es obligatorio.</small>
   }
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-  <button mat-stroked-button (click)="dialogRef.close()">Cancelar</button>
-  <button mat-flat-button color="warn" (click)="confirmar()">Confirmar anulación</button>
-</mat-dialog-actions>
+</div>
+<div modal-actions>
+  <app-button text="Cancelar" color="secondary" [disabled]="busy()" (buttonClick)="cancelled.emit()" />
+  <app-button text="Confirmar anulación" color="danger" [loading]="busy()" (buttonClick)="confirmar()" />
+</div>
+</app-modal>

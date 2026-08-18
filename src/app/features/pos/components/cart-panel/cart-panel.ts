@@ -5,11 +5,12 @@ import { MesasModalComponent } from '../mesas-modal/mesas-modal';
 import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
 import { ModificadorEstructurado, ModificadorOpcion, Producto, ProductoOpcion } from '@app/core/models/producto';
 import { createDateTimeString, getCurrentTimeString, getTodayDateString, normalizeDateOnlyValue, normalizeDateTimeValue, normalizeOrderDateValue } from './date-time-utils';
+import { DatePicker } from '@app/shared/components/date-picker/date-picker';
 
 @Component({
   selector: 'app-cart-panel',
   standalone: true,
-  imports: [CommonModule, MesasModalComponent],
+  imports: [CommonModule, MesasModalComponent, DatePicker],
   templateUrl: './cart-panel.html',
   styleUrls: ['./cart-panel.css', './cart-panel-items.css', './cart-panel-modifiers.css', './cart-panel-actions.css'],
 })

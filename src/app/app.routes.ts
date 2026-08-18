@@ -111,12 +111,6 @@ export const routes: Routes = [
         ]
       },
       {
-        path: 'estaciones-trabajo',
-        canActivate: [moduleAccessGuard], data: { access: 'admin' },
-        loadComponent: () =>
-          import('./features/estaciones/pages/estaciones-list/estaciones-list').then(m => m.EstacionesList)
-      },
-      {
         path: 'productos',
         canActivate: [moduleAccessGuard], data: { access: 'admin' },
         children: [

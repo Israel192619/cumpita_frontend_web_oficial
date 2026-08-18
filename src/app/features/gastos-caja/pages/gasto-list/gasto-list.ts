@@ -1,13 +1,12 @@
-import { Component, signal } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { Component, computed, signal } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
-import { DataTable } from '../../../../shared/components';
+import { DataTable, DateRangePicker, DateRangeValue, FilterBar, isWithinDateRange } from '../../../../shared/components';
 import { AnularMovimientoDialog } from '../../../movimiento-cajas/components/anular-movimiento-dialog/anular-movimiento-dialog';
 import { GastoCaja, GastoCajaService } from '../../services/gasto-caja-service';
 
 @Component({
   selector: 'app-gasto-list',
-  imports: [DataTable],
+  imports: [DataTable, DateRangePicker, FilterBar, AnularMovimientoDialog],
   templateUrl: './gasto-list.html',
   styleUrl: './gasto-list.css',
 })
@@ -15,6 +14,10 @@ export class GastoList {
   gastos = signal<GastoCaja[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
+  dateRange = signal<DateRangeValue>({ from: null, to: null, includeTime: false });
+  filteredGastos = computed(() => this.gastos().filter(item => isWithinDateRange(item.created_at, this.dateRange())));
+  gastoAAnular = signal<GastoCaja | null>(null);
+  anulando = signal(false);
   columns = [
     { key: 'created_at', label: 'Fecha', type: 'date' },
     { key: 'categoria', label: 'Categoría' },
@@ -24,11 +27,11 @@ export class GastoList {
     { key: 'estado', label: 'Estado', type: 'status' },
   ];
   rowActions = [{
-    type: 'cancel', label: 'Anular', icon: 'ti ti-ban', class: 'action-btn--delete',
-    visible: (item: GastoCaja) => item.estado === 'ACTIVO',
+    type: 'cancel', label: 'Anular', class: 'action-btn--delete',
+    visible: (item: GastoCaja) => String(item.estado).toUpperCase() === 'ACTIVO',
   }];
 
-  constructor(private service: GastoCajaService, private dialog: MatDialog, private toastr: ToastrService) {}
+  constructor(private service: GastoCajaService, private toastr: ToastrService) {}
 
   ngOnInit() { this.cargar(); }
 
@@ -43,21 +46,26 @@ export class GastoList {
 
   handleAction(event: { type: string; item: GastoCaja }) {
     if (event.type !== 'cancel') return;
-    this.dialog.open(AnularMovimientoDialog, {
-      width: '460px', data: { ...event.item, entidad: 'gasto' },
-    }).afterClosed().subscribe(motivo => {
-      if (!motivo) return;
-      this.service.anular(event.item.id, motivo).subscribe({
+    this.gastoAAnular.set(event.item);
+  }
+
+  confirmarAnulacion(motivo: string) {
+    const gasto = this.gastoAAnular();
+    if (!gasto || this.anulando()) return;
+    this.anulando.set(true);
+    this.service.anular(gasto.id, motivo).subscribe({
         next: actualizado => {
           this.gastos.update(items => items.map(item => item.id === actualizado.id ? actualizado : item));
+          this.anulando.set(false);
+          this.gastoAAnular.set(null);
           this.toastr.success('Gasto anulado correctamente.');
         },
-        error: error => this.toastr.error(this.errorMessage(error, 'No se pudo anular el gasto.')),
+        error: error => { this.anulando.set(false); this.toastr.error(this.errorMessage(error, 'No se pudo anular el gasto.')); },
       });
-    });
   }
 
   private errorMessage(error: any, fallback: string): string {
     return error?.error?.message || Object.values(error?.error?.errors ?? {}).flat().join(' ') || fallback;
   }
+  onDateRangeChange(range: DateRangeValue) { this.dateRange.set(range); }
 }

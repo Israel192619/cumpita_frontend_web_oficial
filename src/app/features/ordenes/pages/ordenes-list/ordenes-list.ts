@@ -1,11 +1,10 @@
-import { Component, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, computed, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { timeout } from 'rxjs/internal/operators/timeout';
 import { ToastrService } from 'ngx-toastr';
-import { MatDialog } from '@angular/material/dialog';
 import { ConfirmDialogService } from '../../../../shared/services/confirm-dialog-service';
-import { DataTable } from '../../../../shared/components';
+import { Button, DataTable, DateRangePicker, DateRangeValue, FilterBar, isWithinDateRange, Modal } from '../../../../shared/components';
 import { Order, PosService } from '../../services';
 import { OrdenShow } from '../orden-show/orden-show';
 import { Subscription } from 'rxjs/internal/Subscription';
@@ -14,7 +13,7 @@ import { ReverbService } from '@app/core/services/reverb-service';
 @Component({
   selector: 'app-ordenes-list',
   standalone: true, // Asegúrate de tenerlo si es un componente independiente
-  imports: [CommonModule, DataTable],
+  imports: [CommonModule, DataTable, Modal, Button, OrdenShow, FilterBar, DateRangePicker],
   templateUrl: './ordenes-list.html',
   styleUrl: './ordenes-list.css',
 })
@@ -25,13 +24,15 @@ export class OrdenesList implements OnInit, OnDestroy {
   errorMessageLink = signal<string | null>(null);
   errorMessageText = signal<string | null>(null);
   private reverbSub!: Subscription;
+  selectedOrder = signal<Order | null>(null);
+  dateRange = signal<DateRangeValue>({ from: null, to: null, includeTime: false });
+  filteredOrders = computed(() => this.ordenes().filter(order => isWithinDateRange(order.fecha_orden || order.created_at, this.dateRange())));
 
   constructor(
     private posService: PosService,
     private router: Router,
     private toastr: ToastrService,
     private confirmDialog: ConfirmDialogService,
-    private dialog: MatDialog,
     private reverb: ReverbService
   ) {}
 
@@ -66,7 +67,7 @@ export class OrdenesList implements OnInit, OnDestroy {
         // 2. Aplanamos las propiedades para que coincidan con las llaves de tu 'app-data-table'
         const ordenesFormateadas = listaOriginal.map((orden: any) => ({
           ...orden,
-          numero_orden: `#${orden.id}`, // Genera el número visual (ej: #1)
+          numero_orden: orden.numero_orden,
           
           // Si hay cliente usa su nombre, si no, usa observaciones o un respaldo por defecto
           cliente_nombre: orden.cliente 
@@ -97,19 +98,19 @@ export class OrdenesList implements OnInit, OnDestroy {
     }
 
     if (type === 'view') {
-      // Abre el modal orden-show
-      this.dialog.open(OrdenShow, {
-        data: { orderId: item.id },
-        width: '800px',
-        maxHeight: '90vh',
-        panelClass: 'orden-show-dialog'
-      });
+      this.selectedOrder.set(item);
     }
 
     if (type === 'delete') {
       this.eliminarOrden(item.id);
     }
   }
+
+  closeOrderDetail(): void {
+    this.selectedOrder.set(null);
+  }
+
+  onDateRangeChange(range: DateRangeValue): void { this.dateRange.set(range); }
 
   eliminarOrden(id: number) {
     this.confirmDialog.confirm({

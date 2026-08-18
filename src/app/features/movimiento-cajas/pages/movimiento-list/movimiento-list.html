@@ -1,5 +1,8 @@
-<app-data-table title="Movimientos de caja" [data]="movimientos()" [columns]="columns"
+<app-filter-bar><app-date-range-picker [value]="dateRange()" (valueChange)="onDateRangeChange($event)" /></app-filter-bar>
+<app-data-table title="Movimientos de caja" [data]="filteredMovimientos()" [columns]="columns"
   [loading]="loading()" [error]="error()" createLink="/app/movimientos-caja/create"
   createText="+ Nuevo movimiento" [rowActions]="rowActions" (refresh)="cargar()"
   (action)="handleAction($event)">
 </app-data-table>
+<app-anular-movimiento-dialog [open]="!!movimientoAAnular()" [data]="movimientoAAnular()" [busy]="anulando()"
+  (cancelled)="movimientoAAnular.set(null)" (confirmed)="confirmarAnulacion($event)" />
