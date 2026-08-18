@@ -1,6 +1,7 @@
 import { Component, effect, input, output } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Button, Modal } from '../../../../shared/components';
+import { CURRENCY_CONFIG } from '@app/core/config/currency.config';
 
 export interface AnulacionData { motivo?: string; concepto?: string; monto: number; entidad?: string; }
 
@@ -11,6 +12,7 @@ export interface AnulacionData { motivo?: string; concepto?: string; monto: numb
   styleUrl: './anular-movimiento-dialog.css',
 })
 export class AnularMovimientoDialog {
+  readonly currencySymbol = CURRENCY_CONFIG.symbol;
   open = input(false);
   busy = input(false);
   data = input<AnulacionData | null>(null);

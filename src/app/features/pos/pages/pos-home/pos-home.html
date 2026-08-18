@@ -189,13 +189,13 @@
 
   <!-- Payment History Modal -->
   <app-modal [open]="isHistoryModalOpen()" title="Historial de pagos" size="large" (closed)="closeHistoryModal()">
-      <p class="modal-intro">Movimientos realizados para la orden en edición.</p>
+      <p class="modal-intro payment-history-intro">Movimientos realizados para la orden en edición.</p>
       <div class="payment-history-body">
         <div *ngIf="(editingOrder()?.pagos?.length ?? 0) === 0" class="empty-state">
           <p class="empty-title">No hay movimientos registrados para esta orden.</p>
         </div>
-        <div class="payment-history-list">
-          <div *ngFor="let pago of editingOrder()?.pagos || []" class="payment-history-item">
+        <div class="payment-history-list" role="list">
+          <div *ngFor="let pago of editingOrder()?.pagos || []" class="payment-history-item" role="listitem">
             <div class="payment-history-row">
               <div class="payment-history-main">
                 <div class="payment-history-icon">💳</div>
@@ -205,33 +205,32 @@
                 </div>
               </div>
               <div class="payment-history-amount">
-                <span class="currency-code">COP</span>
-                <span class="currency-amount">{{ pago.monto_pagado | number:'1.0-2' }}</span>
+                <span class="currency-amount">{{ formatPrice(pago.monto_pagado) }}</span>
               </div>
             </div>
             <div class="payment-history-details">
               <div class="payment-detail">
                 <span class="label">Recibido</span>
-                <span class="value"><span class="currency-code">COP</span> <span class="value-amount">{{ (pago.monto_recibido != null ? pago.monto_recibido : pago.monto_pagado) | number:'1.0-2' }}</span></span>
+                <span class="value"><span class="value-amount">{{ formatPrice(pago.monto_recibido != null ? pago.monto_recibido : pago.monto_pagado) }}</span></span>
               </div>
               <div class="payment-detail">
                 <span class="label">Pagado</span>
-                <span class="value"><span class="currency-code">COP</span> <span class="value-amount">{{ pago.monto_pagado | number:'1.0-2' }}</span></span>
+                <span class="value"><span class="value-amount">{{ formatPrice(pago.monto_pagado) }}</span></span>
               </div>
               <div class="payment-detail">
                 <span class="label">Cambio</span>
-                <span class="value"><span class="currency-code">COP</span> <span class="value-amount">{{ (pago.cambio_devuelto != null ? pago.cambio_devuelto : 0) | number:'1.0-2' }}</span></span>
+                <span class="value"><span class="value-amount">{{ formatPrice(pago.cambio_devuelto != null ? pago.cambio_devuelto : 0) }}</span></span>
               </div>
               <div class="payment-detail">
                 <span class="label">Tipo</span>
-                <span class="badge">{{ pago.tipo_pago || pago.metodo_pago || '—' }}</span>
+                <span class="badge payment-type-badge">{{ pago.tipo_pago || pago.metodo_pago || '—' }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <div modal-actions>
-        <app-button text="Cerrar" color="secondary" (buttonClick)="closeHistoryModal()" />
+      <div modal-actions class="payment-history-actions">
+        <app-button text="Cerrar" color="secondary" size="medium" (buttonClick)="closeHistoryModal()" />
       </div>
   </app-modal>
 

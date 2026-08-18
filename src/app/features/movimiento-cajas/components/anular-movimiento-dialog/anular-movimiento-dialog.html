@@ -3,7 +3,7 @@
   <p>El registro se conservará como ANULADO. Esta acción no se puede revertir.</p>
   <label for="motivo-anulacion">Motivo de la anulación</label>
   <textarea id="motivo-anulacion" [formControl]="motivo" rows="4" maxlength="500"
-    placeholder="Ej. El monto correcto era Bs 50"></textarea>
+    [placeholder]="'Ej. El monto correcto era ' + currencySymbol + ' 50'"></textarea>
   @if (motivo.touched && motivo.invalid) {
     <small>El motivo de anulación es obligatorio.</small>
   }

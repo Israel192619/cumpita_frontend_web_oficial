@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { ErrorMessage, FormCard, InputForm, Select } from '../../../../shared/components';
 import { CATEGORIAS_GASTO, CrearGasto, GastoCajaService } from '../../services/gasto-caja-service';
+import { CURRENCY_CONFIG } from '@app/core/config/currency.config';
 
 @Component({
   selector: 'app-gasto-create',
@@ -12,6 +13,7 @@ import { CATEGORIAS_GASTO, CrearGasto, GastoCajaService } from '../../services/g
   styleUrl: './gasto-create.css',
 })
 export class GastoCreate {
+  readonly currencySymbol = CURRENCY_CONFIG.symbol;
   loading = signal(false);
   error = signal<string | null>(null);
   categorias = CATEGORIAS_GASTO;

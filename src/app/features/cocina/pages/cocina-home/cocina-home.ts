@@ -8,6 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ActualizacionEstadoCocinaResponse, CocinaService, KdsCambioOrden, KdsDetalle, KdsEstacion, KdsOrden } from '../../services/cocina-service';
 import { PuestosCocinaService, PuestoCocina } from '../../services/puestos-cocina';
+import { formatCurrency } from '@app/core/config/currency.config';
 
 @Component({
   selector: 'app-cocina-home',
@@ -61,7 +62,7 @@ export class CocinaHome implements OnInit, OnDestroy {
         const precio = Number(detalle.precio_unitario ?? 0);
         const clave = `${detalle.producto.id}|${precio.toFixed(2)}`;
         const actual = productos.get(clave) ?? {
-          etiqueta: `${detalle.producto.nombre}${precio > 0 ? ` Bs${this.formatearPrecio(precio)}` : ''}`,
+          etiqueta: `${detalle.producto.nombre}${precio > 0 ? ` ${formatCurrency(precio)}` : ''}`,
           cantidad: 0,
           terminos: new Map<string, number>(),
         };
@@ -663,10 +664,6 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   etiquetaTipoOrden(orden: KdsOrden): string {
     return orden.tipo_orden === 'dine-in' ? `Mesa ${orden.mesa?.numero || '—'}` : orden.tipo_orden === 'delivery' ? 'Delivery' : 'Para llevar';
-  }
-
-  private formatearPrecio(precio: number): string {
-    return Number.isInteger(precio) ? String(precio) : precio.toFixed(2);
   }
 
   private normalizar(valor: string): string {

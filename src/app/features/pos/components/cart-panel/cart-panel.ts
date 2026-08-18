@@ -6,11 +6,14 @@ import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-servic
 import { ModificadorEstructurado, ModificadorOpcion, Producto, ProductoOpcion } from '@app/core/models/producto';
 import { createDateTimeString, getCurrentTimeString, getTodayDateString, normalizeDateOnlyValue, normalizeDateTimeValue, normalizeOrderDateValue } from './date-time-utils';
 import { DatePicker } from '@app/shared/components/date-picker/date-picker';
+import { Button } from '@app/shared/components/button/button';
+import { formatCurrency } from '@app/core/config/currency.config';
+import { Modal } from '@app/shared/components/modal/modal';
 
 @Component({
   selector: 'app-cart-panel',
   standalone: true,
-  imports: [CommonModule, MesasModalComponent, DatePicker],
+  imports: [CommonModule, MesasModalComponent, DatePicker, Button, Modal],
   templateUrl: './cart-panel.html',
   styleUrls: ['./cart-panel.css', './cart-panel-items.css', './cart-panel-modifiers.css', './cart-panel-actions.css'],
 })
@@ -582,15 +585,7 @@ export class CartPanelComponent {
   }
 
   formatPrice(price: number): string {
-    // Aseguramos que el valor sea un número limpio
-    const cleanPrice = typeof price === 'string' ? parseFloat(price) : price;
-
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0, // Si es entero, no muestra decimales (ej: $ 5)
-      maximumFractionDigits: 2, // Si tiene decimales, muestra hasta dos (ej: $ 5,59)
-    }).format(cleanPrice);
+    return formatCurrency(price);
   }
 
   // ================= CLIENTE =================
@@ -768,6 +763,14 @@ export class CartPanelComponent {
       }));
 
     this.draftModifiers.set([...otherSelections, ...selectionsForThisGroup, ...selected]);
+  }
+
+  areAllOptionsSelected(group: ModificadorEstructurado, options: ModificadorOpcion[]): boolean {
+    return options.length > 0 && options.every((option) => this.isModifierSelected(group, option));
+  }
+
+  toggleAllOptions(group: ModificadorEstructurado, options: ModificadorOpcion[]): void {
+    this.selectAllOptions(group, options, !this.areAllOptionsSelected(group, options));
   }
 
   isModifierSelected(group: ModificadorEstructurado, option: ModificadorOpcion): boolean {

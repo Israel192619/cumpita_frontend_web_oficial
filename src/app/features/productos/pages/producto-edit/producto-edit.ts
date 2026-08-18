@@ -10,6 +10,8 @@ import { CommonModule } from '@angular/common';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
 import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
+import { AppCurrencyPipe } from '@app/shared/pipes/app-currency.pipe';
+import { CURRENCY_CONFIG } from '@app/core/config/currency.config';
 
 interface OpcionSeleccionada {
   id: number;
@@ -27,12 +29,13 @@ interface ModificadorSeleccionado {
 @Component({
   selector: 'app-producto-edit',
   imports: [
-    FormCard, InputForm, Select, ErrorMessage, ReactiveFormsModule, CommonModule
+    FormCard, InputForm, Select, ErrorMessage, ReactiveFormsModule, CommonModule, AppCurrencyPipe
   ],
   templateUrl: './producto-edit.html',
   styleUrl: './producto-edit.css',
 })
 export class ProductoEdit {
+  readonly currencySymbol = CURRENCY_CONFIG.symbol;
   form: FormGroup;
   error = signal<string | null>(null);
   loading = signal(false);

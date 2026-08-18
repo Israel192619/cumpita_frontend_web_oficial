@@ -3,7 +3,7 @@
   <app-select label="Categoría" [control]="control('categoria')" [options]="categoriaOptions" [required]="true"></app-select>
   <app-input-form label="Concepto" [control]="control('concepto')"
     placeholder="Describe el gasto"></app-input-form>
-  <app-input-form label="Monto (Bs)" type="number" [control]="control('monto')"
+  <app-input-form [label]="'Monto (' + currencySymbol + ')'" type="number" [control]="control('monto')"
     placeholder="0.00"></app-input-form>
 </app-form-card>
 <app-error-message [message]="error()"></app-error-message>

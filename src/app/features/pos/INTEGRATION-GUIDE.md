@@ -101,5 +101,5 @@ Para ajustar según tus necesidades:
 5. Cambiar formato de precios:
    - Locale en formatPrice() métodos
    - Cambiar 'es-ES' si es necesario
-   - Cambiar 'COP' a otra moneda
+   - Cambiar la moneda desde `core/config/currency.config.ts`
 */

@@ -21,6 +21,7 @@ export class Button {
   @Input() link: string | null = null;
   @Input() type: ButtonType = 'button';
   @Input() ariaLabel: string | null = null;
+  @Input() fullWidth: boolean = false;
   @Output() buttonClick  = new EventEmitter<void>();
 
   onButtonClick(): void {
@@ -34,6 +35,6 @@ export class Button {
   }
 
   get buttonClasses(): string {
-    return `btn btn-${this.color} btn-${this.size}`;
+    return `btn btn-${this.color} btn-${this.size}${this.fullWidth ? ' btn-block' : ''}`;
   }
 }

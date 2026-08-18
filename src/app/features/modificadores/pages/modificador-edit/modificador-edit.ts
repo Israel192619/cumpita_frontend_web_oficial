@@ -7,6 +7,7 @@ import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/co
 import { CommonModule } from '@angular/common';
 import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
 import { EstacionTrabajo } from '../../../../core/models/estacion-trabajo';
+import { CURRENCY_CONFIG } from '@app/core/config/currency.config';
 
 @Component({
   selector: 'app-modificador-edit',
@@ -17,6 +18,7 @@ import { EstacionTrabajo } from '../../../../core/models/estacion-trabajo';
   styleUrl: './modificador-edit.css',
 })
 export class ModificadorEdit {
+  readonly currencySymbol = CURRENCY_CONFIG.symbol;
   form: FormGroup;
   error = signal<string | null>(null);
   loading = signal(false);

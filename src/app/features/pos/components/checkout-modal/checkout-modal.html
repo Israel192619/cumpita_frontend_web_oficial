@@ -43,6 +43,7 @@
             <input
               type="number"
               class="amount-input"
+              aria-label="Monto recibido"
               [value]="montoRecibido()"
               (input)="onMontoChange($event)"
               placeholder="0"
@@ -50,7 +51,7 @@
               min="0"
               step="0.01"
             />
-            <span class="currency-chip">COP</span>
+            <span class="currency-chip">{{ currencySymbol }}</span>
           </div>
 
           <div class="quick-amounts">
@@ -108,18 +109,20 @@
             type="button"
             class="payment-btn"
             [class.active]="selectedPaymentMethod() === method.id"
+            [attr.aria-pressed]="selectedPaymentMethod() === method.id"
             (click)="onSelectPaymentMethod(method.id)"
             [disabled]="isProcessing()"
           >
             <span class="payment-icon">{{ method.icon }}</span>
             <span class="payment-name">{{ method.nombre }}</span>
+            <span class="selection-mark" aria-hidden="true">✓</span>
           </button>
         </div>
       </div>
     </div>
 
-    <div modal-actions>
-      <app-button text="Cancelar" color="secondary" [disabled]="isProcessing()" (buttonClick)="onCancel()" />
-      <app-button [text]="getConfirmButtonLabel()" [color]="isRefundMode() ? 'danger' : 'primary'" [loading]="isProcessing()" [disabled]="!selectedPaymentMethod() || isProcessing()" (buttonClick)="onConfirm()" />
+    <div modal-actions class="checkout-actions">
+      <app-button text="Cancelar" color="light" size="medium" [fullWidth]="true" [disabled]="isProcessing()" (buttonClick)="onCancel()" />
+      <app-button [text]="getConfirmButtonLabel()" [color]="isRefundMode() ? 'danger' : 'primary'" size="medium" [fullWidth]="true" [loading]="isProcessing()" [disabled]="!selectedPaymentMethod() || isProcessing()" (buttonClick)="onConfirm()" />
     </div>
 </app-modal>

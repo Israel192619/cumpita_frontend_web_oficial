@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { CartItem, PagoOrden } from '@app/features/pos/services/pos-service';
 import { Button } from '@app/shared/components/button/button';
 import { Modal } from '@app/shared/components/modal/modal';
+import { CURRENCY_CONFIG, formatCurrency } from '@app/core/config/currency.config';
 
 export type PaymentMethodType = 'efectivo' | 'qr';
 export type PaymentStatus = 'insufficient' | 'exact' | 'excess';
@@ -16,6 +17,7 @@ export type PaymentStatus = 'insufficient' | 'exact' | 'excess';
   styleUrl: './checkout-modal.css',
 })
 export class CheckoutModalComponent implements OnChanges {
+  readonly currencySymbol = CURRENCY_CONFIG.symbol;
   items = input<CartItem[]>([]);
   total = input<number>(0);
   remainingAmount = input<number>(0);
@@ -163,12 +165,7 @@ export class CheckoutModalComponent implements OnChanges {
   }
 
   formatPrice(price: number): string {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(price);
+    return formatCurrency(price);
   }
 
   getTargetAmount(): number {
@@ -248,19 +245,19 @@ export class CheckoutModalComponent implements OnChanges {
 
     if (this.isRefundMode()) {
       if (this.estadoPago() === 'insufficient') {
-        return `Falta devolver ${remainingToPay.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} COP`;
+        return `Falta devolver ${formatCurrency(remainingToPay)}`;
       }
       return this.estadoPago() === 'excess'
-        ? `Completar pago y devolver ${this.cambio().toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} COP`
+        ? `Completar pago y devolver ${formatCurrency(this.cambio())}`
         : 'Registrar devolución';
     }
 
     if (this.estadoPago() === 'insufficient') {
-      return `Continuar con la deuda de ${remainingToPay.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} COP`;
+      return `Continuar con la deuda de ${formatCurrency(remainingToPay)}`;
     }
 
     if (this.estadoPago() === 'excess') {
-      return `Completar pago y devolver ${this.cambio().toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} COP`;
+      return `Completar pago y devolver ${formatCurrency(this.cambio())}`;
     }
 
     return 'Completar pago';

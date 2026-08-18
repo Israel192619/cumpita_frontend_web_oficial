@@ -11,6 +11,7 @@ import { ProductoService } from '../../../productos/services/producto-service';
 import { ToastrService } from 'ngx-toastr';
 import { Button } from '../../../../shared/components/button/button';
 import { Modal } from '../../../../shared/components/modal/modal';
+import { formatCurrency } from '@app/core/config/currency.config';
 
 @Component({
   selector: 'app-pos-home',
@@ -315,7 +316,7 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   formatearMonto(monto: number): string {
-    return `Bs ${Number(monto || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatCurrency(monto);
   }
 
   onBackRequested(): void {
@@ -1296,12 +1297,7 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   formatPrice(amount: number): string {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(amount);
+    return formatCurrency(amount);
   }
 
   private updateProductStock(productId: number, delta: number): void {

@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, input, signal } from '@angular/core';
 import { PosService } from '../../services';
+import { AppCurrencyPipe } from '@app/shared/pipes/app-currency.pipe';
 
-@Component({ selector: 'app-orden-show', imports: [CommonModule], templateUrl: './orden-show.html', styleUrl: './orden-show.css' })
+@Component({ selector: 'app-orden-show', imports: [CommonModule, AppCurrencyPipe], templateUrl: './orden-show.html', styleUrl: './orden-show.css' })
 export class OrdenShow implements OnInit {
   orderId = input.required<number>();
   orden = signal<any | null>(null);

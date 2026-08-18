@@ -1,11 +1,12 @@
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { Component, Inject, OnDestroy, OnInit, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AppCurrencyPipe } from '@app/shared/pipes/app-currency.pipe';
 
 @Component({
   selector: 'app-pos-toolbar',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AppCurrencyPipe],
   templateUrl: './pos-toolbar.html',
   styleUrl: './pos-toolbar.css',
 })

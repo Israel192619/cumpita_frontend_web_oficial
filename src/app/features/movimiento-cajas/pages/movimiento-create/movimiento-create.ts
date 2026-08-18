@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { ErrorMessage, FormCard, InputForm } from '../../../../shared/components';
 import { MovimientoService } from '../../services/movimiento-service';
+import { CURRENCY_CONFIG } from '@app/core/config/currency.config';
 
 @Component({
   selector: 'app-movimiento-create',
@@ -12,6 +13,7 @@ import { MovimientoService } from '../../services/movimiento-service';
   styleUrl: './movimiento-create.css',
 })
 export class MovimientoCreate {
+  readonly currencySymbol = CURRENCY_CONFIG.symbol;
   loading = signal(false);
   error = signal<string | null>(null);
   form: FormGroup;

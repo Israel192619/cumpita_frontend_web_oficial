@@ -25,7 +25,7 @@
           <div class="option-header"><div><span class="option-index">{{ i + 1 }}</span><strong>Opción {{ i + 1 }}</strong></div><button type="button" class="btn-remove" [disabled]="opcionesForm.length === 1" (click)="eliminarOpcion(i)"><i class="ti ti-trash"></i> Eliminar</button></div>
           <div class="option-fields">
             <app-input-form label="Nombre" [control]="getOpcionControl(i, 'nombre')" placeholder="Ej. Grande, Extra queso"></app-input-form>
-            <app-input-form label="Precio adicional (Bs)" type="number" [control]="getOpcionControl(i, 'precio_extra')" placeholder="0.00"></app-input-form>
+            <app-input-form [label]="'Precio adicional (' + currencySymbol + ')'" type="number" [control]="getOpcionControl(i, 'precio_extra')" placeholder="0.00"></app-input-form>
             <label class="option-status"><input type="checkbox" [formControl]="getOpcionControl(i, 'activo')"><span>{{ getOpcionControl(i, 'activo').value ? 'Activa' : 'Inactiva' }}</span></label>
           </div>
         </div>

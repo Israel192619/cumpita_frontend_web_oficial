@@ -1,202 +1,60 @@
-/* ==================== FOOTER: TOTALS & CHECKOUT ==================== */
+/* Totales y acciones: el aspecto de los botones vive en el componente compartido. */
 .cart-footer {
-  padding: 0.45rem 0.55rem;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-surface);
   display: flex;
   flex-direction: column;
-  gap: 0.42rem;
   flex-shrink: 0;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 0 -8px 22px color-mix(in srgb, var(--color-text) 5%, transparent);
+}
+
+.totals-section { display: grid; gap: 0.28rem; }
+
+.total-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.total-label { font-weight: 500; }
+.total-value { color: var(--color-text); font-weight: 650; }
+
+.total-row.total-main {
+  margin-top: 0.12rem;
+  padding-top: 0.42rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 1rem;
+}
+
+.total-main .total-label,
+.total-main .total-value {
+  color: var(--color-primary);
+  font-weight: 800;
 }
 
 .button-group {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.35rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
 }
 
-.button-group > * {
-  width: 100%;
-}
-
-.button-group .btn-secondary {
-  min-height: 32px;
-  font-size: 0.76rem;
-}
-
-.totals-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.total-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.84rem;
-  color: var(--text-muted);
-
-  .total-label {
-    font-weight: 500;
-  }
-
-  .total-value {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  &.total-main {
-    font-size: 0.96rem;
-    padding-top: 0.45rem;
-    border-top: 1px solid var(--border-color);
-    margin-top: 0.25rem;
-
-    .total-label,
-    .total-value {
-      font-weight: 700;
-      color: var(--color-accent);
-    }
-  }
-}
-
-/* Continue to Payment Button */
-.btn-continue-payment {
-  width: 100%;
-  padding: 0.5rem 0.6rem;
-  background: var(--color-accent);
-  color: var(--text-primary);
-  border: none;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: capitalize;
-  letter-spacing: 0.2px;
-  box-shadow: 0 3px 8px rgba(234, 124, 105, 0.22);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 5px 12px rgba(234, 124, 105, 0.3);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-/* Pay Later Button */
-.btn-pay-later {
-  width: 100%;
-  padding: 0.5rem 0.6rem;
-  background: rgba(100, 150, 200, 0.15);
-  color: #6496c8;
-  border: 1px solid rgba(100, 150, 200, 0.3);
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: capitalize;
-  letter-spacing: 0.2px;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    background: rgba(100, 150, 200, 0.22);
-    border-color: rgba(100, 150, 200, 0.4);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-/* Cancel Order Button */
-.btn-cancel-order {
-  width: 100%;
-  padding: 0.46rem 0.55rem;
-  background: rgba(200, 50, 50, 0.1);
-  color: #d32f2f;
-  border: 1px solid rgba(200, 50, 50, 0.25);
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: capitalize;
-  letter-spacing: 0.2px;
-
-  &:hover:not(:disabled) {
-    background: rgba(200, 50, 50, 0.15);
-    border-color: rgba(200, 50, 50, 0.35);
-    transform: translateY(-1px);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-/* Undo Changes Button */
-.btn-undo-changes {
-  width: 100%;
-  padding: 0.46rem 0.55rem;
-  background: rgba(100, 150, 200, 0.1);
-  color: #6496c8;
-  border: 1px solid rgba(100, 150, 200, 0.3);
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: capitalize;
-  letter-spacing: 0.2px;
-
-  &:hover:not(:disabled) {
-    background: rgba(100, 150, 200, 0.15);
-    border-color: rgba(100, 150, 200, 0.4);
-    transform: translateY(-1px);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-/* ==================== ORDER DATE & TIME ==================== */
-
-
-
-
-.order-date-input {
-  width: 145px;
-  height: 30px;
-
-
+.button-group app-button,
+.cart-footer > app-button {
+  display: block;
+  min-width: 0;
 }
 
 @media (max-width: 640px) {
+  .cart-footer {
+    gap: 0.45rem;
+    padding: 0.5rem 0.55rem max(0.55rem, env(safe-area-inset-bottom));
+  }
+
   .button-group { grid-template-columns: 1fr; }
-  .button-group > *, .btn-cancel-order, .btn-undo-changes { min-height: 42px; }
-  .cart-footer { padding-bottom: max(0.55rem, env(safe-area-inset-bottom)); }
+  .total-row { font-size: 0.76rem; }
 }

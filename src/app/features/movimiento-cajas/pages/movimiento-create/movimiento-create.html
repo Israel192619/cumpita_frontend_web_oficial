@@ -5,7 +5,7 @@
     <option value="INGRESO">INGRESO</option>
     <option value="RETIRO">RETIRO</option>
   </select>
-  <app-input-form label="Monto (Bs)" type="number" [control]="control('monto')" placeholder="0.00"></app-input-form>
+  <app-input-form [label]="'Monto (' + currencySymbol + ')'" type="number" [control]="control('monto')" placeholder="0.00"></app-input-form>
   <app-input-form label="Motivo" [control]="control('motivo')" placeholder="Describe el movimiento"></app-input-form>
 </app-form-card>
 <app-error-message [message]="error()"></app-error-message>

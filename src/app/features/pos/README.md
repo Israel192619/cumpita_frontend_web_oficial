@@ -374,7 +374,7 @@ obtenerProductos(categoriaId?: number): Observable<Producto[]> {
 
 5. **Imágenes**: Usa `imagen_url` del producto. Fallback a `/images/no-image.png`.
 
-6. **Formatos de Precio**: Usa `Intl.NumberFormat` con locale `es-ES` y currency `COP`.
+6. **Formatos de Precio**: Usa la configuración y el formateador central de `core/config/currency.config.ts`.
 
 7. **Error Handling**: Usa la propiedad `error` signal para mostrar errores. El banner de error es dismissible.
 

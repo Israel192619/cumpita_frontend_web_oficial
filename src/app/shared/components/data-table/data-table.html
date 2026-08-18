@@ -58,10 +58,10 @@
                   @switch (col.type) {
                     @case ('image') { <div class="avatar-cell"><img [src]="getValue(item, col.key)" class="avatar-img" alt=""></div> }
                     @case ('date') { <span class="date-value">{{ getValue(item, col.key) | date:'short' }}</span> }
-                    @case ('currency') { <span class="number-value">Bs {{ getValue(item, col.key) | number:'1.2-2' }}</span> }
+                    @case ('currency') { <span class="number-value">{{ getValue(item, col.key) | appCurrency }}</span> }
                     @case ('boolean') { <span class="neutral-badge">{{ displayBoolean(getValue(item, col.key)) }}</span> }
-                    @case ('movementAmount') { <span class="amount-value" [class.amount-income]="item.tipo === 'INGRESO'" [class.amount-withdrawal]="item.tipo === 'RETIRO'">{{ item.tipo === 'INGRESO' ? '+' : '-' }} Bs {{ getValue(item, col.key) | number:'1.2-2' }}</span> }
-                    @case ('expenseAmount') { <span class="amount-value amount-withdrawal">- Bs {{ getValue(item, col.key) | number:'1.2-2' }}</span> }
+                    @case ('movementAmount') { <span class="amount-value" [class.amount-income]="item.tipo === 'INGRESO'" [class.amount-withdrawal]="item.tipo === 'RETIRO'">{{ item.tipo === 'INGRESO' ? '+' : '-' }}{{ getValue(item, col.key) | appCurrency }}</span> }
+                    @case ('expenseAmount') { <span class="amount-value amount-withdrawal">-{{ getValue(item, col.key) | appCurrency }}</span> }
                     @case ('status') { <span class="status-badge" [class.status-cancelled]="getValue(item, col.key) === 'ANULADO'" [class.status-inactive]="getValue(item, col.key) === 'Inactivo'">{{ getValue(item, col.key) }}</span> }
                     @default { <span>{{ getValue(item, col.key) ?? '—' }}</span> }
                   }

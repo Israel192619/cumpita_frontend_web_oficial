@@ -1,9 +1,11 @@
 <div class="cart-panel">
   <!-- Header -->
   <div class="cart-header">
-    <h2>Carrito</h2>
+    <div class="cart-title">
+      <h2>Carrito</h2>
+      <span class="item-badge" [attr.aria-label]="items().length + ' productos en el carrito'">{{ items().length }}</span>
+    </div>
     <app-date-picker class="work-date" label="Fecha de trabajo" [value]="getOrderDateInputValue()" [includeTime]="isEditing()" [compact]="true" [clearable]="false" [disabled]="isProcessing()" (valueChange)="onOrderDateChange($event || '')" />
-    <span class="item-badge">{{ items().length }}</span>
   </div>
   <!-- Cliente quick-select -->
   <div class="client-area">
@@ -294,16 +296,8 @@
     (closed)="openMesasModal.set(false)"
   ></app-mesas-modal>
 
-  <div class="modifier-modal-backdrop" *ngIf="modifierModalOpen()" (click)="closeModifierModal()">
-    <div class="modifier-modal" (click)="$event.stopPropagation()">
-      <div class="modifier-modal-header">
-        <div>
-          <h3>Modificadores</h3>
-          <p>{{ modifierModalItem()?.producto?.nombre }}</p>
-        </div>
-        <button type="button" class="modifier-modal-close" (click)="closeModifierModal()">✕</button>
-      </div>
-
+  <app-modal [open]="modifierModalOpen()" title="Modificadores" size="large" (closed)="closeModifierModal()">
+      <p class="modifier-modal-product">{{ modifierModalItem()?.producto?.nombre }}</p>
       <div class="modifier-modal-body">
         <div class="modifier-group" *ngFor="let group of modifierGroups()">
           <div class="modifier-group-header">
@@ -312,23 +306,25 @@
               <span class="modifier-badge multiple" *ngIf="group.tipo === 'multiple'">Puedes elegir varias</span>
               <span class="modifier-badge unico" *ngIf="group.tipo === 'unico'">Elige una opción</span>
             </div>
-            <button
+            <app-button
               *ngIf="hasDefaultOptions(group)"
-              type="button"
-              class="modifier-reset-defaults-btn"
-              (click)="restoreDefaultSelections(group)"
-            >
-              Restaurar predeterminadas
-            </button>
+              text="Restaurar predeterminadas"
+              color="light"
+              size="small"
+              (buttonClick)="restoreDefaultSelections(group)"
+            />
           </div>
 
           <div class="modifier-options-section" *ngIf="hasDefaultOptions(group)">
             <div class="modifier-section-header">
               <div class="modifier-section-label">Predeterminadas</div>
-              <div class="modifier-section-actions">
-                <button type="button" class="modifier-section-action-btn" (click)="selectAllOptions(group, getDefaultOptions(group), true)">Seleccionar todas</button>
-                <button type="button" class="modifier-section-action-btn" (click)="selectAllOptions(group, getDefaultOptions(group), false)">Deseleccionar</button>
-              </div>
+              <app-button
+                *ngIf="group.tipo === 'multiple'"
+                [text]="areAllOptionsSelected(group, getDefaultOptions(group)) ? 'Deseleccionar' : 'Seleccionar todas'"
+                color="light"
+                size="small"
+                (buttonClick)="toggleAllOptions(group, getDefaultOptions(group))"
+              />
             </div>
             <div class="modifier-options">
               <button
@@ -348,10 +344,13 @@
             <div class="modifier-section-divider" *ngIf="hasDefaultOptions(group)"></div>
             <div class="modifier-section-header">
               <div class="modifier-section-label">Otras opciones</div>
-              <div class="modifier-section-actions">
-                <button type="button" class="modifier-section-action-btn" (click)="selectAllOptions(group, getAdditionalOptions(group), true)">Seleccionar todas</button>
-                <button type="button" class="modifier-section-action-btn" (click)="selectAllOptions(group, getAdditionalOptions(group), false)">Deseleccionar</button>
-              </div>
+              <app-button
+                *ngIf="group.tipo === 'multiple'"
+                [text]="areAllOptionsSelected(group, getAdditionalOptions(group)) ? 'Deseleccionar' : 'Seleccionar todas'"
+                color="light"
+                size="small"
+                (buttonClick)="toggleAllOptions(group, getAdditionalOptions(group))"
+              />
             </div>
             <div class="modifier-options">
               <button
@@ -369,7 +368,7 @@
         </div>
       </div>
 
-      <div class="modifier-modal-actions">
+      <div modal-actions class="modifier-modal-actions">
         <div class="modifier-batch-controls" role="group" aria-label="Control de lote de modificadores" *ngIf="modifierRemainingUnits() > 1">
           <span class="modifier-batch-label">Lote</span>
           <div class="modifier-batch-stepper">
@@ -380,19 +379,18 @@
           <span class="modifier-batch-summary">Restantes: {{ modifierRemainingUnits() }}</span>
         </div>
         <div class="modifier-modal-actions-right">
-          <button type="button" class="btn btn-secondary" (click)="closeModifierModal()">Cancelar</button>
-          <button type="button" class="btn-continue-payment" (click)="saveModifierSelection()">{{ getModifierActionLabel() }}</button>
+          <app-button text="Cancelar" color="light" size="medium" [fullWidth]="true" (buttonClick)="closeModifierModal()" />
+          <app-button [text]="getModifierActionLabel()" color="primary" size="medium" [fullWidth]="true" (buttonClick)="saveModifierSelection()" />
         </div>
       </div>
-    </div>
-  </div>
+  </app-modal>
 
   <!-- Footer: Totals and Checkout Button -->
   <div class="cart-footer">
     <div class="totals-section">
       <div class="total-row">
         <span class="total-label">Descuento</span>
-        <span class="total-value">$0</span>
+        <span class="total-value">{{ formatPrice(0) }}</span>
       </div>
       <div class="total-row">
         <span class="total-label">Subtotal</span>
@@ -413,68 +411,70 @@
     </div>
 
     <div class="button-group">
-      <button
+      <app-button
         *ngIf="shouldShowPrimaryAction()"
-        type="button"
-        class="btn-continue-payment"
-        (click)="onPrimaryAction()"
+        [text]="getPrimaryActionLabel()"
+        color="primary"
+        size="medium"
+        [fullWidth]="true"
+        [loading]="isProcessing()"
         [disabled]="items().length === 0 || isProcessing()"
-      >
-        {{ isProcessing() ? 'Procesando...' : getPrimaryActionLabel() }}
-      </button>
+        (buttonClick)="onPrimaryAction()"
+      />
 
-      <button
+      <app-button
         *ngIf="shouldShowPayLater()"
-        type="button"
-        class="btn-pay-later"
-        (click)="onPayLater()"
+        text="Pagar después"
+        color="secondary"
+        size="medium"
+        [fullWidth]="true"
         [disabled]="items().length === 0 || isProcessing()"
-        title="Crear orden como adeudado (sin pago)"
-      >
-        Pagar Después
-      </button>
+        ariaLabel="Crear orden como adeudado sin pago"
+        (buttonClick)="onPayLater()"
+      />
 
-      <button
+      <app-button
         *ngIf="showExtraHistoryButton()"
-        type="button"
-        class="btn btn-secondary"
-        (click)="onViewHistory()"
+        text="Ver historial"
+        color="light"
+        size="medium"
+        [fullWidth]="true"
         [disabled]="isProcessing()"
-      >
-        Ver historial
-      </button>
+        (buttonClick)="onViewHistory()"
+      />
 
-      <button
+      <app-button
         *ngIf="shouldShowEditOrderButton()"
-        type="button"
-        class="btn-secondary"
-        (click)="onEditAction()"
+        [text]="getEditOrderButtonLabel()"
+        color="primary"
+        size="medium"
+        [fullWidth]="true"
+        [loading]="isProcessing()"
         [disabled]="isProcessing()"
-      >
-        {{ getEditOrderButtonLabel() }}
-      </button>
+        (buttonClick)="onEditAction()"
+      />
     </div>
 
-    <button
+    <app-button
       *ngIf="!isEditing()"
-      type="button"
-      class="btn-cancel-order"
-      (click)="onCancelOrder()"
+      text="Cancelar"
+      color="danger"
+      size="small"
+      [fullWidth]="true"
       [disabled]="isProcessing()"
-      title="Limpiar carrito y empezar de nuevo"
-    >
-      Cancelar
-    </button>
+      ariaLabel="Limpiar carrito y empezar de nuevo"
+      (buttonClick)="onCancelOrder()"
+    />
 
-    <button
+    <app-button
       *ngIf="isEditing() && hasChanges()"
-      type="button"
-      class="btn-undo-changes"
-      (click)="onUndoChanges()"
+      text="Deshacer cambios"
+      color="light"
+      size="small"
+      [fullWidth]="true"
       [disabled]="isProcessing()"
-      title="Deshacer todos los cambios realizados en esta orden"
-    >
-      ↶ Deshacer cambios
-    </button>
+      ariaLabel="Deshacer todos los cambios realizados en esta orden"
+      (buttonClick)="onUndoChanges()"
+    />
   </div>
 </div>

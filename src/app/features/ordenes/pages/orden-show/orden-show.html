@@ -24,12 +24,12 @@
           <article class="item">
             <div class="product">
               <strong>{{ productoNombre(detail) }}</strong>
-              @if (opciones(detail).length) { <ul>@for (option of opciones(detail); track option.id ?? $index) { <li>{{ opcionNombre(option) }} @if (+option.precio_extra > 0) { <small>+ Bs {{ option.precio_extra | number:'1.2-2' }}</small> }</li> }</ul> }
+              @if (opciones(detail).length) { <ul>@for (option of opciones(detail); track option.id ?? $index) { <li>{{ opcionNombre(option) }} @if (+option.precio_extra > 0) { <small>+{{ option.precio_extra | appCurrency }}</small> }</li> }</ul> }
               @if (detail.nota) { <p class="note"><span>Nota:</span> {{ detail.nota }}</p> }
             </div>
             <span class="quantity" data-label="Cantidad">{{ detail.cantidad }}</span>
-            <span data-label="Precio">Bs {{ precioDetalle(detail) | number:'1.2-2' }}</span>
-            <strong data-label="Total">Bs {{ totalDetalle(detail) | number:'1.2-2' }}</strong>
+            <span data-label="Precio">{{ precioDetalle(detail) | appCurrency }}</span>
+            <strong data-label="Total">{{ totalDetalle(detail) | appCurrency }}</strong>
           </article>
         } @empty { <div class="empty">El pedido no tiene productos registrados.</div> }
       </div>
@@ -38,15 +38,15 @@
     <div class="lower-grid">
       @if (pagos().length) {
         <section class="section payments"><h3>Pagos realizados</h3>
-          @for (payment of pagos(); track payment.id) { <div class="payment"><span><strong>{{ payment.metodo_pago | uppercase }}</strong><small>{{ payment.fecha_pago | date:'dd/MM/yyyy HH:mm' }}</small></span><strong>Bs {{ payment.monto_pagado | number:'1.2-2' }}</strong>@if (+payment.cambio_devuelto > 0) { <small>Cambio: Bs {{ payment.cambio_devuelto | number:'1.2-2' }}</small> }</div> }
+          @for (payment of pagos(); track payment.id) { <div class="payment"><span><strong>{{ payment.metodo_pago | uppercase }}</strong><small>{{ payment.fecha_pago | date:'dd/MM/yyyy HH:mm' }}</small></span><strong>{{ payment.monto_pagado | appCurrency }}</strong>@if (+payment.cambio_devuelto > 0) { <small>Cambio: {{ payment.cambio_devuelto | appCurrency }}</small> }</div> }
         </section>
       }
       <section class="section totals"><h3>Resumen</h3>
-        <div><span>Subtotal</span><strong>Bs {{ order.subtotal | number:'1.2-2' }}</strong></div>
-        @if (+order.descuento > 0) { <div><span>Descuento</span><strong>− Bs {{ order.descuento | number:'1.2-2' }}</strong></div> }
-        @if (+order.impuesto > 0) { <div><span>Otros cargos</span><strong>Bs {{ order.impuesto | number:'1.2-2' }}</strong></div> }
-        <div class="grand"><span>Total</span><strong>Bs {{ order.total | number:'1.2-2' }}</strong></div>
-        @if (pagos().length) { <div><span>Pagado</span><strong>Bs {{ totalPagado() | number:'1.2-2' }}</strong></div><div class="balance"><span>Saldo pendiente</span><strong>Bs {{ saldoPendiente() | number:'1.2-2' }}</strong></div> }
+        <div><span>Subtotal</span><strong>{{ order.subtotal | appCurrency }}</strong></div>
+        @if (+order.descuento > 0) { <div><span>Descuento</span><strong>− {{ order.descuento | appCurrency }}</strong></div> }
+        @if (+order.impuesto > 0) { <div><span>Otros cargos</span><strong>{{ order.impuesto | appCurrency }}</strong></div> }
+        <div class="grand"><span>Total</span><strong>{{ order.total | appCurrency }}</strong></div>
+        @if (pagos().length) { <div><span>Pagado</span><strong>{{ totalPagado() | appCurrency }}</strong></div><div class="balance"><span>Saldo pendiente</span><strong>{{ saldoPendiente() | appCurrency }}</strong></div> }
       </section>
     </div>
   </div>

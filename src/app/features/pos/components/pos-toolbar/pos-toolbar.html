@@ -11,7 +11,7 @@
     </button>
     <button type="button" class="toolbar-button caja" [class.open]="cajaAbierta()" (click)="onCajaAction()">
       <span>{{ cajaAbierta() ? 'Caja abierta' : 'Abrir caja' }}</span>
-      <small>{{ cajaAbierta() ? ('Bs ' + (cajaMontoEsperado() | number:'1.2-2') + ' · ' + cajaPagosEfectivo() + ' pagos') : 'Efectivo desactivado' }}</small>
+      <small>{{ cajaAbierta() ? ((cajaMontoEsperado() | appCurrency) + ' · ' + cajaPagosEfectivo() + ' pagos') : 'Efectivo desactivado' }}</small>
     </button>
     <button type="button" class="toolbar-button fullscreen" (click)="toggleFullscreen()" [attr.aria-pressed]="isFullscreen()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">

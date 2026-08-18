@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Producto } from '@app/core/models/producto';
 import { ProductoService } from '@app/features/productos/services/producto-service';
 import { ToastrService } from 'ngx-toastr';
+import { formatCurrency } from '@app/core/config/currency.config';
 
 @Component({
   selector: 'app-product-grid',
@@ -37,16 +38,8 @@ export class ProductGridComponent {
   }
 
   formatPrice(price: number): string {
-  // Aseguramos que el valor sea un número limpio
-  const cleanPrice = typeof price === 'string' ? parseFloat(price) : price;
-
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0, // Si es entero, no muestra decimales (ej: $ 5)
-    maximumFractionDigits: 2, // Si tiene decimales, muestra hasta dos (ej: $ 5,59)
-  }).format(cleanPrice);
-}
+    return formatCurrency(price);
+  }
 
   isProductAvailable(producto: Producto): boolean {
     return producto.activo && (!producto.maneja_stock || (producto.stock || 0) > 0);

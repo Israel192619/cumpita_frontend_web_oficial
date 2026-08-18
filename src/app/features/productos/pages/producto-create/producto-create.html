@@ -30,7 +30,7 @@
 
 
   <!-- Precio -->
-  <app-input-form label="Precio *" [control]="getControl('precio')" placeholder="0.00" type="number" step="0.01">
+  <app-input-form [label]="'Precio (' + currencySymbol + ') *'" [control]="getControl('precio')" placeholder="0.00" type="number" step="0.01">
   </app-input-form>
 
   <!-- Imagen -->
@@ -103,7 +103,7 @@
             <span class="checkmark-opcion"></span>
             <span class="opcion-nombre">{{ opcion.nombre }}</span>
             <span class="opcion-precio" *ngIf="opcion.precio_extra > 0">
-              +{{ opcion.precio_extra | currency }}
+              +{{ opcion.precio_extra | appCurrency }}
             </span>
           </label>
         </div>
