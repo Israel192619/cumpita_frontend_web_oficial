@@ -16,8 +16,9 @@
   <!-- Cliente quick-select -->
   <div class="client-area">
     <!-- show mesa label even when no cliente selected -->
-    <div *ngIf="!selectedCliente() && selectedMesa()" class="mesa-only" style="padding-bottom:0.5rem;">
+    <div *ngIf="!selectedCliente() && selectedMesa()" class="mesa-only">
       <span class="mesa-label">Mesa: {{ selectedMesa()?.numero }}</span>
+      <button type="button" class="mesa-remove" (click)="clearMesa()" [disabled]="isProcessing()">Quitar</button>
     </div>
 
     <div *ngIf="selectedCliente()" class="selected-cliente">
@@ -25,8 +26,9 @@
         <p>{{ selectedCliente()?.nombre }}</p>
         <small *ngIf="selectedCliente()?.telefono">{{ selectedCliente()?.telefono }}</small>
       </div>
-      <div style="display:flex;gap:0.5rem;align-items:center;">
+      <div class="client-actions">
         <span *ngIf="selectedMesa()" class="mesa-label">Mesa: {{ selectedMesa()?.numero }}</span>
+        <button *ngIf="selectedMesa()" type="button" class="mesa-remove" (click)="clearMesa()" [disabled]="isProcessing()">Quitar mesa</button>
         <button type="button" class="btn btn-secondary btn-small" (click)="removeCliente()">Cambiar</button>
       </div>
     </div>
@@ -484,4 +486,3 @@
     </button>
   </div>
 </div>
-    

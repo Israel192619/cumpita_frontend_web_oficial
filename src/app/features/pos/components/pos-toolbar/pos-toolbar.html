@@ -1,0 +1,29 @@
+<header class="pos-toolbar">
+  <div class="toolbar-brand">
+    <h1>POS</h1>
+    <p>{{ currentDate() | date:'EEEE, MMMM d, yyyy' }}</p>
+  </div>
+
+  <div class="toolbar-actions">
+    <button type="button" class="toolbar-button" (click)="backRequested.emit()">← Volver</button>
+    <button type="button" class="toolbar-button" (click)="pendingOrdersRequested.emit()" [disabled]="isLoading()">
+      Pendientes <span class="count" *ngIf="pendingOrdersCount() > 0">{{ pendingOrdersCount() }}</span>
+    </button>
+    <button type="button" class="toolbar-button caja" [class.open]="cajaAbierta()" (click)="onCajaAction()">
+      <span>{{ cajaAbierta() ? 'Caja abierta' : 'Abrir caja' }}</span>
+      <small>{{ cajaAbierta() ? ('Bs ' + (cajaMontoEsperado() | number:'1.2-2') + ' · ' + cajaPagosEfectivo() + ' pagos') : 'Efectivo desactivado' }}</small>
+    </button>
+    <button type="button" class="toolbar-button fullscreen" (click)="toggleFullscreen()" [attr.aria-pressed]="isFullscreen()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+        <path *ngIf="!isFullscreen()" d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>
+        <path *ngIf="isFullscreen()" d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/>
+      </svg>
+      {{ isFullscreen() ? 'Salir de pantalla completa' : 'Pantalla completa' }}
+    </button>
+  </div>
+
+  <label class="toolbar-search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="search" placeholder="Buscar productos" [(ngModel)]="searchText" (input)="onSearchInput($event)" [disabled]="isLoading()">
+  </label>
+</header>

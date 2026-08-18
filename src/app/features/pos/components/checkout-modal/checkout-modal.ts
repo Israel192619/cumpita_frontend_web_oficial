@@ -2,6 +2,8 @@ import { Component, input, output, signal, computed, OnChanges, SimpleChanges } 
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CartItem, PagoOrden } from '@app/features/pos/services/pos-service';
+import { Button } from '@app/shared/components/button/button';
+import { Modal } from '@app/shared/components/modal/modal';
 
 export type PaymentMethodType = 'efectivo' | 'qr';
 export type PaymentStatus = 'insufficient' | 'exact' | 'excess';
@@ -9,7 +11,7 @@ export type PaymentStatus = 'insufficient' | 'exact' | 'excess';
 @Component({
   selector: 'app-checkout-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, Modal, Button],
   templateUrl: './checkout-modal.html',
   styleUrl: './checkout-modal.css',
 })

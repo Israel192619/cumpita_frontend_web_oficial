@@ -14,6 +14,7 @@ import { ToastrService } from 'ngx-toastr';
 export class ProductGridComponent {
   productos = input<Producto[]>([]);
   isLoading = input<boolean>(false);
+  compact = input<boolean>(false);
 
   productAdded = output<Producto>();
   stockAdjusted = output<void>();

@@ -1,21 +1,4 @@
-<!-- Modal Backdrop -->
-<div *ngIf="isOpen()" class="checkout-modal-backdrop" (click)="onCancel()"></div>
-
-<!-- Modal -->
-<div *ngIf="isOpen()" class="checkout-modal">
-  <div class="checkout-modal-content" (click)="$event.stopPropagation()">
-    <div class="checkout-modal-header">
-      <div>
-        <p class="eyebrow" *ngIf="!isRefundMode()">Finalizar venta</p>
-        <p class="eyebrow" *ngIf="isRefundMode()">Devolución</p>
-        <h2 *ngIf="!isRefundMode()">Pago y cierre</h2>
-        <h2 *ngIf="isRefundMode()">Devolución</h2>
-      </div>
-      <button type="button" class="btn-close" (click)="onCancel()" [disabled]="isProcessing()">
-        ✕
-      </button>
-    </div>
-
+<app-modal [open]="isOpen()" [title]="isRefundMode() ? 'Devolución' : 'Pago y cierre'" size="large" [busy]="isProcessing()" (closed)="onCancel()">
     <div class="modal-body">
       <div class="section">
         <div class="section-title-row">
@@ -135,24 +118,8 @@
       </div>
     </div>
 
-    <div class="modal-footer">
-      <button
-        type="button"
-        class="btn btn-cancel"
-        (click)="onCancel()"
-        [disabled]="isProcessing()"
-      >
-        Cancelar
-      </button>
-      <button
-        type="button"
-        [ngClass]="getConfirmButtonClass()"
-        class="btn"
-        (click)="onConfirm()"
-        [disabled]="!selectedPaymentMethod() || isProcessing()"
-      >
-        {{ getConfirmButtonLabel() }}
-      </button>
+    <div modal-actions>
+      <app-button text="Cancelar" color="secondary" [disabled]="isProcessing()" (buttonClick)="onCancel()" />
+      <app-button [text]="getConfirmButtonLabel()" [color]="isRefundMode() ? 'danger' : 'primary'" [loading]="isProcessing()" [disabled]="!selectedPaymentMethod() || isProcessing()" (buttonClick)="onConfirm()" />
     </div>
-  </div>
-</div>
+</app-modal>

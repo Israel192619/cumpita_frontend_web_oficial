@@ -20,6 +20,7 @@ export class Button {
   @Input() disabled: boolean = false;
   @Input() link: string | null = null;
   @Input() type: ButtonType = 'button';
+  @Input() ariaLabel: string | null = null;
   @Output() buttonClick  = new EventEmitter<void>();
 
   onButtonClick(): void {

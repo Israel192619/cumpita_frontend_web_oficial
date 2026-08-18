@@ -194,3 +194,9 @@
 
 
 }
+
+@media (max-width: 640px) {
+  .button-group { grid-template-columns: 1fr; }
+  .button-group > *, .btn-cancel-order, .btn-undo-changes { min-height: 42px; }
+  .cart-footer { padding-bottom: max(0.55rem, env(safe-area-inset-bottom)); }
+}

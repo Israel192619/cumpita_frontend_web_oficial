@@ -1,15 +1,16 @@
-import { Component, signal, computed, effect, OnInit, OnDestroy } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { CartItem, CartItemModificador, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen } from '../../services';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
-import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, ProductGridComponent } from '../../components';
+import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, PosToolbarComponent, ProductGridComponent } from '../../components';
 import { CategoriaService } from '../../../categorias/services/categoria-service';
 import { ProductoService } from '../../../productos/services/producto-service';
 import { ToastrService } from 'ngx-toastr';
 import { Button } from '../../../../shared/components/button/button';
+import { Modal } from '../../../../shared/components/modal/modal';
 
 @Component({
   selector: 'app-pos-home',
@@ -20,12 +21,15 @@ import { Button } from '../../../../shared/components/button/button';
     ProductGridComponent,
     CartPanelComponent,
     CheckoutModalComponent,
+    PosToolbarComponent,
     Button,
+    Modal,
   ],
   templateUrl: './pos-home.html',
   styleUrls: ['./pos-home.css', './pos-home-modals.css'],
 })
 export class PosHome implements OnInit, OnDestroy {
+  private routeSubscription?: Subscription;
   categorias = signal<Categoria[]>([]);
   productos = signal<Producto[]>([]);
   carrito = signal<CartItem[]>([]);
@@ -95,6 +99,7 @@ export class PosHome implements OnInit, OnDestroy {
   pendingOrdersSearch = signal<string>('');
   isPendingOrdersModalOpen = signal<boolean>(false);
   isHistoryModalOpen = signal<boolean>(false);
+  isProductSelectorOpen = signal<boolean>(false);
 
   pendingOrdersCount = computed(() => this.pendingOrders().length);
   hasUnsavedChanges = computed(() => {
@@ -215,7 +220,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.cargarCajaActual();
     
     // Verificar si viene un ID de orden para editar
-    this.route.queryParams.subscribe(params => {
+    this.routeSubscription = this.route.queryParams.subscribe(params => {
       const orderId = params['orderId'];
       const isEdit = params['edit'] === 'true';
       
@@ -229,6 +234,7 @@ export class PosHome implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+    this.routeSubscription?.unsubscribe();
   }
 
   cargarCajaActual(): void {
@@ -357,7 +363,6 @@ export class PosHome implements OnInit, OnDestroy {
     const payload = this.posService.mapOrderToPayload(order);
 
     this.isProcessingCheckout.set(true);
-    console.log('1', payload);
     this.posService.actualizarOrden(orderId, payload).subscribe({
       next: () => {
         this.toastr.success('Orden actualizada correctamente');
@@ -841,7 +846,6 @@ export class PosHome implements OnInit, OnDestroy {
 
     if (this.isEditingOrder() && this.editingOrderId()) {
       const orderId = this.editingOrderId()!;
-      console.log('2', this.posService.mapOrderToPayload(order));
       this.posService.actualizarOrden(orderId, this.posService.mapOrderToPayload(order)).subscribe({
         next: () => {
           this.finalizarVenta();
@@ -862,8 +866,7 @@ export class PosHome implements OnInit, OnDestroy {
           this.isProcessingCheckout.set(false);
           this.mostrarExito('Orden adeudada creada exitosamente');
         },
-        error: (err) => {
-          console.log(err);
+        error: () => {
           this.error.set('Error al procesar la orden adeudada');
           this.isProcessingCheckout.set(false);
         },
@@ -1034,7 +1037,6 @@ export class PosHome implements OnInit, OnDestroy {
     if (this.isEditingOrder() && this.editingOrderId()) {
       const orderId = this.editingOrderId()!;
       // Primero actualizamos la orden
-      console.log('3', this.posService.mapOrderToPayload(order));
       this.posService.actualizarOrden(orderId, this.posService.mapOrderToPayload(order)).subscribe({
         next: () => {
           // Luego registramos el pago
@@ -1071,7 +1073,6 @@ export class PosHome implements OnInit, OnDestroy {
       //console.log('Creating order payload:', createPayload);
       this.posService.crearOrden(order).subscribe({
         next: (response: any) => {
-          console.log('crearOrden response:', response);
           // Backend may return the created order under different keys depending on endpoint/version.
           const createdOrderId = response?.orden?.id ?? response?.order?.id ?? response?.id ?? null;
           if (createdOrderId && montoRecibido > 0) {
@@ -1146,7 +1147,6 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   private finalizarVenta(): void {
-    console.log('Venta finalizada, limpiando estado...');
     this.carrito.set([]);
     this.originalCarrito.set([]);
     this.deletedItems.set([]);
@@ -1173,19 +1173,7 @@ export class PosHome implements OnInit, OnDestroy {
 
   onCancelEditMode(): void {
     const source = this.editingOrderSource();
-    this.isEditingOrder.set(false);
-    this.editingOrderId.set(null);
-    this.editingOrder.set(null);
-    this.editingOrderSource.set(null);
-    this.pendingOrderAction.set(null);
-    this.carrito.set([]);
-    this.originalCarrito.set([]);
-    this.deletedItems.set([]);
-    this.isRefundMode.set(false);
-    this.selectedCliente.set(null);
-    this.selectedMesa.set(null);
-    this.orderDate.set(null);
-    this.reservationDate.set(null);
+    this.resetOrderSelection();
     if (source === 'url') {
       this.router.navigate(['/app/pedidos']);
     }
@@ -1208,6 +1196,19 @@ export class PosHome implements OnInit, OnDestroy {
     this.productSearchQuery.set(query);
   }
 
+  openProductSelector(): void {
+    this.isProductSelectorOpen.set(true);
+  }
+
+  closeProductSelector(): void {
+    this.isProductSelectorOpen.set(false);
+  }
+
+  onMobileProductAdded(product: Producto): void {
+    this.onProductAdded(product);
+    this.closeProductSelector();
+  }
+
   onPendingOrdersRequested(): void {
     this.loadPendingOrders();
     this.isPendingOrdersModalOpen.set(true);
@@ -1218,62 +1219,42 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onExistingOrderSelected(orderId: number): void {
-    // Si hay una edición en progreso, cancelarla primero
-    if (this.isEditingOrder()) {
-      this.isEditingOrder.set(false);
-      this.editingOrderId.set(null);
-      this.carrito.set([]);
-      this.selectedCliente.set(null);
-      this.selectedMesa.set(null);
-      this.orderDate.set(null);
-      this.reservationDate.set(null);
-      this.deletedItems.set([]);
-      this.isRefundMode.set(false);
-    }
-    
-    this.editingOrderSource.set('internal');
-    this.pendingOrderAction.set('edit');
+    this.prepareOrderSelection('internal', 'edit');
     this.cargarOrdenExistente(orderId);
   }
 
   onEditPendingOrder(orderId: number): void {
-    // Si hay una edición en progreso, cancelarla primero
-    if (this.isEditingOrder()) {
-      this.isEditingOrder.set(false);
-      this.editingOrderId.set(null);
-      this.carrito.set([]);
-      this.selectedCliente.set(null);
-      this.selectedMesa.set(null);
-      this.orderDate.set(null);
-      this.reservationDate.set(null);
-      this.deletedItems.set([]);
-      this.isRefundMode.set(false);
-    }
-    
-    this.pendingOrderAction.set('edit');
-    this.editingOrderSource.set('pending');
+    this.prepareOrderSelection('pending', 'edit');
     this.closePendingOrdersModal();
     this.cargarOrdenExistente(orderId);
   }
 
   onPayPendingOrder(orderId: number): void {
-    // Si hay una edición en progreso, cancelarla primero
-    if (this.isEditingOrder()) {
-      this.isEditingOrder.set(false);
-      this.editingOrderId.set(null);
-      this.carrito.set([]);
-      this.selectedCliente.set(null);
-      this.selectedMesa.set(null);
-      this.orderDate.set(null);
-      this.reservationDate.set(null);
-      this.deletedItems.set([]);
-      this.isRefundMode.set(false);
-    }
-    
-    this.pendingOrderAction.set('pay');
-    this.editingOrderSource.set('pending');
+    this.prepareOrderSelection('pending', 'pay');
     this.closePendingOrdersModal();
     this.cargarOrdenExistente(orderId);
+  }
+
+  private prepareOrderSelection(source: 'pending' | 'internal', action: 'edit' | 'pay'): void {
+    if (this.isEditingOrder()) this.resetOrderSelection();
+    this.editingOrderSource.set(source);
+    this.pendingOrderAction.set(action);
+  }
+
+  private resetOrderSelection(): void {
+    this.isEditingOrder.set(false);
+    this.editingOrderId.set(null);
+    this.editingOrder.set(null);
+    this.editingOrderSource.set(null);
+    this.pendingOrderAction.set(null);
+    this.carrito.set([]);
+    this.originalCarrito.set([]);
+    this.selectedCliente.set(null);
+    this.selectedMesa.set(null);
+    this.orderDate.set(null);
+    this.reservationDate.set(null);
+    this.deletedItems.set([]);
+    this.isRefundMode.set(false);
   }
 
   loadPendingOrders(): void {

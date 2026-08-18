@@ -142,12 +142,26 @@
 /* ==================== HEADER SECTION ==================== */
 .pos-header-section {
   display: flex;
+  flex-direction: column;
   width: 100%;
   flex-shrink: 0;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
   overflow: hidden;
 }
+
+.mobile-product-tools { display: none; }
+.mobile-product-selector { display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; }
+.mobile-modal-search,
+.mobile-product-search { display: flex; min-width: 0; align-items: center; gap: 0.55rem; padding: 0.65rem 0.75rem; color: var(--color-text-muted); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 9px; }
+.mobile-modal-search { flex: 0 0 auto; margin-bottom: 0.65rem; }
+.mobile-modal-search svg,
+.mobile-product-search svg { width: 18px; flex: 0 0 18px; stroke-width: 2; }
+.mobile-modal-search input,
+.mobile-product-search input { width: 100%; min-width: 0; color: var(--color-text); background: transparent; border: 0; outline: 0; font: inherit; }
+.mobile-modal-search:focus-within,
+.mobile-product-search:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-focus); }
+.mobile-products-scroll { min-height: 0; flex: 1; overflow: hidden; }
 
 /* ==================== SECCIONES ==================== */
 .pos-section {
@@ -193,7 +207,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 700px) {
   .pos-layout {
     grid-template-columns: 1fr;
   }
@@ -214,9 +228,9 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 700px) {
   .pos-container {
-    height: auto;
+    height: 100dvh;
   }
 
   .pos-header-section {
@@ -224,6 +238,14 @@
   }
 
   .pos-layout {
-    gap: 0.5rem;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    gap: 0;
   }
+
+  .pos-left-column { display: none; }
+  .mobile-product-tools { display: grid; grid-template-columns:minmax(0,1fr) 42px; align-items:center; gap:0.55rem; padding:0.65rem; background:var(--color-surface); border-bottom:1px solid var(--color-border); }
+  .mobile-product-tools app-button { width: 42px; }
+  .pos-section.cart-section { min-height: 0; flex: 1; border-top: 0; }
 }

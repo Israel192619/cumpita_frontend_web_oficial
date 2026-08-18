@@ -3,6 +3,7 @@
   [ngClass]="buttonClasses"
   [type]="type"
   [disabled]="isDisabled"
+  [attr.aria-label]="ariaLabel"
   (click)="onButtonClick()"
   class="button-wrapper"
 >
@@ -20,6 +21,7 @@
   [ngClass]="buttonClasses"
   class="button-wrapper button-link"
   [class.disabled]="isDisabled"
+  [attr.aria-label]="ariaLabel"
 >
   <span class="button-loader" *ngIf="loading">
     <span class="loader"></span>

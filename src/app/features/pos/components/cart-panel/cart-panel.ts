@@ -662,6 +662,11 @@ export class CartPanelComponent {
     this.openMesasModal.set(false);
   }
 
+  clearMesa(): void {
+    this.selectedMesa.set(null);
+    this.mesaSelected.emit(null);
+  }
+
   openModifierModal(item: CartItem): void {
     this.modifierModalItem.set(item);
     this.draftModifiers.set((item.modificadores || []).map(mod => ({ ...mod })));

@@ -49,21 +49,24 @@
     <div class="pos-left-column">
       <!-- Header: Categorías + Búsqueda + Marca -->
       <div class="pos-header-section">
-        <app-category-bar
-          [categorias]="categorias()"
-          [selectedCategoryId]="selectedCategoryId()"
-          [selectedSubcategoryId]="selectedSubcategoryId()"
+        <app-pos-toolbar
           [isLoading]="isLoadingProductos()"
           [pendingOrdersCount]="pendingOrdersCount()"
           [cajaAbierta]="!!cajaActual()"
           [cajaMontoEsperado]="resumenCaja()?.monto_esperado || cajaActual()?.monto_apertura || 0"
           [cajaPagosEfectivo]="resumenCaja()?.cantidad_pagos_efectivo || 0"
-          (categorySelected)="onCategorySelected($event)"
-          (subcategorySelected)="onSubcategorySelected($event)"
           (searchChanged)="onProductSearchChanged($event)"
           (pendingOrdersRequested)="onPendingOrdersRequested()"
           (cajaActionRequested)="abrirModalCaja($event)"
           (backRequested)="onBackRequested()"
+        />
+        <app-category-bar
+          [categorias]="categorias()"
+          [selectedCategoryId]="selectedCategoryId()"
+          [selectedSubcategoryId]="selectedSubcategoryId()"
+          [isLoading]="isLoadingProductos()"
+          (categorySelected)="onCategorySelected($event)"
+          (subcategorySelected)="onSubcategorySelected($event)"
         />
       </div>
 
@@ -76,6 +79,14 @@
           (stockAdjusted)="onStockAdjusted()"
         />
       </div>
+    </div>
+
+    <div class="mobile-product-tools">
+      <label class="mobile-product-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+        <input type="search" placeholder="Buscar producto..." [value]="productSearchQuery()" (input)="onProductSearchChanged($any($event.target).value)">
+      </label>
+      <app-button text="+" size="small" ariaLabel="Agregar producto" (buttonClick)="openProductSelector()" />
     </div>
 
     <!-- Right Column: Carrito (ocupa toda la altura) -->
@@ -122,6 +133,26 @@
     </div>
   </div>
 
+  <app-modal [open]="isProductSelectorOpen()" title="Agregar producto" size="full" (closed)="closeProductSelector()">
+    <div class="mobile-product-selector">
+      <label class="mobile-modal-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+        <input type="search" placeholder="Buscar productos..." [value]="productSearchQuery()" (input)="onProductSearchChanged($any($event.target).value)" autofocus>
+      </label>
+      <app-category-bar
+        [categorias]="categorias()"
+        [selectedCategoryId]="selectedCategoryId()"
+        [selectedSubcategoryId]="selectedSubcategoryId()"
+        [isLoading]="isLoadingProductos()"
+        (categorySelected)="onCategorySelected($event)"
+        (subcategorySelected)="onSubcategorySelected($event)"
+      />
+      <div class="mobile-products-scroll">
+        <app-product-grid [productos]="visibleProductos()" [isLoading]="isLoadingProductos()" [compact]="true" (productAdded)="onMobileProductAdded($event)" (stockAdjusted)="onStockAdjusted()" />
+      </div>
+    </div>
+  </app-modal>
+
   <!-- Checkout Modal -->
   <app-checkout-modal
     [items]="carrito()"
@@ -140,15 +171,7 @@
     (checkoutCancelled)="onCheckoutCancelled()"
   />
 
-  <div *ngIf="isCajaModalOpen()" class="caja-modal-backdrop" (click)="cerrarModalCaja()">
-    <section class="caja-modal" (click)="$event.stopPropagation()">
-      <header>
-        <div>
-          <p>{{ cajaModalMode() === 'abrir' ? 'Inicio de jornada' : 'Arqueo de caja' }}</p>
-          <h2>{{ cajaModalMode() === 'abrir' ? 'Abrir caja' : 'Cerrar caja' }}</h2>
-        </div>
-        <button type="button" (click)="cerrarModalCaja()" [disabled]="isProcessingCaja()">×</button>
-      </header>
+  <app-modal [open]="isCajaModalOpen()" [title]="cajaModalMode() === 'abrir' ? 'Abrir caja' : 'Cerrar caja'" size="small" [busy]="isProcessingCaja()" (closed)="cerrarModalCaja()">
       <div class="caja-modal__body">
         <p *ngIf="cajaModalMode() === 'cerrar'" class="caja-modal__expected">
           Efectivo esperado: <strong>{{ formatearMonto(resumenCaja()?.monto_esperado || 0) }}</strong>
@@ -158,23 +181,15 @@
         <label>Observación <small>(opcional)</small></label>
         <textarea rows="3" [value]="observacionCaja()" (input)="observacionCaja.set($any($event.target).value)" placeholder="Ej.: cambio inicial o detalle del arqueo"></textarea>
       </div>
-      <footer>
+      <div modal-actions>
         <app-button text="Cancelar" color="secondary" [disabled]="isProcessingCaja()" (buttonClick)="cerrarModalCaja()" />
         <app-button [text]="cajaModalMode() === 'abrir' ? 'Abrir caja' : 'Confirmar cierre'" [loading]="isProcessingCaja()" (buttonClick)="confirmarCaja()" />
-      </footer>
-    </section>
-  </div>
+      </div>
+  </app-modal>
 
   <!-- Payment History Modal -->
-  <div *ngIf="isHistoryModalOpen()" class="payment-history-backdrop" (click)="closeHistoryModal()">
-    <div class="payment-history-modal" (click)="$event.stopPropagation()">
-      <div class="payment-history-header">
-        <div>
-          <h2>Historial de pagos</h2>
-          <p>Movimientos realizados para la orden en edición.</p>
-        </div>
-        <button type="button" class="payment-history-close" (click)="closeHistoryModal()">✕</button>
-      </div>
+  <app-modal [open]="isHistoryModalOpen()" title="Historial de pagos" size="large" (closed)="closeHistoryModal()">
+      <p class="modal-intro">Movimientos realizados para la orden en edición.</p>
       <div class="payment-history-body">
         <div *ngIf="(editingOrder()?.pagos?.length ?? 0) === 0" class="empty-state">
           <p class="empty-title">No hay movimientos registrados para esta orden.</p>
@@ -215,21 +230,13 @@
           </div>
         </div>
       </div>
-      <div class="payment-history-footer">
+      <div modal-actions>
         <app-button text="Cerrar" color="secondary" (buttonClick)="closeHistoryModal()" />
       </div>
-    </div>
-  </div>
+  </app-modal>
 
-  <div *ngIf="isPendingOrdersModalOpen()" class="pending-orders-backdrop" (click)="closePendingOrdersModal()">
-    <div class="pending-orders-modal" (click)="$event.stopPropagation()">
-      <div class="pending-orders-header">
-        <div>
-          <h2>Órdenes pendientes</h2>
-          <p>Selecciona una orden con saldo por pagar o en estado parcial.</p>
-        </div>
-        <button type="button" class="modal-close" (click)="closePendingOrdersModal()">✕</button>
-      </div>
+  <app-modal [open]="isPendingOrdersModalOpen()" title="Órdenes pendientes" size="large" (closed)="closePendingOrdersModal()">
+      <p class="modal-intro">Selecciona una orden con saldo por pagar o en estado parcial.</p>
 
       <div class="pending-orders-search">
         <input
@@ -267,7 +274,6 @@
           <p class="empty-title">No se encontraron órdenes pendientes o parciales.</p>
         </div>
       </div>
-    </div>
-  </div>
+  </app-modal>
 </div>
 

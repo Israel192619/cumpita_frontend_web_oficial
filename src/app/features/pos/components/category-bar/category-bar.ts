@@ -1,101 +1,24 @@
-import { Component, input, output, effect, computed, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { Categoria } from '@app/core/models/categoria';
 
-@Component({
-  selector: 'app-category-bar',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './category-bar.html',
-  styleUrl: './category-bar.css',
-})
-export class CategoryBarComponent implements OnInit {
+@Component({ selector: 'app-category-bar', standalone: true, imports: [CommonModule], templateUrl: './category-bar.html', styleUrl: './category-bar.css' })
+export class CategoryBarComponent {
   categorias = input<Categoria[]>([]);
   selectedCategoryId = input<number | null>(null);
   selectedSubcategoryId = input<number | null>(null);
-  isLoading = input<boolean>(false);
-  pendingOrdersCount = input<number>(0);
-  cajaAbierta = input<boolean>(false);
-  cajaMontoEsperado = input<number>(0);
-  cajaPagosEfectivo = input<number>(0);
-
+  isLoading = input(false);
   categorySelected = output<number | null>();
   subcategorySelected = output<number | null>();
-  searchChanged = output<string>();
-  backRequested = output<void>();
-  pendingOrdersRequested = output<void>();
-  cajaActionRequested = output<'abrir' | 'cerrar'>();
-
   expandedCategoryId = signal<number | null>(null);
-  searchQuery = signal<string>('');
-  searchText = '';
-  currentDate = signal<Date>(new Date());
-
-  // Categorías padre (sin parent_id)
-  parentCategorias = computed(() => {
-    return this.categorias().filter(cat => !cat.parent_id);
-  });
-
-  // Subcategorías visibles de la categoría expandida
-  visibleSubcategories = computed(() => {
-    if (!this.expandedCategoryId()) return [];
-    const parentCat = this.categorias().find(cat => cat.id === this.expandedCategoryId());
-    return parentCat?.children || [];
-  });
-
-  // Verificar si hay subcategorías visibles
-  hasVisibleSubcategories = computed(() => {
-    return this.visibleSubcategories().length > 0;
-  });
-
-  // Subcategorías de la categoría seleccionada
-  selectedCategorySubcategorias = computed(() => {
-    if (!this.selectedCategoryId()) return [];
-    return this.categorias().filter(cat => cat.parent_id === this.selectedCategoryId());
-  });
-
-  ngOnInit(): void {
-    // Actualizar fecha actual cada minuto
-    setInterval(() => {
-      this.currentDate.set(new Date());
-    }, 60000);
-  }
+  parentCategorias = computed(() => this.categorias().filter(category => !category.parent_id));
+  visibleSubcategories = computed(() => this.categorias().find(item => item.id === this.expandedCategoryId())?.children || []);
 
   onSelectCategory(categoryId: number | null): void {
     this.categorySelected.emit(categoryId);
-    this.subcategorySelected.emit(null); // Resetear subcategoría
-    
-    // Alternar expansión de subcategorías
-    if (categoryId === this.expandedCategoryId()) {
-      this.expandedCategoryId.set(null);
-    } else {
-      this.expandedCategoryId.set(categoryId);
-    }
+    this.subcategorySelected.emit(null);
+    this.expandedCategoryId.set(categoryId === this.expandedCategoryId() ? null : categoryId);
   }
 
-  onSelectSubcategory(subcategoryId: number): void {
-    this.subcategorySelected.emit(subcategoryId);
-  }
-
-  onSearchInput(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.searchText = value;
-    this.searchQuery.set(value);
-    this.searchChanged.emit(value);
-  }
-
-  onGoBack(): void {
-    this.backRequested.emit();
-  }
-
-  onRequestPendingOrders(): void {
-    this.pendingOrdersRequested.emit();
-  }
-
-  onCajaAction(): void {
-    this.cajaActionRequested.emit(this.cajaAbierta() ? 'cerrar' : 'abrir');
-  }
-
-  trackByCategory = (index: number, cat: Categoria) => cat.id;
+  trackByCategory = (_: number, category: Categoria): number => category.id;
 }
