@@ -68,6 +68,7 @@ export interface Order {
   pagos?: PagoOrden[];
   saldo_pendiente?: number;
   created_at?: string;
+  ultimo_cambio_mesero_en?: string | null;
 }
 
 export interface OrderPayload {

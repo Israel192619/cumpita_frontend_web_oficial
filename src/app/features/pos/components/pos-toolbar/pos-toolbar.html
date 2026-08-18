@@ -1,18 +1,18 @@
 <header class="pos-toolbar">
   <div class="toolbar-brand">
-    <h1>POS</h1>
+    <h1>{{ mode() === 'preorden' ? 'Nueva preorden' : 'POS' }}</h1>
     <p>{{ currentDate() | date:'EEEE, MMMM d, yyyy' }}</p>
   </div>
 
   <div class="toolbar-actions">
     <button type="button" class="toolbar-button" (click)="backRequested.emit()">← Volver</button>
-    <button type="button" class="toolbar-button" (click)="pendingOrdersRequested.emit()" [disabled]="isLoading()">
+    <button *ngIf="mode() === 'pos'" type="button" class="toolbar-button" (click)="pendingOrdersRequested.emit()" [disabled]="isLoading()">
       Pendientes <span class="count" *ngIf="pendingOrdersCount() > 0">{{ pendingOrdersCount() }}</span>
     </button>
-    <button type="button" class="toolbar-button" (click)="preordersRequested.emit()" [disabled]="isLoading()">
+    <button *ngIf="mode() === 'pos'" type="button" class="toolbar-button" (click)="preordersRequested.emit()" [disabled]="isLoading()">
       Preórdenes <span class="count" *ngIf="preordersCount() > 0">{{ preordersCount() }}</span>
     </button>
-    <button type="button" class="toolbar-button caja" [class.open]="cajaAbierta()" (click)="onCajaAction()">
+    <button *ngIf="mode() === 'pos'" type="button" class="toolbar-button caja" [class.open]="cajaAbierta()" (click)="onCajaAction()">
       <span>{{ cajaAbierta() ? 'Caja abierta' : 'Abrir caja' }}</span>
       <small>{{ cajaAbierta() ? ((cajaMontoEsperado() | appCurrency) + ' · ' + cajaPagosEfectivo() + ' pagos') : 'Efectivo desactivado' }}</small>
     </button>
@@ -27,6 +27,6 @@
 
   <label class="toolbar-search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="search" placeholder="Buscar productos" [(ngModel)]="searchText" (input)="onSearchInput($event)" [disabled]="isLoading()">
+    <input type="search" placeholder="Buscar productos" [value]="searchValue()" (input)="onSearchInput($event)" [disabled]="isLoading()">
   </label>
 </header>

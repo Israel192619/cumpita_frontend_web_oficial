@@ -50,6 +50,8 @@
       <!-- Header: Categorías + Búsqueda + Marca -->
       <div class="pos-header-section">
         <app-pos-toolbar
+          [mode]="operationMode"
+          [searchValue]="productSearchQuery()"
           [isLoading]="isLoadingProductos()"
           [pendingOrdersCount]="pendingOrdersCount()"
           [preordersCount]="preordersCount()"
@@ -62,6 +64,15 @@
           (cajaActionRequested)="abrirModalCaja($event)"
           (backRequested)="onBackRequested()"
         />
+        <div *ngIf="productSearchQuery().trim() && globalSearchResults().length > 1" class="global-product-results">
+          <button *ngFor="let producto of globalSearchResults()" type="button"
+            [disabled]="!producto.activo || (producto.maneja_stock && (producto.stock || 0) <= 0)"
+            (click)="selectGlobalProduct(producto)">
+            <span><strong>{{ producto.nombre }}</strong><small *ngIf="producto.descripcion">{{ producto.descripcion }}</small></span>
+            <b *ngIf="producto.maneja_stock && (producto.stock || 0) <= 0" class="out-of-stock">Sin stock</b>
+            <b *ngIf="!producto.maneja_stock || (producto.stock || 0) > 0">Agregar</b>
+          </button>
+        </div>
         <app-category-bar
           [categorias]="categorias()"
           [selectedCategoryId]="selectedCategoryId()"
@@ -94,6 +105,7 @@
     <!-- Right Column: Carrito (ocupa toda la altura) -->
     <div class="pos-section cart-section">
       <app-cart-panel
+        [operationMode]="operationMode"
         [items]="carrito()"
         [subtotal]="subtotal()"
         [total]="total()"
@@ -253,6 +265,7 @@
           <div class="pending-order-main">
             <div>
               <strong>Orden #{{ orden.numero_orden || orden.id }}</strong>
+              <span *ngIf="orden.ultimo_cambio_mesero_en" class="waiter-change-badge">CAMBIO EN ORDEN</span>
               <p class="pending-order-meta">
                 {{ orden.cliente_nombre || 'Cliente desconocido' }}
                 <span *ngIf="orden.mesa && orden.mesa.numero">· Mesa {{ orden.mesa.numero }}</span>

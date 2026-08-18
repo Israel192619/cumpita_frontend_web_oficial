@@ -38,7 +38,7 @@
         <span *ngIf="!isProductAvailable(prod)" class="product-unavailable">
           Falta stock
         </span>
-        <div *ngIf="isOutOfStock(prod)" class="restock-controls">
+        <div *ngIf="isOutOfStock(prod) && allowStockAdjustment()" class="restock-controls">
           <input
             type="number"
             class="restock-input"
@@ -56,7 +56,7 @@
           </button>
         </div>
         <div class="product-footer">
-          <span class="product-price">{{ formatPrice(prod.precio) }}</span>
+          <span *ngIf="showPrices()" class="product-price">{{ formatPrice(prod.precio) }}</span>
         </div>
       </div>
     </div>

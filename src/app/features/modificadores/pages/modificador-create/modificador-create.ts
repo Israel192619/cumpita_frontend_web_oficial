@@ -34,7 +34,7 @@ export class ModificadorCreate {
     this.form = this.fb.group({
       nombre: ['', Validators.required],
       tipo: ['unico', Validators.required],
-      requerido: [true, Validators.required],
+      requerido: [false],
       activo: [true, Validators.required],
       estacion_id: [null],
       opciones: this.fb.array([])
@@ -101,7 +101,7 @@ export class ModificadorCreate {
     this.error.set(null);
     this.loading.set(true);
 
-    const data: CreateModificador = this.form.value;
+    const data: CreateModificador = { ...this.form.value, requerido: false };
 
     this.modificadorService.crearModificador(data).subscribe({
       next: () => {
@@ -138,7 +138,7 @@ export class ModificadorCreate {
     this.form.reset({
       nombre: '',
       tipo: 'unico',
-      requerido: true,
+      requerido: false,
       activo: true,
       estacion_id: null,
     });

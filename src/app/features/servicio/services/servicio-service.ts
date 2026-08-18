@@ -4,9 +4,11 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 
 export interface ServicioDetalle { id: number; cantidad: number; producto: string; nota?: string | null; opciones: string[]; listo: boolean; }
-export interface ServicioFicha { id: number; numero_orden: number; mesa?: string | null; cliente?: string | null; mesero?: string | null; tipo_orden: 'dine-in' | 'to-go' | 'delivery'; hora: string; tiempo_espera_minutos: number; detalles: ServicioDetalle[]; listos: number; total_items: number; todo_listo: boolean; created_at: string; }
+export interface ServicioFicha { id: number; numero_orden: number; mesa?: string | null; cliente?: string | null; mesero?: string | null; tipo_orden: 'dine-in' | 'to-go' | 'delivery'; hora: string; tiempo_espera_minutos: number; detalles: ServicioDetalle[]; listos: number; total_items: number; todo_listo: boolean; created_at: string; fecha_programada?: string | null; estado_preorden?: string | null; bloqueada?: boolean; }
 export interface ServicioSesion { session_id: string; token?: string; expires_at: number; user: { id: number; name: string }; principal?: boolean; }
-export interface ServicioTablero { disponibles: ServicioFicha[]; mis_fichas: ServicioFicha[]; }
+export interface ServicioTablero { disponibles: ServicioFicha[]; mis_fichas: ServicioFicha[]; preordenes_programadas?: ServicioFicha[]; }
+export interface OrdenServicioResumen { id: number; numero_orden: number; mesa?: string | null; cliente?: string | null; tipo_orden: string; estado: string; puede_agregar: boolean; }
+export interface OrdenServicioDetalle extends OrdenServicioResumen { subtotal: number; total: number; saldo_pendiente: number; detalles: ServicioDetalle[]; }
 
 @Injectable({ providedIn: 'root' })
 export class ServicioService {
@@ -23,6 +25,11 @@ export class ServicioService {
   confirmar(detalleId: number, token?: string) { return this.http.patch(`${this.api}/detalles/${detalleId}/confirmar`, {}, this.opciones(token)); }
   entregar(id: number, token?: string) { return this.http.post(`${this.api}/fichas/${id}/entregar`, {}, this.opciones(token)); }
   cerrarSesion(token?: string, liberarFichas = false) { return this.http.post(`${this.api}/sesion/cerrar`, { liberar_fichas: liberarFichas }, this.opciones(token)); }
+  buscarOrdenes(q: string, token?: string) { return this.http.get<{ ordenes: OrdenServicioResumen[] }>(`${this.api}/ordenes/buscar`, { ...this.opciones(token), params: { q } }); }
+  obtenerOrden(id: number, token?: string) { return this.http.get<{ orden: OrdenServicioDetalle }>(`${this.api}/ordenes/${id}`, this.opciones(token)); }
+  agregarAdicional(id: number, data: { producto_id: number; cantidad: number; nota?: string | null; modificador_opcion_ids: number[] }, token?: string) {
+    return this.http.post<{ message: string; orden: OrdenServicioDetalle }>(`${this.api}/ordenes/${id}/adicionales`, data, this.opciones(token));
+  }
 
   sesionesGuardadas(): ServicioSesion[] {
     const ahora = Date.now();

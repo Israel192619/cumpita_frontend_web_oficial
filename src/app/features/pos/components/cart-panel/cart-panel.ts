@@ -38,6 +38,7 @@ export class CartPanelComponent {
   orders = input<Order[]>([]);
   deletedItems = input<CartItem[]>([]);
   hasChanges = input<boolean>(false);
+  operationMode = input<'pos' | 'preorden'>('pos');
 
   quantityChanged = output<{ itemId: number; cantidad: number }>();
   itemRemoved = output<number>();
@@ -332,6 +333,7 @@ export class CartPanelComponent {
   }
 
   getPrimaryActionLabel(): string {
+    if (this.operationMode() === 'preorden') return 'Guardar preorden';
     if (!this.isEditing()) {
       return 'Cobrar';
     }
@@ -370,7 +372,7 @@ export class CartPanelComponent {
   }
 
   shouldShowPayLater(): boolean {
-    return !this.isEditing();
+    return this.operationMode() === 'pos' && !this.isEditing();
   }
 
   showExtraHistoryButton(): boolean {

@@ -16,6 +16,8 @@ export class ProductGridComponent {
   productos = input<Producto[]>([]);
   isLoading = input<boolean>(false);
   compact = input<boolean>(false);
+  allowStockAdjustment = input<boolean>(true);
+  showPrices = input<boolean>(true);
 
   productAdded = output<Producto>();
   stockAdjusted = output<void>();

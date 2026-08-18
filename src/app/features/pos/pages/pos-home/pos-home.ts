@@ -13,6 +13,7 @@ import { Button } from '../../../../shared/components/button/button';
 import { Modal } from '../../../../shared/components/modal/modal';
 import { formatCurrency } from '@app/core/config/currency.config';
 import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
+import { ReverbService } from '../../../../core/services/reverb-service';
 
 @Component({
   selector: 'app-pos-home',
@@ -31,12 +32,19 @@ import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-servic
   styleUrls: ['./pos-home.css', './pos-home-modals.css'],
 })
 export class PosHome implements OnInit, OnDestroy {
+  readonly operationMode: 'pos' | 'preorden';
   private routeSubscription?: Subscription;
+  private orderUpdatesSubscription?: Subscription;
   categorias = signal<Categoria[]>([]);
   productos = signal<Producto[]>([]);
+  allProductos = signal<Producto[]>([]);
   carrito = signal<CartItem[]>([]);
   baseStockByProductId = signal<Record<number, number>>({});
   productSearchQuery = signal<string>('');
+  isLoadingGlobalProducts = signal(false);
+  private globalProductsLoaded = false;
+  private globalProductLoadCallbacks: Array<() => void> = [];
+  private productSearchTimer?: ReturnType<typeof setTimeout>;
   isLoadingCategorias = signal<boolean>(true);
   isLoadingProductos = signal<boolean>(false);
   isCheckoutModalOpen = signal<boolean>(false);
@@ -179,7 +187,7 @@ export class PosHome implements OnInit, OnDestroy {
 
   visibleProductos = computed(() => {
     const query = this.productSearchQuery().trim().toLowerCase();
-    const productos = this.productos();
+    const productos = query ? this.allProductos() : this.productos();
 
     if (!query) {
       return productos;
@@ -190,6 +198,7 @@ export class PosHome implements OnInit, OnDestroy {
       return haystack.includes(query);
     });
   });
+  globalSearchResults = computed(() => this.productSearchQuery().trim() ? this.visibleProductos() : []);
 
   cartItemCount = computed(() => {
     return this.carrito().reduce((sum, item) => sum + item.cantidad, 0);
@@ -206,8 +215,11 @@ export class PosHome implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private route: ActivatedRoute,
     private router: Router,
-    private confirmDialog: ConfirmDialogService
-  ) {}
+    private confirmDialog: ConfirmDialogService,
+    private reverb: ReverbService
+  ) {
+    this.operationMode = this.route.snapshot.data['mode'] === 'preorden' ? 'preorden' : 'pos';
+  }
 
   private beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     if (this.hasUnsavedChanges()) {
@@ -222,10 +234,19 @@ export class PosHome implements OnInit, OnDestroy {
     window.addEventListener('beforeunload', this.beforeUnloadHandler);
     this.cargarCategorias();
     this.cargarProductos();
-    this.loadOrders();
-    this.loadPendingOrders();
-    this.loadPreorders();
-    this.cargarCajaActual();
+    this.cargarCatalogoGlobal();
+    if (this.operationMode === 'preorden') {
+      this.preorderDate.set(this.defaultPreorderDate());
+    } else {
+      this.loadOrders();
+      this.loadPendingOrders();
+      this.loadPreorders();
+      this.cargarCajaActual();
+      this.orderUpdatesSubscription = this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe(() => {
+        this.loadOrders();
+        this.loadPendingOrders(false);
+      });
+    }
     
     // Verificar si viene un ID de orden para editar
     this.routeSubscription = this.route.queryParams.subscribe(params => {
@@ -243,6 +264,8 @@ export class PosHome implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     window.removeEventListener('beforeunload', this.beforeUnloadHandler);
     this.routeSubscription?.unsubscribe();
+    this.orderUpdatesSubscription?.unsubscribe();
+    if (this.productSearchTimer) clearTimeout(this.productSearchTimer);
   }
 
   cargarCajaActual(): void {
@@ -333,7 +356,7 @@ export class PosHome implements OnInit, OnDestroy {
         return;
       }
     }
-    this.router.navigate(['/app/pedidos']);
+    this.router.navigate([this.operationMode === 'preorden' ? '/app/servicio' : '/app/pedidos']);
   }
 
   onSaveOrderEditsRequested(): void {
@@ -476,6 +499,7 @@ export class PosHome implements OnInit, OnDestroy {
       this.deletedItems.set([]);
       this.isRefundMode.set(false);
       this.productos.set(this.syncProductosConCarrito(this.productos()));
+      this.allProductos.set(this.syncProductosConCarrito(this.allProductos(), this.baseStockByProductId()));
       if (this.pendingOrderAction() === 'pay') {
         this.isCheckoutModalOpen.set(true);
       }
@@ -512,8 +536,9 @@ export class PosHome implements OnInit, OnDestroy {
           return acc;
         }, {});
 
-        this.baseStockByProductId.set(baseStocks);
-        this.productos.set(this.syncProductosConCarrito(productos, baseStocks));
+        const mergedStocks = { ...this.baseStockByProductId(), ...baseStocks };
+        this.baseStockByProductId.set(mergedStocks);
+        this.productos.set(this.syncProductosConCarrito(productos, mergedStocks));
         this.isLoadingProductos.set(false);
         this.error.set(null);
       },
@@ -822,6 +847,10 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onCheckoutRequested(): void {
+    if (this.operationMode === 'preorden') {
+      this.saveProgrammedPreorder();
+      return;
+    }
     if (!this.selectedCliente()) {
       this.error.set('Selecciona un cliente para continuar con la venta.');
       this.toastr.error('Selecciona un cliente para continuar con la venta.');
@@ -894,7 +923,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
-    this.preorderDate.set(null);
+    this.preorderDate.set(this.operationMode === 'preorden' ? this.defaultPreorderDate() : null);
     this.editingOrder.set(null);
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
@@ -1174,10 +1203,66 @@ export class PosHome implements OnInit, OnDestroy {
     this.editingOrderSource.set(null);
     this.pendingOrderAction.set(null);
     this.cargarProductos();
+    this.cargarCatalogoGlobal(true);
     this.loadOrders();
     this.loadPendingOrders();
     this.loadPreorders();
     this.cargarCajaActual();
+  }
+
+  private saveProgrammedPreorder(): void {
+    if (!this.selectedCliente()) {
+      this.toastr.error('Selecciona un cliente para guardar la preorden.');
+      return;
+    }
+    if (!this.preorderDate()) {
+      this.toastr.error('Selecciona la fecha y hora programadas.');
+      return;
+    }
+    if (this.carrito().length === 0) {
+      this.toastr.error('Agrega al menos un producto.');
+      return;
+    }
+
+    const order: Order = {
+      id: 0,
+      items: this.carrito(),
+      subtotal: this.subtotal(),
+      total: this.total(),
+      metodo_pago: 'efectivo',
+      estado: 'adeudado',
+      cliente_id: this.selectedCliente()!.id,
+      cliente_nombre: this.selectedCliente()!.nombre,
+      cliente_telefono: this.selectedCliente()!.telefono,
+      tipo_orden: this.orderType(),
+      mesa_id: this.selectedMesa()?.id,
+      fecha_orden: this.orderDate() ?? null,
+      fecha_programada: this.preorderDate(),
+      tipo_flujo: 'preorden',
+    };
+
+    this.isProcessingCheckout.set(true);
+    this.posService.crearOrden(order).subscribe({
+      next: () => {
+        this.isProcessingCheckout.set(false);
+        this.carrito.set([]);
+        this.selectedCliente.set(null);
+        this.selectedMesa.set(null);
+        this.preorderDate.set(this.defaultPreorderDate());
+        this.toastr.success('Preorden programada correctamente.');
+        this.router.navigate(['/app/servicio']);
+      },
+      error: error => {
+        this.isProcessingCheckout.set(false);
+        this.toastr.error(error?.error?.message || 'No se pudo guardar la preorden.');
+      },
+    });
+  }
+
+  private defaultPreorderDate(): string {
+    const date = new Date(Date.now() + 15 * 60 * 1000);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
   }
 
   private mostrarExito(mensaje: string): void {
@@ -1207,6 +1292,19 @@ export class PosHome implements OnInit, OnDestroy {
 
   onProductSearchChanged(query: string): void {
     this.productSearchQuery.set(query);
+    if (this.productSearchTimer) clearTimeout(this.productSearchTimer);
+    if (!query.trim()) return;
+    if (!this.globalProductsLoaded) {
+      this.cargarCatalogoGlobal(false, () => this.programarAutoSeleccion(query));
+      return;
+    }
+    this.programarAutoSeleccion(query);
+  }
+
+  selectGlobalProduct(producto: Producto): void {
+    if (!producto.activo || (producto.maneja_stock && (producto.stock ?? 0) <= 0)) return;
+    this.onProductAdded(producto);
+    this.productSearchQuery.set('');
   }
 
   openProductSelector(): void {
@@ -1299,17 +1397,17 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
-    this.preorderDate.set(null);
+    this.preorderDate.set(this.operationMode === 'preorden' ? this.defaultPreorderDate() : null);
     this.deletedItems.set([]);
     this.isRefundMode.set(false);
   }
 
-  loadPendingOrders(): void {
+  loadPendingOrders(resetSearch = true): void {
     this.posService.obtenerOrdenes().subscribe({
       next: (ordenes) => {
         const pendientes = ordenes.filter((orden) => this.isPendingOrder(orden));
         this.pendingOrders.set(pendientes);
-        this.pendingOrdersSearch.set('');
+        if (resetSearch) this.pendingOrdersSearch.set('');
       },
       error: () => {
         this.pendingOrders.set([]);
@@ -1357,16 +1455,44 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   private updateProductStock(productId: number, delta: number): void {
-    const productos = [...this.productos()];
-    const producto = productos.find((item) => item.id === productId);
+    const actualizar = (productos: Producto[]) => productos.map(producto => producto.id === productId && producto.maneja_stock
+      ? { ...producto, stock: Math.max(0, (producto.stock ?? 0) + delta) }
+      : producto);
+    this.productos.set(actualizar(this.productos()));
+    this.allProductos.set(actualizar(this.allProductos()));
+  }
 
-    if (!producto?.maneja_stock) {
-      return;
-    }
+  private cargarCatalogoGlobal(force = false, onLoaded?: () => void): void {
+    if (this.globalProductsLoaded && !force) { onLoaded?.(); return; }
+    if (onLoaded) this.globalProductLoadCallbacks.push(onLoaded);
+    if (this.isLoadingGlobalProducts()) return;
+    this.isLoadingGlobalProducts.set(true);
+    this.productoService.listarProductos().subscribe({
+      next: productos => {
+        const stocks = productos.reduce<Record<number, number>>((acc, producto) => {
+          acc[producto.id] = producto.maneja_stock ? Math.max(0, producto.stock ?? 0) : Number.MAX_SAFE_INTEGER;
+          return acc;
+        }, {});
+        const mergedStocks = { ...this.baseStockByProductId(), ...stocks };
+        this.baseStockByProductId.set(mergedStocks);
+        this.allProductos.set(this.syncProductosConCarrito(productos, mergedStocks));
+        this.globalProductsLoaded = true;
+        this.isLoadingGlobalProducts.set(false);
+        this.globalProductLoadCallbacks.splice(0).forEach(callback => callback());
+      },
+      error: () => {
+        this.isLoadingGlobalProducts.set(false);
+        this.globalProductLoadCallbacks = [];
+      },
+    });
+  }
 
-      const currentStock = producto.stock ?? 0;
-    producto.stock = Math.max(0, currentStock + delta);
-    this.productos.set(productos);
+  private programarAutoSeleccion(query: string): void {
+    this.productSearchTimer = setTimeout(() => {
+      if (this.productSearchQuery().trim().toLowerCase() !== query.trim().toLowerCase()) return;
+      const resultados = this.globalSearchResults();
+      if (resultados.length === 1) this.selectGlobalProduct(resultados[0]);
+    }, 350);
   }
 
   private syncProductosConCarrito(productosBase: Producto[], baseStocks?: Record<number, number>): Producto[] {

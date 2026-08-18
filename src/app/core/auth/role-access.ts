@@ -1,6 +1,6 @@
 import { User } from '../models';
 
-export type AppAccess = 'admin' | 'pos' | 'caja' | 'kds' | 'servicio';
+export type AppAccess = 'admin' | 'pos' | 'caja' | 'kds' | 'servicio' | 'preorden';
 
 export const normalizeAccessName = (value?: string | null): string =>
   (value ?? '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
@@ -14,6 +14,7 @@ export const userCanAccess = (user: User, access: AppAccess): boolean => {
   if (access === 'pos' || access === 'caja') return ['cajero', 'caja'].includes(role);
   if (access === 'kds') return ['cocinero', 'cocina', 'parrilla'].includes(role);
   if (access === 'servicio') return ['mesero', 'despacho'].includes(role);
+  if (access === 'preorden') return ['mesero', 'cajero', 'caja'].includes(role);
   return false;
 };
 

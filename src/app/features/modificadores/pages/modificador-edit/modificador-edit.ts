@@ -36,7 +36,7 @@ export class ModificadorEdit {
     this.form = this.fb.group({
       nombre: ['', Validators.required],
       tipo: ['unico', Validators.required],
-      requerido: [true, Validators.required],
+      requerido: [false],
       activo: [true, Validators.required],
       estacion_id: [null],
       opciones: this.fb.array([])
@@ -62,7 +62,7 @@ export class ModificadorEdit {
         this.form.patchValue({
           nombre: modificador.nombre,
           tipo: modificador.tipo,
-          requerido: modificador.requerido,
+          requerido: false,
           activo: modificador.activo,
           estacion_id: modificador.estacion_id ?? null,
         });

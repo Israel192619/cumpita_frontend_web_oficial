@@ -1,21 +1,24 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../../core/services/auth-service';
 import { ReverbService } from '../../../../core/services/reverb-service';
-import { ServicioFicha, ServicioService, ServicioSesion } from '../../services/servicio-service';
+import { OrdenServicioDetalle, OrdenServicioResumen, ServicioFicha, ServicioService, ServicioSesion } from '../../services/servicio-service';
 import { Button } from '../../../../shared/components/button/button';
 import { InputForm } from '../../../../shared/components/input-form/input-form';
 import { Modal } from '../../../../shared/components/modal/modal';
+import { ProductoService } from '../../../productos/services/producto-service';
+import { Producto, ModificadorEstructurado, ModificadorOpcion } from '../../../../core/models/producto';
+import { ProductGridComponent } from '../../../pos/components/product-grid/product-grid';
 
 interface Mesero { id: number; name: string; }
 
 @Component({
   selector: 'app-servicio-home',
-  imports: [CommonModule, ReactiveFormsModule, Button, InputForm, Modal],
+  imports: [CommonModule, ReactiveFormsModule, Button, InputForm, Modal, ProductGridComponent],
   templateUrl: './servicio-home.html',
   styleUrls: ['./servicio-home.css', './servicio-theme.css']
 })
@@ -24,6 +27,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   sesionSeleccionada = signal<ServicioSesion | null>(null);
   disponibles = signal<ServicioFicha[]>([]);
   misFichas = signal<ServicioFicha[]>([]);
+  preordenesProgramadas = signal<ServicioFicha[]>([]);
   meseros = signal<Mesero[]>([]);
   meseroSeleccionado = signal<Mesero | null>(null);
   mostrarIngreso = signal(false);
@@ -34,6 +38,21 @@ export class ServicioHome implements OnInit, OnDestroy {
   permiteSesionesPin = signal(false);
   esAccesoPrincipal = signal(false);
   fichaALiberar = signal<ServicioFicha | null>(null);
+  buscarOrdenAbierto = signal(false);
+  consultaOrden = signal('');
+  resultadosOrden = signal<OrdenServicioResumen[]>([]);
+  ordenSeleccionada = signal<OrdenServicioDetalle | null>(null);
+  productos = signal<Producto[]>([]);
+  selectorProductoAbierto = signal(false);
+  productoSeleccionado = signal<Producto | null>(null);
+  busquedaProducto = signal('');
+  cantidadAdicional = signal(1);
+  opcionesSeleccionadas = signal<number[]>([]);
+  notaAdicional = signal('');
+  productosFiltrados = computed(() => {
+    const q = this.busquedaProducto().trim().toLowerCase();
+    return this.productos().filter(producto => !q || `${producto.nombre} ${producto.descripcion ?? ''}`.toLowerCase().includes(q));
+  });
   pin = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d{4,6}$/)] });
   private subs: Subscription[] = [];
   private cargaSub?: Subscription;
@@ -46,7 +65,8 @@ export class ServicioHome implements OnInit, OnDestroy {
     private auth: AuthService,
     private reverb: ReverbService,
     private toastr: ToastrService,
-    private router: Router
+    private router: Router,
+    private productoService: ProductoService
   ) {}
 
   ngOnInit(): void {
@@ -79,6 +99,108 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   ngOnDestroy(): void { this.detenerActividadAutomatica(); }
 
+  abrirBuscadorOrden(): void {
+    if (!this.sesionSeleccionada()) { this.toastr.warning('Selecciona una sesión de Mesero.'); return; }
+    this.buscarOrdenAbierto.set(true);
+    this.resultadosOrden.set([]);
+    this.ordenSeleccionada.set(null);
+  }
+
+  abrirOrdenDesdeFicha(ficha: ServicioFicha): void {
+    this.buscarOrdenAbierto.set(true);
+    this.resultadosOrden.set([]);
+    this.seleccionarOrden({
+      id: ficha.id,
+      numero_orden: ficha.numero_orden,
+      mesa: ficha.mesa,
+      cliente: ficha.cliente,
+      tipo_orden: ficha.tipo_orden,
+      estado: '',
+      puede_agregar: true,
+    });
+  }
+
+  cerrarBuscadorOrden(): void {
+    this.buscarOrdenAbierto.set(false);
+    this.selectorProductoAbierto.set(false);
+    this.productoSeleccionado.set(null);
+  }
+
+  buscarOrdenes(): void {
+    const q = this.consultaOrden().trim();
+    if (q.length < 1) return;
+    this.procesando.set('buscar-orden');
+    this.servicio.buscarOrdenes(q, this.sesionSeleccionada()?.token).subscribe({
+      next: response => { this.resultadosOrden.set(response.ordenes ?? []); this.procesando.set(null); },
+      error: error => { this.procesando.set(null); this.toastr.error(error?.error?.message || 'No se pudieron buscar órdenes.'); },
+    });
+  }
+
+  seleccionarOrden(orden: OrdenServicioResumen): void {
+    this.procesando.set('cargar-orden');
+    this.servicio.obtenerOrden(orden.id, this.sesionSeleccionada()?.token).subscribe({
+      next: response => { this.ordenSeleccionada.set(response.orden); this.procesando.set(null); },
+      error: error => { this.procesando.set(null); this.toastr.error(error?.error?.message || 'No se pudo abrir la orden.'); },
+    });
+  }
+
+  abrirSelectorProducto(): void {
+    this.selectorProductoAbierto.set(true);
+    this.productoSeleccionado.set(null);
+    this.busquedaProducto.set('');
+    this.productoService.listarProductos().subscribe({
+      next: productos => this.productos.set(productos.filter(producto => producto.activo)),
+      error: () => this.toastr.error('No se pudieron cargar los productos.'),
+    });
+  }
+
+  seleccionarProducto(producto: Producto): void {
+    this.productoSeleccionado.set(producto);
+    this.cantidadAdicional.set(1);
+    this.notaAdicional.set('');
+    this.opcionesSeleccionadas.set((producto.modificadores ?? []).flatMap(grupo =>
+      (grupo.opciones ?? []).filter(opcion => opcion.predeterminado).map(opcion => opcion.id)));
+  }
+
+  toggleOpcion(grupo: ModificadorEstructurado, opcion: ModificadorOpcion): void {
+    const actuales = this.opcionesSeleccionadas();
+    if (actuales.includes(opcion.id)) {
+      this.opcionesSeleccionadas.set(actuales.filter(id => id !== opcion.id));
+      return;
+    }
+    const idsGrupo = new Set((grupo.opciones ?? []).map(item => item.id));
+    this.opcionesSeleccionadas.set(grupo.tipo === 'unico'
+      ? [...actuales.filter(id => !idsGrupo.has(id)), opcion.id]
+      : [...actuales, opcion.id]);
+  }
+
+  opcionSeleccionada(id: number): boolean { return this.opcionesSeleccionadas().includes(id); }
+  disminuirCantidadAdicional(): void { this.cantidadAdicional.set(Math.max(1, this.cantidadAdicional() - 1)); }
+  aumentarCantidadAdicional(): void { this.cantidadAdicional.set(Math.min(20, this.cantidadAdicional() + 1)); }
+
+  agregarAdicional(): void {
+    const orden = this.ordenSeleccionada();
+    const producto = this.productoSeleccionado();
+    if (!orden || !producto) return;
+    this.procesando.set('agregar-adicional');
+    this.servicio.agregarAdicional(orden.id, {
+      producto_id: producto.id,
+      cantidad: this.cantidadAdicional(),
+      nota: this.notaAdicional().trim() || null,
+      modificador_opcion_ids: this.opcionesSeleccionadas(),
+    }, this.sesionSeleccionada()?.token).subscribe({
+      next: response => {
+        this.ordenSeleccionada.set(response.orden);
+        this.selectorProductoAbierto.set(false);
+        this.productoSeleccionado.set(null);
+        this.procesando.set(null);
+        this.toastr.success('Producto agregado a la orden.');
+        this.cargar(false);
+      },
+      error: error => { this.procesando.set(null); this.toastr.error(error?.error?.message || 'No se pudo agregar el producto.'); },
+    });
+  }
+
   cargar(mostrarCarga = true): void {
     if (this.cerrandoSesion || (!this.sesionSeleccionada() && this.esAccesoPrincipal())) return;
     if (mostrarCarga) this.loading.set(true);
@@ -88,6 +210,7 @@ export class ServicioHome implements OnInit, OnDestroy {
       next: tablero => {
         this.disponibles.set(tablero.disponibles ?? []);
         this.misFichas.set(tablero.mis_fichas ?? []);
+        this.preordenesProgramadas.set(tablero.preordenes_programadas ?? []);
         this.loading.set(false);
       },
       error: error => {
@@ -322,6 +445,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.subs.push(
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCreada').subscribe(() => this.cargar(false)),
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe(() => this.cargar(false)),
+      this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(() => this.cargar(false)),
       this.reverb.escucharCanal('canal-ordenes', '.ServicioSesionActualizada').subscribe(evento => {
         if (this.cerrandoSesion) return;
         if (evento?.tipo === 'sesion_cerrada' && evento?.session_id) this.quitarSesionLocal(evento.session_id);
@@ -340,6 +464,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   private limpiarTablero(): void {
     this.disponibles.set([]);
     this.misFichas.set([]);
+    this.preordenesProgramadas.set([]);
     this.loading.set(false);
     this.confirmarCierre.set(false);
     this.fichaALiberar.set(null);

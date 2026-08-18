@@ -232,6 +232,22 @@ export const routes: Routes = [
         canActivate: [moduleAccessGuard], data: { access: 'servicio' },
         loadComponent: () =>
           import('./features/servicio/pages/servicio-home/servicio-home').then(m => m.ServicioHome)
+      },
+      {
+        path: 'reportes',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
+        children: [
+          { path: '', redirectTo: 'ventas', pathMatch: 'full' },
+          { path: 'ventas', data: { tipo: 'ventas' }, loadComponent: () => import('./features/reportes/pages/reporte-home/reporte-home').then(m => m.ReporteHome) },
+          { path: 'productos', data: { tipo: 'productos' }, loadComponent: () => import('./features/reportes/pages/reporte-home/reporte-home').then(m => m.ReporteHome) },
+          { path: 'caja', data: { tipo: 'caja' }, loadComponent: () => import('./features/reportes/pages/reporte-home/reporte-home').then(m => m.ReporteHome) },
+        ]
+      },
+      {
+        path: 'preordenes/nueva',
+        canActivate: [moduleAccessGuard], data: { access: 'preorden', mode: 'preorden' },
+        loadComponent: () =>
+          import('./features/pos/pages/pos-home/pos-home').then(m => m.PosHome)
       }
     ]
   },

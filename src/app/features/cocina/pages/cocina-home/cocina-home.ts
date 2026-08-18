@@ -18,6 +18,7 @@ import { formatCurrency } from '@app/core/config/currency.config';
 })
 export class CocinaHome implements OnInit, OnDestroy {
   ordenes = signal<KdsOrden[]>([]);
+  preordenesProgramadas = signal<KdsOrden[]>([]);
   categoriaSeleccionada = signal<string>('todos');
   fechaSeleccionada = signal<string>(this.fechaDeHoy());
   busqueda = signal<string>('');
@@ -246,6 +247,7 @@ export class CocinaHome implements OnInit, OnDestroy {
           this.cargarPedidos(false, true);
         }
       }),
+      this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(() => this.cargarPedidos(false)),
       this.reverb.escucharCanal('canal-ordenes', '.PuestoCocinaActualizado').subscribe((data: { id?: number; nombre?: string; estacion_id?: number; ocupado?: boolean; user_id?: number | null; user_nombre?: string | null; orden_id?: number | null; orden_numero?: number | null }) => {
         if (data?.id) {
           this.handlePuestoActualizadoEvent({
@@ -292,6 +294,7 @@ export class CocinaHome implements OnInit, OnDestroy {
         this.estacionId.set(res.estacion.id);
         this.estacionesDisponibles.set(res.estaciones_disponibles || []);
         this.ordenes.set(ordenes);
+        this.preordenesProgramadas.set(res.preordenes_programadas || []);
         if (detectarDesbloqueos && res.estacion.codigo === 'COCINA') {
           const desbloqueados = ordenes.flatMap(orden => orden.detalles)
             .filter(detalle => detalle.listo_para_atender && bloqueadosAntes.has(detalle.id));

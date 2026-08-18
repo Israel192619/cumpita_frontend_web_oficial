@@ -67,6 +67,10 @@ export interface KdsOrden {
   mesa?: { id: number; numero: string } | null;
   detalles: KdsDetalle[];
   cambios_recientes?: KdsCambioOrden[];
+  fecha_programada?: string | null;
+  tipo_flujo?: 'normal' | 'preorden';
+  estado_preorden?: 'programada' | 'activada' | null;
+  bloqueada?: boolean;
 }
 
 export interface ActualizacionEstadoCocinaResponse {
@@ -77,6 +81,7 @@ export interface ActualizacionEstadoCocinaResponse {
 
 export interface KdsPedidosResponse {
   ordenes: KdsOrden[];
+  preordenes_programadas?: KdsOrden[];
   estacion: KdsEstacion;
   estaciones_disponibles: KdsEstacion[];
 }

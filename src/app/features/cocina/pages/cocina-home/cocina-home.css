@@ -158,3 +158,8 @@
   background: #2563eb;
   color: #fff;
 }
+.programmed-preorders{margin:.65rem 1rem;padding:.7rem;border:1px solid var(--color-warning);border-radius:var(--radius-md,10px);background:var(--color-surface)}
+.programmed-preorders__heading{display:flex;justify-content:space-between;gap:.75rem;color:var(--color-text-secondary);font-size:.78rem}
+.programmed-preorders__list{display:flex;gap:.5rem;overflow-x:auto;margin-top:.5rem}
+.programmed-preorder{min-width:190px;padding:.55rem .65rem;border:1px solid var(--color-border);border-radius:8px;background:var(--color-bg)}
+.programmed-preorder div{display:flex;justify-content:space-between;gap:.5rem}.programmed-preorder p{margin:.25rem 0;font-size:.75rem;color:var(--color-text-secondary)}.programmed-preorder>strong{font-size:.68rem;color:var(--color-warning)}

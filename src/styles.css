@@ -87,3 +87,15 @@ app-data-table .empty-state button { margin-top: 12px; border: 0; color: var(--p
 @keyframes table-spin { to { transform: rotate(360deg); } }
 @keyframes table-shimmer { to { background-position: -220% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+  body:has(.report-page) { color: #000; background: #fff; }
+  body:has(.report-page) .app-sidebar, body:has(.report-page) .app-header, body:has(.report-page) .app-footer,
+  body:has(.report-page) app-sidebar, body:has(.report-page) app-header, body:has(.report-page) app-footer,
+  body:has(.report-page) .sidebar-shell, body:has(.report-page) .main-header, body:has(.report-page) .main-footer { display: none !important; }
+  body:has(.report-page) .app-main, body:has(.report-page) .app-content,
+  body:has(.report-page) .main-content, body:has(.report-page) .content-wrapper { width: 100% !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
+  body:has(.report-page) app-data-table .table-header, body:has(.report-page) app-data-table .table-tools,
+  body:has(.report-page) app-data-table .table-footer { display: none !important; }
+  body:has(.report-page) app-data-table .data-card { border-color: #bbb; box-shadow: none; }
+}

@@ -70,6 +70,17 @@
     </div>
   </header>
 
+  <section *ngIf="preordenesProgramadas().length" class="programmed-preorders" aria-label="Preórdenes programadas">
+    <div class="programmed-preorders__heading"><strong>Preórdenes programadas</strong><span>{{ preordenesProgramadas().length }} bloqueadas hasta activación de Caja</span></div>
+    <div class="programmed-preorders__list">
+      <article *ngFor="let orden of preordenesProgramadas()" class="programmed-preorder">
+        <div><b>#{{ orden.numero_orden || orden.id }}</b><span>{{ orden.fecha_programada | date:'dd/MM HH:mm' }}</span></div>
+        <p>{{ orden.detalles.length }} producto(s) · {{ orden.cliente?.nombre || 'Cliente pendiente' }}</p>
+        <strong>BLOQUEADA</strong>
+      </article>
+    </div>
+  </section>
+
   <section class="production-summary" aria-label="Producción pendiente">
     <strong class="production-summary__title">Producción pendiente</strong>
 

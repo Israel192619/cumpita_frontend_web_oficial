@@ -1,7 +1,10 @@
 <main class="service-page">
   <header class="service-header">
     <div class="brand"><span>DESPACHO</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
-    @if (permiteSesionesPin()) { <app-button text="+ Ingresar mesero" (buttonClick)="abrirIngreso()" /> }
+    <div class="service-header-actions">
+      @if (sesionSeleccionada()) { <app-button text="Buscar orden" color="secondary" (buttonClick)="abrirBuscadorOrden()" /> }
+      @if (permiteSesionesPin()) { <app-button text="+ Ingresar mesero" (buttonClick)="abrirIngreso()" /> }
+    </div>
   </header>
 
   <section class="sessions" aria-label="Sesiones activas">
@@ -22,7 +25,25 @@
     }
   </section>
 
+  @if (sesionSeleccionada()) {
+    <section class="service-order-action" aria-label="Agregar productos a una orden">
+      <div><span>ADICIONALES</span><b>Agregar productos a una orden activa</b><small>Busca rápidamente por mesa o nombre del cliente.</small></div>
+      <app-button text="Buscar orden" size="large" (buttonClick)="abrirBuscadorOrden()" />
+    </section>
+  }
+
   @if (loading()) { <div class="loading">Actualizando fichas…</div> }
+
+  @if (preordenesProgramadas().length) {
+    <section class="programmed-service">
+      <div class="section-heading"><div><span>PROGRAMADAS</span><h2>Preórdenes bloqueadas</h2></div><strong>{{ preordenesProgramadas().length }}</strong></div>
+      <div class="programmed-grid">
+        @for (ficha of preordenesProgramadas(); track ficha.id) {
+          <article><div><b>#{{ ficha.numero_orden }}</b><span>{{ ficha.fecha_programada | date:'dd/MM HH:mm' }}</span></div><p>{{ ficha.cliente || 'Cliente pendiente' }} · {{ ficha.total_items }} producto(s)</p><strong>Esperando activación de Caja</strong></article>
+        }
+      </div>
+    </section>
+  }
 
   <section class="board-section my-tickets">
     <div class="section-heading"><div><span>MI TURNO</span><h2>Mis fichas</h2></div><strong>{{ misFichas().length }}</strong></div>
@@ -45,6 +66,7 @@
                 </button>
               }
             </div>
+            <div class="ticket-additional"><app-button text="+ Agregar producto" color="secondary" size="small" [fullWidth]="true" (buttonClick)="abrirOrdenDesdeFicha(ficha)" /></div>
             <div class="ticket-actions"><button type="button" class="release" [disabled]="procesando() === 'liberar-' + ficha.id" (click)="solicitarLiberacion(ficha)">Liberar ficha</button><button type="button" class="deliver" [disabled]="!ficha.todo_listo || procesando() === 'entregar-' + ficha.id" (click)="entregar(ficha)">ENTREGAR</button></div>
           </article>
         } @empty { <div class="empty-card">No tienes fichas en atención.</div> }
@@ -75,6 +97,49 @@
   <app-modal [open]="!!fichaALiberar()" [title]="'Liberar ficha #' + (fichaALiberar()?.numero_orden || '')" size="small" (closed)="fichaALiberar.set(null)">
     <p>Volverá a la cola común y conservará todo su progreso.</p>
     <div modal-actions><app-button text="Cancelar" color="secondary" (buttonClick)="fichaALiberar.set(null)" /><app-button text="Liberar" color="danger" (buttonClick)="confirmarLiberacion()" /></div>
+  </app-modal>
+
+  <app-modal [open]="buscarOrdenAbierto()" title="Buscar orden" size="large" (closed)="cerrarBuscadorOrden()">
+    @if (!ordenSeleccionada()) {
+      <form class="order-search" (submit)="$event.preventDefault(); buscarOrdenes()">
+        <input type="search" placeholder="Mesa o nombre del cliente" [value]="consultaOrden()" (input)="consultaOrden.set($any($event.target).value)" autocomplete="off" />
+        <app-button text="Buscar" type="submit" [loading]="procesando() === 'buscar-orden'" [disabled]="consultaOrden().trim().length < 1" />
+      </form>
+      <div class="order-results">
+        @for (orden of resultadosOrden(); track orden.id) {
+          <button type="button" (click)="seleccionarOrden(orden)"><b>Orden #{{ orden.numero_orden }}</b><span>{{ orden.mesa ? 'Mesa ' + orden.mesa + ' · ' : '' }}{{ orden.cliente || 'Cliente no registrado' }} · {{ orden.estado }}</span></button>
+        } @empty { <p class="empty-card">Busca una orden por número, mesa o cliente.</p> }
+      </div>
+    } @else {
+      <div class="selected-order-head"><button type="button" (click)="ordenSeleccionada.set(null)">← Resultados</button><div><span>ORDEN</span><h3>#{{ ordenSeleccionada()!.numero_orden }}</h3><p>{{ ordenSeleccionada()!.mesa ? 'Mesa ' + ordenSeleccionada()!.mesa + ' · ' : '' }}{{ ordenSeleccionada()!.cliente || 'Cliente no registrado' }}</p></div></div>
+      <div class="selected-order-items">
+        @for (detalle of ordenSeleccionada()!.detalles; track detalle.id) {
+          <div><b>{{ detalle.cantidad }} × {{ detalle.producto }}</b>@if (detalle.opciones.length) { <small>{{ detalle.opciones.join(' · ') }}</small> }</div>
+        }
+      </div>
+      @if (ordenSeleccionada()!.puede_agregar) {
+        <div class="order-add-action"><app-button text="+ Agregar producto" size="large" [fullWidth]="true" (buttonClick)="abrirSelectorProducto()" /></div>
+      } @else { <p class="historical-order-note">Orden histórica: disponible solo para consulta.</p> }
+    }
+  </app-modal>
+
+  <app-modal [open]="selectorProductoAbierto()" title="Agregar producto" size="large" (closed)="selectorProductoAbierto.set(false)">
+    @if (!productoSeleccionado()) {
+      <input class="product-search" type="search" placeholder="Buscar producto" [value]="busquedaProducto()" (input)="busquedaProducto.set($any($event.target).value)" />
+      <div class="service-product-grid"><app-product-grid [productos]="productosFiltrados()" [compact]="true" [showPrices]="false" [allowStockAdjustment]="false" (productAdded)="seleccionarProducto($event)" /></div>
+    } @else {
+      <button type="button" class="back" (click)="productoSeleccionado.set(null)">← Cambiar producto</button>
+      <div class="additional-product-head"><div><span>PRODUCTO</span><h3>{{ productoSeleccionado()!.nombre }}</h3></div><div class="quantity"><button type="button" (click)="disminuirCantidadAdicional()">−</button><b>{{ cantidadAdicional() }}</b><button type="button" (click)="aumentarCantidadAdicional()">+</button></div></div>
+      <div class="modifier-groups">
+        @for (grupo of productoSeleccionado()!.modificadores || []; track grupo.id) {
+          <section><div class="modifier-title"><b>{{ grupo.nombre }}</b><span>Opcional · {{ grupo.tipo === 'multiple' ? 'Varias opciones' : 'Una opción' }}</span></div><div class="modifier-options">
+            @for (opcion of grupo.opciones || []; track opcion.id) { <button type="button" [class.selected]="opcionSeleccionada(opcion.id)" (click)="toggleOpcion(grupo, opcion)">{{ opcion.nombre }}</button> }
+          </div></section>
+        }
+      </div>
+      <label class="additional-note"><span>Nota para Cocina</span><input type="text" maxlength="255" [value]="notaAdicional()" (input)="notaAdicional.set($any($event.target).value)" placeholder="Opcional" /></label>
+      <div class="additional-actions"><app-button text="Cancelar" color="secondary" (buttonClick)="selectorProductoAbierto.set(false)" /><app-button text="Agregar" [loading]="procesando() === 'agregar-adicional'" (buttonClick)="agregarAdicional()" /></div>
+    }
   </app-modal>
 
   <app-modal [open]="confirmarCierre()" title="Cerrar mi sesión" size="small" (closed)="confirmarCierre.set(false)">

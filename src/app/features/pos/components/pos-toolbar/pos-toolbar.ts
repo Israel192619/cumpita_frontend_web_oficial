@@ -17,6 +17,8 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   cajaAbierta = input(false);
   cajaMontoEsperado = input(0);
   cajaPagosEfectivo = input(0);
+  mode = input<'pos' | 'preorden'>('pos');
+  searchValue = input('');
 
   searchChanged = output<string>();
   backRequested = output<void>();
@@ -26,7 +28,6 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
 
   currentDate = signal(new Date());
   isFullscreen = signal(false);
-  searchText = '';
   private clockId?: ReturnType<typeof setInterval>;
 
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
@@ -43,8 +44,7 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   }
 
   onSearchInput(event: Event): void {
-    this.searchText = (event.target as HTMLInputElement).value;
-    this.searchChanged.emit(this.searchText);
+    this.searchChanged.emit((event.target as HTMLInputElement).value);
   }
 
   onCajaAction(): void {

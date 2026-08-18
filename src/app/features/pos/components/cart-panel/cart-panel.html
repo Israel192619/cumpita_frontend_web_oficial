@@ -88,7 +88,7 @@
           {{ showReservationControls() ? 'Ocultar programación' : 'Programar preorden' }}
         </button>
         <button
-          *ngIf="hasReservationSummary()"
+          *ngIf="hasReservationSummary() && operationMode() === 'pos'"
           type="button"
           class="btn btn-secondary btn-tiny btn-clear-reservation"
           (click)="clearReservation()"
@@ -304,7 +304,7 @@
             <div class="modifier-group-title">
               <strong>{{ group.nombre || 'Opciones' }}</strong>
               <span class="modifier-badge multiple" *ngIf="group.tipo === 'multiple'">Puedes elegir varias</span>
-              <span class="modifier-badge unico" *ngIf="group.tipo === 'unico'">Elige una opción</span>
+              <span class="modifier-badge unico" *ngIf="group.tipo === 'unico'">Puedes elegir una</span>
             </div>
             <app-button
               *ngIf="hasDefaultOptions(group)"

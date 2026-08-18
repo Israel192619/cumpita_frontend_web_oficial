@@ -23,7 +23,11 @@ export class Sidebar implements OnInit {
     if (!user || isAdministrator(user)) return [];
     if (userCanAccess(user, 'pos')) return [{ label: 'POS', route: '/pos' }];
     if (userCanAccess(user, 'kds')) return [{ label: `KDS ${kdsStation(user) === 'parrilla' ? 'Parrilla' : 'Cocina'}`, route: `/app/kds/${kdsStation(user)}` }];
-    if (userCanAccess(user, 'servicio')) return [{ label: 'Servicio', route: '/app/servicio' }];
+    if (userCanAccess(user, 'servicio')) {
+      const links = [{ label: 'Servicio', route: '/app/servicio' }];
+      if (userCanAccess(user, 'preorden')) links.push({ label: 'Nueva preorden', route: '/app/preordenes/nueva' });
+      return links;
+    }
     return [];
   });
   readonly visibleGroups = computed<NavGroup[]>(() => {
@@ -48,6 +52,9 @@ export class Sidebar implements OnInit {
     ]},
     { key: 'contactos', label: 'Contactos', icon: 'C', children: [{ label: 'Clientes', route: '/app/clientes' }] },
     { key: 'usuarios', label: 'Administración', icon: 'U', children: [{ label: 'Usuarios', route: '/app/users' }] },
+    { key: 'reportes', label: 'Reportes', icon: 'R', children: [
+      { label: 'Ventas', route: '/app/reportes/ventas' }, { label: 'Productos', route: '/app/reportes/productos' }, { label: 'Caja', route: '/app/reportes/caja' }
+    ]},
     this.cashGroup,
   ];
 

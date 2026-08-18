@@ -1,0 +1,36 @@
+<section class="report-page">
+  <header class="report-header">
+    <div><p class="eyebrow">Toñito</p><h1>{{ titulo }}</h1><p class="print-meta">Período: {{ etiquetaPeriodo() }} · Generado: {{ generado() }}</p></div>
+    <app-button class="no-print" text="Imprimir" color="secondary" (buttonClick)="imprimir()" />
+  </header>
+  <nav class="report-tabs no-print"><a routerLink="/app/reportes/ventas" routerLinkActive="active">Ventas</a><a routerLink="/app/reportes/productos" routerLinkActive="active">Productos</a><a routerLink="/app/reportes/caja" routerLinkActive="active">Caja</a></nav>
+
+  <section class="filter-panel no-print">
+    <app-select label="Período" [options]="periodos" [value]="periodo()" (valueChange)="cambiarPeriodo($event)" />
+    @if (periodo() === 'personalizado') { <app-date-range-picker [value]="rango()" [allowTimeToggle]="false" (valueChange)="cambiarRango($event)" /> }
+    @if (tipo === 'ventas') { <app-select label="Método de pago" placeholder="Todos" [options]="opcionesMetodos" [value]="metodo()" (valueChange)="metodo.set($any($event))" /> }
+    @if (tipo === 'productos') {
+      <app-select label="Categoría" placeholder="Todas" [options]="categorias()" [value]="categoriaId()" (valueChange)="categoriaId.set($any($event))" />
+      <app-select label="Producto" placeholder="Todos" [options]="productos()" [value]="productoId()" (valueChange)="productoId.set($any($event))" />
+    }
+    @if (tipo === 'caja') {
+      <app-select label="Caja" placeholder="Todas" [options]="opcionesCajas" [value]="cajaId()" (valueChange)="cajaId.set($any($event))" />
+      <app-select label="Usuario" placeholder="Todos" [options]="opcionesUsuarios" [value]="usuarioId()" (valueChange)="usuarioId.set($any($event))" />
+    }
+    <app-button text="Aplicar filtros" [loading]="cargando()" (buttonClick)="cargar()" />
+  </section>
+
+  @if (error()) { <div class="report-error" role="alert">{{ error() }}</div> }
+  @if (respuesta()?.resumen; as resumen) {
+    <section class="summary-grid">
+      @if (tipo === 'ventas') {
+        <article><span>Venta total</span><strong>{{ resumen.venta_total | appCurrency }}</strong></article><article><span>Órdenes</span><strong>{{ resumen.cantidad_ordenes }}</strong></article><article><span>Ticket promedio</span><strong>{{ resumen.ticket_promedio | appCurrency }}</strong></article><article><span>Efectivo</span><strong>{{ resumen.efectivo | appCurrency }}</strong></article><article><span>QR / Yape</span><strong>{{ resumen.qr | appCurrency }}</strong></article><article><span>Otros métodos</span><strong>{{ resumen.otros | appCurrency }}</strong></article><article><span>Descuentos</span><strong>{{ resumen.descuentos | appCurrency }}</strong></article><article><span>Devoluciones</span><strong>{{ resumen.devoluciones | appCurrency }}</strong></article>
+      } @else if (tipo === 'productos') {
+        <article><span>Productos vendidos</span><strong>{{ resumen.productos_vendidos }}</strong></article><article><span>Unidades vendidas</span><strong>{{ resumen.unidades_vendidas }}</strong></article><article><span>Total generado</span><strong>{{ resumen.total_generado | appCurrency }}</strong></article>
+      } @else {
+        <article><span>Efectivo esperado</span><strong>{{ resumen.efectivo_esperado | appCurrency }}</strong></article><article><span>Efectivo contado</span><strong>{{ resumen.efectivo_contado | appCurrency }}</strong></article><article><span>Diferencia</span><strong>{{ resumen.diferencia | appCurrency }}</strong></article><article><span>QR / Yape</span><strong>{{ resumen.qr | appCurrency }}</strong></article><article><span>Ingresos</span><strong>{{ resumen.ingresos | appCurrency }}</strong></article><article><span>Retiros</span><strong>{{ resumen.retiros | appCurrency }}</strong></article><article><span>Gastos</span><strong>{{ resumen.gastos | appCurrency }}</strong></article>
+      }
+    </section>
+  }
+  <app-data-table [title]="titulo" [data]="filas" [columns]="columnas" [loading]="cargando()" [error]="error()" [rowActions]="[]" [pagination]="false" [searchable]="true" emptyMessage="No hay datos para el período seleccionado." />
+</section>

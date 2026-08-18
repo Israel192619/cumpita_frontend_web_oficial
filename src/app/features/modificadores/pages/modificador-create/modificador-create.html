@@ -14,7 +14,7 @@
       <div class="section-heading"><span class="section-number">2</span><div><h3>Comportamiento</h3><p>Configura la selección y disponibilidad.</p></div></div>
       <div class="behavior-grid">
         <app-select label="Tipo de selección" [control]="getControl('tipo')" [options]="[{ label: 'Selección única', value: 'unico' }, { label: 'Selección múltiple', value: 'multiple' }]"></app-select>
-        <label class="toggle-card"><input type="checkbox" [formControl]="getControl('requerido')"><span><strong>Selección requerida</strong><small>El cliente debe elegir al menos una opción.</small></span></label>
+        <div class="toggle-card"><span><strong>Selección opcional</strong><small>El producto puede agregarse sin elegir opciones.</small></span></div>
         <label class="toggle-card"><input type="checkbox" [formControl]="getControl('activo')"><span><strong>Modificador activo</strong><small>Disponible para utilizar en el sistema.</small></span></label>
       </div>
     </section>
