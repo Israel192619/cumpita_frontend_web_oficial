@@ -22,7 +22,7 @@
       <div class="section-heading options-heading"><span class="section-number">3</span><div><h3>Opciones del modificador</h3><p>Administra nombres, precios y disponibilidad.</p></div><button type="button" class="btn-add-option" (click)="agregarOpcion()">+ Agregar opción</button></div>
       <div [formArray]="opcionesForm" class="options-list">
         <div *ngFor="let opcion of opcionesForm.controls; let i = index" [formGroupName]="i" class="option-card">
-          <div class="option-header"><div><span class="option-index">{{ i + 1 }}</span><strong>Opción {{ i + 1 }}</strong></div><button type="button" class="btn-remove" [disabled]="opcionesForm.length === 1" (click)="eliminarOpcion(i)"><i class="ti ti-trash"></i> Eliminar</button></div>
+          <div class="option-header"><div><span class="option-index">{{ i + 1 }}</span><strong>Opción {{ i + 1 }}</strong></div><button type="button" class="btn-remove" [disabled]="opcionesForm.length === 1" (click)="eliminarOpcion(i)"><app-icon name="trash" [size]="16"/> Eliminar</button></div>
           <div class="option-fields">
             <app-input-form label="Nombre" [control]="getOpcionControl(i, 'nombre')" placeholder="Ej. Grande, Extra queso"></app-input-form>
             <app-input-form [label]="'Precio adicional (' + currencySymbol + ')'" type="number" [control]="getOpcionControl(i, 'precio_extra')" placeholder="0.00"></app-input-form>

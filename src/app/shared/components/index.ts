@@ -30,3 +30,4 @@ export { DatePicker } from './date-picker/date-picker';
 export { DateRangePicker, type DateRangeValue } from './date-range-picker/date-range-picker';
 export { isWithinDateRange } from './date-range-picker/date-range-utils';
 export { FilterBar } from './filter-bar/filter-bar';
+export { Icon, type IconName } from './icon/icon';

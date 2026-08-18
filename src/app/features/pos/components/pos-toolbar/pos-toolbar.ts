@@ -13,6 +13,7 @@ import { AppCurrencyPipe } from '@app/shared/pipes/app-currency.pipe';
 export class PosToolbarComponent implements OnInit, OnDestroy {
   isLoading = input(false);
   pendingOrdersCount = input(0);
+  preordersCount = input(0);
   cajaAbierta = input(false);
   cajaMontoEsperado = input(0);
   cajaPagosEfectivo = input(0);
@@ -20,6 +21,7 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   searchChanged = output<string>();
   backRequested = output<void>();
   pendingOrdersRequested = output<void>();
+  preordersRequested = output<void>();
   cajaActionRequested = output<'abrir' | 'cerrar'>();
 
   currentDate = signal(new Date());

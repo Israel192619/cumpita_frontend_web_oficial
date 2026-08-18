@@ -70,12 +70,12 @@
               @if (rowActions === undefined || rowActions.length) {
                 <td class="actions-cell" data-label="Acciones"><div class="row-actions">
                   @if (rowActions === undefined) {
-                    <button class="row-action edit" type="button" (click)="action.emit({type:'edit', item})" title="Editar"><i class="ti ti-edit"></i><span class="sr-only">Editar</span></button>
-                    <button class="row-action view" type="button" (click)="action.emit({type:'view', item})" title="Ver"><i class="ti ti-eye"></i><span class="sr-only">Ver</span></button>
-                    <button class="row-action delete" type="button" (click)="action.emit({type:'delete', item})" title="Eliminar"><i class="ti ti-trash"></i><span class="sr-only">Eliminar</span></button>
+                    <button class="row-action edit" type="button" (click)="action.emit({type:'edit', item})" title="Editar"><app-icon name="edit" [size]="17"/><span class="sr-only">Editar</span></button>
+                    <button class="row-action view" type="button" (click)="action.emit({type:'view', item})" title="Ver"><app-icon name="eye" [size]="17"/><span class="sr-only">Ver</span></button>
+                    <button class="row-action delete" type="button" (click)="action.emit({type:'delete', item})" title="Eliminar"><app-icon name="trash" [size]="17"/><span class="sr-only">Eliminar</span></button>
                   } @else {
                     @for (rowAction of availableActions(item); track rowAction.type) {
-                      <button type="button" class="row-action custom-action" [ngClass]="rowAction.class" (click)="action.emit({type: rowAction.type, item})" [title]="rowAction.label"><i *ngIf="rowAction.icon" [class]="rowAction.icon" aria-hidden="true"></i><span>{{ rowAction.label }}</span></button>
+                      <button type="button" class="row-action custom-action" [ngClass]="rowAction.class" (click)="action.emit({type: rowAction.type, item})" [title]="rowAction.label"><app-icon *ngIf="rowAction.icon" [name]="rowAction.icon" [size]="17"/><span>{{ rowAction.label }}</span></button>
                     }
                   }
                 </div></td>

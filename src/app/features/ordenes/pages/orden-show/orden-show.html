@@ -8,6 +8,8 @@
       <div class="overview-title"><div><span>Pedido</span><strong>#{{ order.numero_orden || order.id }}</strong></div><span class="status">{{ order.estado || 'Sin estado' }}</span></div>
       <div class="facts">
         <div><span>Fecha y hora</span><strong>{{ (order.fecha_orden || order.created_at) | date:'dd/MM/yyyy HH:mm' }}</strong></div>
+        @if (order.tipo_flujo === 'preorden') { <div><span>Preorden programada</span><strong>{{ order.fecha_programada | date:'dd/MM/yyyy HH:mm' }}</strong></div> }
+        @if (order.estado_preorden) { <div><span>Estado preorden</span><strong>{{ order.estado_preorden | uppercase }}</strong></div> }
         <div><span>Tipo</span><strong>{{ etiquetaTipo(order.tipo_orden) }}</strong></div>
         @if (order.mesa) { <div><span>Mesa</span><strong>{{ order.mesa.numero }}</strong></div> }
         @if (order.cliente || order.cliente_nombre) { <div><span>Cliente</span><strong>{{ order.cliente?.nombre || order.cliente_nombre }}</strong></div> }

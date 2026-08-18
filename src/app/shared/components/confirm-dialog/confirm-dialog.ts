@@ -4,6 +4,9 @@ import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/materia
 export interface ConfirmDialogData {
   title: string;
   message: string;
+  confirmText?: string;
+  cancelText?: string;
+  confirmColor?: 'primary' | 'success' | 'warning' | 'danger';
 }
 @Component({
   selector: 'app-confirm-dialog',
@@ -17,7 +20,7 @@ export class ConfirmDialog {
 
   constructor(
     @Inject(MatDialogRef) public dialogRef: MatDialogRef<ConfirmDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    @Inject(MAT_DIALOG_DATA) public data: ConfirmDialogData
   ) {}
 
   onConfirm(): void {

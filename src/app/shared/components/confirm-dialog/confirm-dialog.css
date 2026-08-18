@@ -21,10 +21,15 @@
 .content {
   margin-top: 10px;
   font-size: 14px;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .actions {
   margin-top: 20px;
   gap: 10px;
 }
+
+.confirm-button.primary { color: #fff; background: var(--color-primary); }
+.confirm-button.success { color: #fff; background: var(--color-success); }
+.confirm-button.warning { color: var(--color-text); background: var(--color-warning); }
+.confirm-button.danger { color: #fff; background: var(--color-danger); }

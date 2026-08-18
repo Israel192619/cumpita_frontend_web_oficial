@@ -78,14 +78,14 @@
           <span *ngIf="getOrderTimeValue()">a las {{ getOrderTimeValue().slice(0,5) }}</span> -->
         </div>
         <div *ngIf="hasReservationSummary()" class="reservation-summary">
-          <span>Reserva para</span>
+          <span>Preorden para</span>
           <strong>{{ getReservationSummaryText() }}</strong>
         </div>
       </div>
 
       <div class="reservation-actions-group">
         <button type="button" class="btn btn-secondary btn-tiny reservation-toggle" (click)="toggleReservationControls()">
-          {{ showReservationControls() ? 'Ocultar reserva' : 'Programar reserva' }}
+          {{ showReservationControls() ? 'Ocultar programación' : 'Programar preorden' }}
         </button>
         <button
           *ngIf="hasReservationSummary()"
@@ -94,7 +94,7 @@
           (click)="clearReservation()"
           [disabled]="isProcessing()"
         >
-          Quitar reserva
+          Quitar preorden
         </button>
       </div>
     </div>
@@ -102,7 +102,7 @@
     <div *ngIf="showReservationControls()" class="reservation-meta-card">
       <div class="order-meta-row">
         <div class="order-meta-column">
-          <span class="small-label">Reserva</span>
+          <span class="small-label">Fecha y hora programadas</span>
           <input
             id="reservation-date"
             class="order-date-input"

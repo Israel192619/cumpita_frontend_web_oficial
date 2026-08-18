@@ -3,7 +3,7 @@ import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Va
 import { ModificadorService, CreateModificador } from '../../services/modificador-service';
 import { ToastrService } from 'ngx-toastr';
 import { Router } from '@angular/router';
-import { FormCard, InputForm, Select, ErrorMessage } from '../../../../shared/components';
+import { FormCard, InputForm, Select, ErrorMessage, Icon } from '../../../../shared/components';
 import { CommonModule } from '@angular/common';
 import { EstacionTrabajoService } from '../../../estaciones/services/estacion-trabajo-service';
 import { EstacionTrabajo } from '../../../../core/models/estacion-trabajo';
@@ -12,7 +12,7 @@ import { CURRENCY_CONFIG } from '@app/core/config/currency.config';
 @Component({
   selector: 'app-modificador-create',
   imports: [
-    FormCard, InputForm, Select, ErrorMessage, ReactiveFormsModule, CommonModule
+    FormCard, InputForm, Select, ErrorMessage, ReactiveFormsModule, CommonModule, Icon
   ],
   templateUrl: './modificador-create.html',
   styleUrl: './modificador-create.css',

@@ -52,7 +52,10 @@ export interface Order {
   mesa_id?: number | null;
   mesa?: Mesa;
   fecha_orden?: string | null;
-  fecha_reserva?: string | null;
+  fecha_programada?: string | null;
+  tipo_flujo?: 'normal' | 'preorden';
+  estado_preorden?: 'programada' | 'activada' | 'cancelada' | null;
+  preorden_activada_en?: string | null;
   items: CartItem[];
   subtotal: number;
   impuesto?: number;
@@ -74,7 +77,8 @@ export interface OrderPayload {
   tipo_orden?: 'dine-in' | 'to-go' | 'delivery';
   mesa_id?: number | null;
   fecha_orden?: string | null;
-  fecha_reserva?: string | null;
+  fecha_programada?: string | null;
+  tipo_flujo?: 'normal' | 'preorden';
   items: OrderItem[];
   subtotal: number;
   descuento?: number;
@@ -207,6 +211,16 @@ export class PosService {
     return this.http.post<any>(`${this.apiUrl}/pagos-ordenes`, data);
   }
 
+  obtenerPreordenesProgramadas(): Observable<Order[]> {
+    return this.http.get<{ ordenes: Order[] }>(`${this.apiUrl}/ordenes`, {
+      params: { tipo_flujo: 'preorden', estado_preorden: 'programada' },
+    }).pipe(map(response => response.ordenes || []));
+  }
+
+  activarPreorden(id: number): Observable<{ message: string; orden: Order }> {
+    return this.http.post<{ message: string; orden: Order }>(`${this.apiUrl}/ordenes/${id}/activar-preorden`, {});
+  }
+
   obtenerCajaActual(): Observable<{ caja: Caja | null; resumen?: CajaResumen }> {
     return this.http.get<{ caja: Caja | null; resumen?: CajaResumen }>(`${this.apiUrl}/cajas/actual`);
   }
@@ -231,7 +245,8 @@ export class PosService {
       mesa_id: order.mesa_id || null,
       tipo_orden: order.tipo_orden || 'dine-in',
       fecha_orden: this.normalizeDateTimeString(order.fecha_orden) ?? this.getNowDateTimeString(),
-      fecha_reserva: this.normalizeDateTimeString(order.fecha_reserva) ?? null,
+      fecha_programada: this.normalizeDateTimeString(order.fecha_programada) ?? null,
+      tipo_flujo: order.tipo_flujo ?? (order.fecha_programada ? 'preorden' : 'normal'),
       subtotal: order.subtotal,
       descuento: order.descuento || 0,
       total: order.total,

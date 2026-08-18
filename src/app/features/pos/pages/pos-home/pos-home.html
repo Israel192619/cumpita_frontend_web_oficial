@@ -52,11 +52,13 @@
         <app-pos-toolbar
           [isLoading]="isLoadingProductos()"
           [pendingOrdersCount]="pendingOrdersCount()"
+          [preordersCount]="preordersCount()"
           [cajaAbierta]="!!cajaActual()"
           [cajaMontoEsperado]="resumenCaja()?.monto_esperado || cajaActual()?.monto_apertura || 0"
           [cajaPagosEfectivo]="resumenCaja()?.cantidad_pagos_efectivo || 0"
           (searchChanged)="onProductSearchChanged($event)"
           (pendingOrdersRequested)="onPendingOrdersRequested()"
+          (preordersRequested)="onPreordersRequested()"
           (cajaActionRequested)="abrirModalCaja($event)"
           (backRequested)="onBackRequested()"
         />
@@ -100,7 +102,7 @@
         [selectedClienteInput]="selectedCliente()"
         [selectedMesaInput]="selectedMesa()"
         [orderDateInput]="orderDate()"
-        [reservationDateInput]="reservationDate()"
+        [reservationDateInput]="preorderDate()"
         [stockByProductId]="productStockById()"
         [orders]="orders()"
         [isEditing]="isEditingOrder()"
@@ -273,6 +275,32 @@
           <p class="empty-title">No se encontraron órdenes pendientes o parciales.</p>
         </div>
       </div>
+  </app-modal>
+
+  <app-modal [open]="isPreordersModalOpen()" title="Preórdenes programadas" size="large" (closed)="closePreordersModal()">
+    <p class="modal-intro">Activa una preorden cuando el cliente llegue. Entrará inmediatamente al flujo operativo.</p>
+    <div class="pending-orders-list">
+      <div *ngFor="let orden of preorders()" class="pending-order-card">
+        <div class="pending-order-main">
+          <div>
+            <strong>Preorden #{{ orden.numero_orden || orden.id }}</strong>
+            <p class="pending-order-meta">
+              {{ orden.cliente_nombre || 'Cliente desconocido' }}
+              <span *ngIf="orden.mesa?.numero">· Mesa {{ orden.mesa?.numero }}</span>
+            </p>
+          </div>
+          <span class="pending-order-amount">{{ orden.fecha_programada | date:'dd/MM/yyyy HH:mm' }}</span>
+        </div>
+        <div class="pending-order-row">
+          <div class="pending-order-summary">Total: {{ formatPrice(orden.total) }}</div>
+          <div class="pending-order-actions">
+            <app-button text="Editar" color="secondary" size="small" (buttonClick)="onEditPreorder(orden.id)" />
+            <app-button text="Activar" color="success" size="small" (buttonClick)="onActivatePreorder(orden)" />
+          </div>
+        </div>
+      </div>
+      <div *ngIf="preorders().length === 0" class="empty-state"><p class="empty-title">No hay preórdenes programadas.</p></div>
+    </div>
   </app-modal>
 </div>
 

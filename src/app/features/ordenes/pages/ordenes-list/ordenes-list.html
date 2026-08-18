@@ -7,6 +7,9 @@
     { key: 'numero_orden', label: 'Número' },
     { key: 'cliente_nombre', label: 'Cliente' },
     { key: 'tipo_orden', label: 'Tipo' },
+    { key: 'tipo_flujo_label', label: 'Flujo' },
+    { key: 'fecha_programada', label: 'Programada', type: 'date' },
+    { key: 'estado_preorden_label', label: 'Estado preorden', type: 'status' },
     { key: 'total', label: 'Total' },
     { key: 'estado', label: 'Estado' },
     { key: 'created_at', label: 'Creado', type: 'date' }
@@ -15,6 +18,7 @@
   [error]="error()"
   [errorMessageLink]="errorMessageLink()"
   [errorMessageText]="errorMessageText()"
+  [rowActions]="rowActions"
   (refresh)="obtenerOrdenes()"
   (action)="handleAction($event)"
 >

@@ -9,6 +9,9 @@
     <button type="button" class="toolbar-button" (click)="pendingOrdersRequested.emit()" [disabled]="isLoading()">
       Pendientes <span class="count" *ngIf="pendingOrdersCount() > 0">{{ pendingOrdersCount() }}</span>
     </button>
+    <button type="button" class="toolbar-button" (click)="preordersRequested.emit()" [disabled]="isLoading()">
+      Preórdenes <span class="count" *ngIf="preordersCount() > 0">{{ preordersCount() }}</span>
+    </button>
     <button type="button" class="toolbar-button caja" [class.open]="cajaAbierta()" (click)="onCajaAction()">
       <span>{{ cajaAbierta() ? 'Caja abierta' : 'Abrir caja' }}</span>
       <small>{{ cajaAbierta() ? ((cajaMontoEsperado() | appCurrency) + ' · ' + cajaPagosEfectivo() + ' pagos') : 'Efectivo desactivado' }}</small>

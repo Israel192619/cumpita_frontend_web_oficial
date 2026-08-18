@@ -3,6 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from
 import { RouterLink } from '@angular/router';
 import { ErrorMessage } from '../error-message/error-message';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
+import { Icon } from '../icon/icon';
 
 export interface DataTableColumn {
   key: string;
@@ -23,7 +24,7 @@ export interface DataTableQuery {
 
 @Component({
   selector: 'app-data-table',
-  imports: [CommonModule, RouterLink, ErrorMessage, AppCurrencyPipe],
+  imports: [CommonModule, RouterLink, ErrorMessage, AppCurrencyPipe, Icon],
   templateUrl: './data-table.html',
   styleUrl: './data-table.css',
 })

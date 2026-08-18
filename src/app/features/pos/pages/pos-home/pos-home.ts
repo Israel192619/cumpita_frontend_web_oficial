@@ -12,6 +12,7 @@ import { ToastrService } from 'ngx-toastr';
 import { Button } from '../../../../shared/components/button/button';
 import { Modal } from '../../../../shared/components/modal/modal';
 import { formatCurrency } from '@app/core/config/currency.config';
+import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
 
 @Component({
   selector: 'app-pos-home',
@@ -91,24 +92,28 @@ export class PosHome implements OnInit, OnDestroy {
   selectedCliente = signal<ClienteSearch | null>(null);
   selectedMesa = signal<Mesa | null>(null);
   orderDate = signal<string | null>(null);
-  reservationDate = signal<string | null>(null);
+  preorderDate = signal<string | null>(null);
   editingOrder = signal<Order | null>(null);
   isFullyPaid = computed(() => this.isEditingOrder() && this.remainingAmount() === 0);
   showHistoryButton = computed(() => this.hasPaymentHistory() && this.isFullyPaid());
   orders = signal<Order[]>([]);
   pendingOrders = signal<Order[]>([]);
+  preorders = signal<Order[]>([]);
   pendingOrdersSearch = signal<string>('');
   isPendingOrdersModalOpen = signal<boolean>(false);
+  isPreordersModalOpen = signal<boolean>(false);
   isHistoryModalOpen = signal<boolean>(false);
   isProductSelectorOpen = signal<boolean>(false);
 
   pendingOrdersCount = computed(() => this.pendingOrders().length);
+  preordersCount = computed(() => this.preorders().length);
   hasUnsavedChanges = computed(() => {
     return (
       this.carrito().length > 0 ||
       !!this.selectedCliente() ||
       !!this.selectedMesa() ||
       !!this.orderDate() ||
+      !!this.preorderDate() ||
       this.isEditingOrder()
     );
   });
@@ -200,7 +205,8 @@ export class PosHome implements OnInit, OnDestroy {
     private productoService: ProductoService,
     private toastr: ToastrService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private confirmDialog: ConfirmDialogService
   ) {}
 
   private beforeUnloadHandler = (event: BeforeUnloadEvent) => {
@@ -218,6 +224,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.cargarProductos();
     this.loadOrders();
     this.loadPendingOrders();
+    this.loadPreorders();
     this.cargarCajaActual();
     
     // Verificar si viene un ID de orden para editar
@@ -358,7 +365,8 @@ export class PosHome implements OnInit, OnDestroy {
       tipo_orden: this.orderType(),
       mesa_id: this.selectedMesa()?.id ?? null,
       fecha_orden: this.orderDate() ?? null,
-      fecha_reserva: this.reservationDate() ?? null,
+      fecha_programada: this.preorderDate() ?? null,
+      tipo_flujo: this.preorderDate() ? 'preorden' : 'normal',
     };
 
     const payload = this.posService.mapOrderToPayload(order);
@@ -394,7 +402,7 @@ export class PosHome implements OnInit, OnDestroy {
       this.isEditingOrder.set(true);
       this.orderType.set((orden.tipo_orden as any) || 'dine-in');
       this.orderDate.set(this.normalizeOrderDate(orden.fecha_orden));
-      this.reservationDate.set(this.normalizeOrderDate(orden.fecha_reserva));
+      this.preorderDate.set(this.normalizeOrderDate(orden.fecha_programada));
       
       // Cargar cliente y mesa si existen
       const clienteSeleccionado: ClienteSearch | null = orden.cliente
@@ -768,7 +776,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.carrito.set([]);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
-    this.reservationDate.set(null);
+    this.preorderDate.set(null);
     this.orderType.set('dine-in');
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
@@ -801,7 +809,7 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onReservationDateChanged(value: string | null): void {
-    this.reservationDate.set(this.normalizeOrderDate(value));
+    this.preorderDate.set(this.normalizeOrderDate(value));
   }
 
   onItemNoteChanged(data: { itemId: number; nota: string }): void {
@@ -842,7 +850,8 @@ export class PosHome implements OnInit, OnDestroy {
       tipo_orden: this.orderType(),
       mesa_id: this.selectedMesa()?.id,
       fecha_orden: this.orderDate() ?? null,
-      fecha_reserva: this.reservationDate() ?? null,
+      fecha_programada: this.preorderDate() ?? null,
+      tipo_flujo: this.preorderDate() ? 'preorden' : 'normal',
     };
 
     if (this.isEditingOrder() && this.editingOrderId()) {
@@ -885,7 +894,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
-    this.reservationDate.set(null);
+    this.preorderDate.set(null);
     this.editingOrder.set(null);
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
@@ -966,7 +975,8 @@ export class PosHome implements OnInit, OnDestroy {
         tipo_orden: this.orderType(),
         mesa_id: data.mesaId ?? this.selectedMesa()?.id,
         fecha_orden: this.orderDate() ?? null,
-        fecha_reserva: this.reservationDate() ?? null,
+        fecha_programada: this.preorderDate() ?? null,
+        tipo_flujo: this.preorderDate() ? 'preorden' : 'normal',
       };
 
       const payload = this.posService.mapOrderToPayload(order);
@@ -1032,7 +1042,8 @@ export class PosHome implements OnInit, OnDestroy {
       tipo_orden: this.orderType(),
       mesa_id: data.mesaId ?? this.selectedMesa()?.id,
       fecha_orden: this.orderDate() ?? null,
-      fecha_reserva: this.reservationDate() ?? null,
+      fecha_programada: this.preorderDate() ?? null,
+      tipo_flujo: this.preorderDate() ? 'preorden' : 'normal',
     };
 
     if (this.isEditingOrder() && this.editingOrderId()) {
@@ -1157,7 +1168,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
-    this.reservationDate.set(null);
+    this.preorderDate.set(null);
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
     this.editingOrderSource.set(null);
@@ -1165,6 +1176,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.cargarProductos();
     this.loadOrders();
     this.loadPendingOrders();
+    this.loadPreorders();
     this.cargarCajaActual();
   }
 
@@ -1219,6 +1231,40 @@ export class PosHome implements OnInit, OnDestroy {
     this.isPendingOrdersModalOpen.set(false);
   }
 
+  onPreordersRequested(): void {
+    this.loadPreorders();
+    this.isPreordersModalOpen.set(true);
+  }
+
+  closePreordersModal(): void {
+    this.isPreordersModalOpen.set(false);
+  }
+
+  onEditPreorder(orderId: number): void {
+    this.prepareOrderSelection('pending', 'edit');
+    this.closePreordersModal();
+    this.cargarOrdenExistente(orderId);
+  }
+
+  onActivatePreorder(order: Order): void {
+    this.confirmDialog.confirm({
+      title: 'Activar preorden',
+      message: `¿Activar la preorden #${order.numero_orden || order.id}? Entrará inmediatamente a Cocina, Parrilla y Servicio.`,
+      confirmText: 'Activar',
+      confirmColor: 'primary',
+    }).subscribe(confirmed => {
+      if (!confirmed) return;
+      this.posService.activarPreorden(order.id).subscribe({
+        next: () => {
+          this.toastr.success('Preorden activada correctamente.');
+          this.loadPreorders();
+          this.loadOrders();
+        },
+        error: error => this.toastr.error(error?.error?.message || 'No se pudo activar la preorden.'),
+      });
+    });
+  }
+
   onExistingOrderSelected(orderId: number): void {
     this.prepareOrderSelection('internal', 'edit');
     this.cargarOrdenExistente(orderId);
@@ -1253,7 +1299,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
-    this.reservationDate.set(null);
+    this.preorderDate.set(null);
     this.deletedItems.set([]);
     this.isRefundMode.set(false);
   }
@@ -1279,6 +1325,9 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   private isPendingOrder(orden: Order): boolean {
+    if (orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'programada') {
+      return false;
+    }
     return (
       orden.estado_pago === 'pendiente' ||
       orden.estado_pago === 'parcial' ||
@@ -1298,6 +1347,13 @@ export class PosHome implements OnInit, OnDestroy {
 
   formatPrice(amount: number): string {
     return formatCurrency(amount);
+  }
+
+  private loadPreorders(): void {
+    this.posService.obtenerPreordenesProgramadas().subscribe({
+      next: preorders => this.preorders.set(preorders),
+      error: () => this.preorders.set([]),
+    });
   }
 
   private updateProductStock(productId: number, delta: number): void {

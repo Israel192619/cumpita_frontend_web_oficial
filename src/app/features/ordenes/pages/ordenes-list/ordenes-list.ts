@@ -23,10 +23,21 @@ export class OrdenesList implements OnInit, OnDestroy {
   error = signal<string | null>(null);
   errorMessageLink = signal<string | null>(null);
   errorMessageText = signal<string | null>(null);
-  private reverbSub!: Subscription;
+  private reverbSub = new Subscription();
   selectedOrder = signal<Order | null>(null);
   dateRange = signal<DateRangeValue>({ from: null, to: null, includeTime: false });
-  filteredOrders = computed(() => this.ordenes().filter(order => isWithinDateRange(order.fecha_orden || order.created_at, this.dateRange())));
+  filteredOrders = computed(() => this.ordenes().filter(order => isWithinDateRange(
+    order.tipo_flujo === 'preorden' && order.estado_preorden === 'programada'
+      ? order.fecha_programada
+      : (order.fecha_orden || order.created_at),
+    this.dateRange(),
+  )));
+  rowActions = [
+    { type: 'edit', label: 'Editar', icon: 'edit' },
+    { type: 'view', label: 'Ver', icon: 'eye' },
+    { type: 'activate', label: 'Activar', class: 'success', visible: (item: Order) => item.tipo_flujo === 'preorden' && item.estado_preorden === 'programada' },
+    { type: 'delete', label: 'Eliminar', icon: 'trash', class: 'delete' },
+  ];
 
   constructor(
     private posService: PosService,
@@ -42,14 +53,17 @@ export class OrdenesList implements OnInit, OnDestroy {
   }
 
   escucharNuevasOrdenes() {
-    this.reverbSub = this.reverb
+    this.reverbSub.add(this.reverb
       .escucharCanal('canal-ordenes', '.OrdenCreada')
       .subscribe((data: any) => {
         if (data?.orden_id) {
           this.obtenerOrdenes();
           this.toastr.info(`Nueva orden #${data.orden_id} recibida`, 'Tiempo Real');
         }
-      });
+      }));
+    this.reverbSub.add(this.reverb
+      .escucharCanal('canal-ordenes', '.PreordenActualizada')
+      .subscribe(() => this.obtenerOrdenes()));
   }
 
   obtenerOrdenes() {
@@ -68,6 +82,8 @@ export class OrdenesList implements OnInit, OnDestroy {
         const ordenesFormateadas = listaOriginal.map((orden: any) => ({
           ...orden,
           numero_orden: orden.numero_orden,
+          tipo_flujo_label: orden.tipo_flujo === 'preorden' ? 'Preorden' : 'Normal',
+          estado_preorden_label: orden.estado_preorden ? orden.estado_preorden.toUpperCase() : '—',
           
           // Si hay cliente usa su nombre, si no, usa observaciones o un respaldo por defecto
           cliente_nombre: orden.cliente 
@@ -101,9 +117,31 @@ export class OrdenesList implements OnInit, OnDestroy {
       this.selectedOrder.set(item);
     }
 
+    if (type === 'activate') {
+      this.activarPreorden(item);
+    }
+
     if (type === 'delete') {
       this.eliminarOrden(item.id);
     }
+  }
+
+  private activarPreorden(orden: Order): void {
+    this.confirmDialog.confirm({
+      title: 'Activar preorden',
+      message: `¿Activar la preorden #${orden.numero_orden || orden.id}? Entrará al flujo operativo inmediatamente.`,
+      confirmText: 'Activar',
+      confirmColor: 'primary',
+    }).subscribe(result => {
+      if (!result) return;
+      this.posService.activarPreorden(orden.id).subscribe({
+        next: () => {
+          this.toastr.success('Preorden activada correctamente.');
+          this.obtenerOrdenes();
+        },
+        error: error => this.toastr.error(error?.error?.message || 'No se pudo activar la preorden.'),
+      });
+    });
   }
 
   closeOrderDetail(): void {
@@ -115,7 +153,9 @@ export class OrdenesList implements OnInit, OnDestroy {
   eliminarOrden(id: number) {
     this.confirmDialog.confirm({
       title: 'Eliminar orden',
-      message: '¿Estás seguro de eliminar esta orden? Esta acción no se puede deshacer.'
+      message: '¿Estás seguro de eliminar esta orden? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      confirmColor: 'danger',
     }).subscribe(result => {
       if (result) {
         this.posService.eliminarOrden(id).subscribe({
