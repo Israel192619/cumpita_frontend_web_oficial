@@ -15,7 +15,7 @@ export class AuthService {
 
   constructor(private http: HttpClient, private router:Router) {}
 
-  login(credentials: { email: string; password: string }): Observable<any> {
+  login(credentials: { identificador: string; password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, credentials).pipe(
       tap((res: any) => {
         if (res?.token) {
@@ -48,11 +48,16 @@ export class AuthService {
     return this.http.get<User>(`${this.apiUrl}/me`);
   }
 
-  olvidasteContrasena(email: string) {
-    return this.http.post(`${this.apiUrl}/olvide-mi-contrasena`, { email });
+  olvidasteContrasena(identificador: string) {
+    return this.http.post(`${this.apiUrl}/olvide-mi-contrasena`, { identificador });
   }
 
-  reestablecerContrasena(credentials: { email: string; password: string }): Observable<any> {
+  reestablecerContrasena(credentials: {
+    email: string;
+    token: string;
+    password: string;
+    password_confirmation: string;
+  }): Observable<any> {
     return this.http.post(`${this.apiUrl}/reestablecer-contrasena`, credentials).pipe(
       tap((res: any) => {
         if (res?.access_token) {

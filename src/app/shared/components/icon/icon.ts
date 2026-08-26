@@ -12,6 +12,7 @@ export type IconName =
   | 'dots'
   | 'edit'
   | 'eye'
+  | 'eye-off'
   | 'qrcode'
   | 'shopping-cart'
   | 'trash'

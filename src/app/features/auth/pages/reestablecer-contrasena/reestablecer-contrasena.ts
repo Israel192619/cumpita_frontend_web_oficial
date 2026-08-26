@@ -1,81 +1,92 @@
-import { ChangeDetectorRef, Component } from '@angular/core';
-import { FormGroup, FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Component, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { timeout } from 'rxjs';
+import { finalize, timeout } from 'rxjs/operators';
+
+import { Icon, Loader } from '@app/shared/components';
 import { AuthService } from '../../../../core/services/auth-service';
-import { CommonModule } from '@angular/common';
-import { environment } from '../../../../../environments/environment';
 import { passwordMatchValidator } from '../../../../shared/validators/confirmacion-contrasena';
 
 @Component({
   selector: 'app-reestablecer-contrasena',
-  imports: [
-    CommonModule, RouterLink, ReactiveFormsModule
-  ],
+  imports: [RouterLink, ReactiveFormsModule, Icon, Loader],
   templateUrl: './reestablecer-contrasena.html',
   styleUrl: './reestablecer-contrasena.css',
 })
 export class ReestablecerContrasena {
-  form: FormGroup;
+  private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
-  nombreApp = environment.nombreApp;
-  loading = false;
-  error: string | null = null;
-  showPassword = false;
-  showConfirmPassword = false;
+  readonly cargando = signal(false);
+  readonly mensajeError = signal<string | null>(null);
+  readonly mostrarContrasena = signal(false);
+  readonly mostrarConfirmacion = signal(false);
 
-  email = 'admin@gmail.com';
-  token = 'qwertyywrwedsfewerwerwefwefwef';
+  private readonly email = this.route.snapshot.queryParamMap.get('email')?.trim() ?? '';
+  private readonly token = this.route.snapshot.queryParamMap.get('token')?.trim() ?? '';
+  readonly enlaceValido = Boolean(this.email && this.token);
 
-  // ngOnInit(): void {
-  //   this.route.queryParams.subscribe(params => {
-  //     this.token = params['token'] || '';
-  //     this.email = params['email'] || '';
-  //   });
-  // }
-
-  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private cd: ChangeDetectorRef, private route: ActivatedRoute) {
-    this.form = this.fb.group({
+  readonly formulario = this.fb.nonNullable.group(
+    {
       password: ['', [Validators.required, Validators.minLength(8)]],
-      confirmPassword: ['', [Validators.required, Validators.minLength(8)]]
-    }, {
-      validators: passwordMatchValidator()
-    });
+      confirmPassword: ['', [Validators.required, Validators.minLength(8)]],
+    },
+    { validators: passwordMatchValidator() },
+  );
+
+  constructor() {
+    // El enlace enviado por correo debe contener ambos parámetros.
+    if (!this.enlaceValido) {
+      this.mensajeError.set('El enlace para restablecer la contraseña es inválido o está incompleto.');
+    }
   }
 
-  submit() {
-    if (this.form.invalid) return;
-    this.loading = true;
-    this.error = null;
-    const value = this.form.value;
-    const data = {
-      email: this.email,
-      password: (value.password as string) ?? '',
-      token: this.token,
-      password_confirmation: value.confirmPassword
-    };
-    this.auth.reestablecerContrasena(data).pipe(timeout(10000)).subscribe({
-      next: () => {
-        this.loading = false;
-        this.cd.detectChanges();
-        this.router.navigateByUrl('/login');
-      },
-      error: (err) => {
-        this.loading = false;
-        if (err.status === 0) {
-          this.error = 'No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.';
-        } else {
-          this.error = err?.error?.message || 'Error al restablecer contraseña';
-        }
-        this.cd.detectChanges();
-      }
-    });
+  /** Envía la nueva contraseña junto con el token recibido en el correo. */
+  enviar(): void {
+    if (!this.enlaceValido) return;
+
+    if (this.formulario.invalid || this.cargando()) {
+      this.formulario.markAllAsTouched();
+      return;
+    }
+
+    this.cargando.set(true);
+    this.mensajeError.set(null);
+    const valores = this.formulario.getRawValue();
+
+    this.auth
+      .reestablecerContrasena({
+        email: this.email,
+        token: this.token,
+        password: valores.password,
+        password_confirmation: valores.confirmPassword,
+      })
+      .pipe(
+        timeout(15_000),
+        finalize(() => this.cargando.set(false)),
+      )
+      .subscribe({
+        next: () => void this.router.navigateByUrl('/login'),
+        error: (error) => this.mensajeError.set(this.obtenerMensajeError(error)),
+      });
   }
 
-  toggleShowPassword() {
-    this.showPassword = !this.showPassword;
+  alternarVisibilidadContrasena(): void {
+    this.mostrarContrasena.update((visible) => !visible);
   }
-  toggleShowConfirmPassword() {
-    this.showConfirmPassword = !this.showConfirmPassword;
+
+  alternarVisibilidadConfirmacion(): void {
+    this.mostrarConfirmacion.update((visible) => !visible);
+  }
+
+  private obtenerMensajeError(error: any): string {
+    if (error?.status === 0) {
+      return 'No se pudo conectar al servidor. Verifica tu conexión e inténtalo nuevamente.';
+    }
+    if (error?.name === 'TimeoutError') return 'El servidor tardó demasiado en responder.';
+
+    return error?.error?.message ?? 'No se pudo restablecer la contraseña.';
   }
 }

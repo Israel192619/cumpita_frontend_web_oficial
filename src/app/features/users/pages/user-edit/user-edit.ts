@@ -33,6 +33,7 @@ export class UserEdit {
   ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
+      username: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9._-]{3,50}$/)]],
       direccion: ['', Validators.required],
       numero_celular: ['', Validators.required],
       avatar: null,
@@ -69,6 +70,7 @@ export class UserEdit {
           this.user.set(user);
           this.form.patchValue({
             name: user.name,
+            username: user.username ?? '',
             direccion: user.perfil_usuarios?.direccion || '',
             numero_celular: user.perfil_usuarios?.numero_celular || '',
             avatar: null,

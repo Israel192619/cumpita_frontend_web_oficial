@@ -1,72 +1,74 @@
-import { ChangeDetectorRef, Component, signal } from '@angular/core';
-import { FormGroup, FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Component, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../../../core/services/auth-service';
-import { CommonModule } from '@angular/common';
-import { timeout } from 'rxjs/operators';
-import { environment } from '../../../../../environments/environment';
+import { finalize, switchMap, timeout } from 'rxjs/operators';
+
+import { Icon, Loader } from '@app/shared/components';
 import { homeForUser } from '../../../../core/auth/role-access';
+import { AuthService } from '../../../../core/services/auth-service';
 
 @Component({
   selector: 'app-login',
-  imports: [
-    ReactiveFormsModule, CommonModule,
-    RouterLink
-],
+  imports: [ReactiveFormsModule, RouterLink, Icon, Loader],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
 export class Login {
+  private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
-  form: FormGroup;
-  nombreApp = environment.nombreApp;
-  loading = signal(false);
-  error = signal<string | null>(null);
-  showPassword = signal(false);
+  readonly cargando = signal(false);
+  readonly mensajeError = signal<string | null>(null);
+  readonly mostrarContrasena = signal(false);
 
-  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router) {
-    this.form = this.fb.group({
-      email: ['admin@gmail.com', [Validators.required, Validators.email]],
-      password: ['Admin2026***', [Validators.required, Validators.minLength(8)]],
-    });
+  // nonNullable permite obtener textos en lugar de valores string | null.
+  readonly formulario = this.fb.nonNullable.group({
+    identificador: [
+      '',
+      [
+        Validators.required,
+        Validators.pattern(/^(?:[^\s@]+@[^\s@]+\.[^\s@]+|[a-zA-Z0-9._-]{3,50})$/),
+      ],
+    ],
+    password: ['', [Validators.required, Validators.minLength(8)]],
+  });
+
+  /** Inicia sesión y consulta el perfil para dirigir al usuario a la pantalla de su rol. */
+  enviar(): void {
+    if (this.formulario.invalid || this.cargando()) {
+      this.formulario.markAllAsTouched();
+      return;
+    }
+
+    this.cargando.set(true);
+    this.mensajeError.set(null);
+
+    this.auth
+      .login(this.formulario.getRawValue())
+      .pipe(
+        timeout(15_000),
+        switchMap(() => this.auth.me()),
+        finalize(() => this.cargando.set(false)),
+      )
+      .subscribe({
+        next: (usuario) => void this.router.navigateByUrl(homeForUser(usuario)),
+        error: (error) => this.mensajeError.set(this.obtenerMensajeError(error)),
+      });
   }
 
-  submit() {
-    if (this.form.invalid) return;
-    this.loading.set(true);
-    this.error.set(null);
-    const value = this.form.value;
-    const creds: { email: string; password: string } = {
-      email: (value.email as string) ?? '',
-      password: (value.password as string) ?? ''
-    };
-    this.auth.login(creds). subscribe({
-      next: () => {
-        this.auth.me().subscribe({
-          next: user => {
-            this.loading.set(false);
-            this.router.navigateByUrl(homeForUser(user));
-          },
-          error: () => {
-            this.loading.set(false);
-            this.error.set('No se pudo verificar el perfil del usuario.');
-          }
-        });
-      },
-      error: (err) => {
-        if (err.status === 0) {
-          this.error.set('No se pudo conectar al servidor. Por favor, verifica tu conexión e inténtalo de nuevo.');
-        } else if (err.name === 'TimeoutError') {
-          this.error.set('Tiempo de espera agotado');
-        } else {
-          this.error.set(err?.error?.message || 'Error inesperado');
-        }
-        this.loading.set(false);
-      }
-    });
+  /** Alterna la visibilidad de la contraseña sin cambiar su contenido. */
+  alternarVisibilidadContrasena(): void {
+    this.mostrarContrasena.update((visible) => !visible);
   }
 
-  toggleShowPassword() {
-    this.showPassword.set(!this.showPassword());
+  private obtenerMensajeError(error: any): string {
+    if (error?.status === 0) {
+      return 'No se pudo conectar al servidor. Verifica tu conexión e inténtalo nuevamente.';
+    }
+    if (error?.status === 401) return 'El correo, usuario o contraseña son incorrectos.';
+    if (error?.name === 'TimeoutError') return 'El servidor tardó demasiado en responder.';
+
+    return error?.error?.message ?? 'Ocurrió un error inesperado.';
   }
 }

@@ -1,24 +1,20 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
+import { environment } from '../../../../environments/environment';
+
 @Component({
   selector: 'app-auth-layout',
-  imports: [
-    RouterOutlet
-  ],
+  imports: [RouterOutlet],
   templateUrl: './auth-layout.html',
   styleUrl: './auth-layout.css',
 })
 export class AuthLayout {
-  private initialized = false;
+  readonly nombreApp = environment.nombreApp;
 
-  ngOnInit() {
-  if (!this.initialized) {
-    this.initialized = true;
-
-    setTimeout(() => {
-      document.dispatchEvent(new Event('DOMContentLoaded'));
-    }, 0);
+  /** Evita mostrar el icono de imagen rota si el logotipo no está disponible. */
+  ocultarLogo(evento: Event): void {
+    const imagen = evento.target as HTMLImageElement | null;
+    if (imagen) imagen.hidden = true;
   }
-}
 }

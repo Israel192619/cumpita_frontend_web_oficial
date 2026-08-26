@@ -1,2 +1,10 @@
-<router-outlet></router-outlet>
-
+<main class="auth-page">
+  <section class="auth-card" aria-labelledby="auth-app-name">
+    <header class="auth-brand">
+      <img src="images/logoSvgWhite2.svg" alt="Logo de Toñito" (error)="ocultarLogo($event)" />
+      <h1 id="auth-app-name">{{ nombreApp }}</h1>
+    </header>
+    <!-- Aquí Angular muestra el formulario correspondiente a la ruta actual. -->
+    <router-outlet />
+  </section>
+</main>

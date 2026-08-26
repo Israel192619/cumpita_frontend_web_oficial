@@ -8,6 +8,6 @@ import { Component, Input } from '@angular/core';
   styleUrl: './loader.css',
 })
 export class Loader {
-  @Input() fullscreen:boolean = false;
-  @Input() loading:boolean = false;
+  @Input() fullscreen = false;
+  @Input() loading = false;
 }

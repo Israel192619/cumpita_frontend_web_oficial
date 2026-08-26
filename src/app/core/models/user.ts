@@ -9,6 +9,7 @@ export interface Role {
 export interface User {
   id: number;
   name: string;
+  username?: string | null;
   email: string;
   role_id: number;
   role?: Role | null;
@@ -28,6 +29,7 @@ export interface PerfilUsuario {
 
 export type CreateUser = {
   name: string;
+  username: string;
   email: string;
   password: string;
   role_id: number;

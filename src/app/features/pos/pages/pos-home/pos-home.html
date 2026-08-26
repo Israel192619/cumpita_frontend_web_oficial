@@ -43,11 +43,8 @@
     <button *ngIf="cajaActual()" type="button" class="btn-caja btn-caja--close" (click)="abrirModalCaja('cerrar')">Cerrar caja</button>
   </section>
 
-  <!-- Main Layout: Izquierda (Header + Productos) | Derecha (Carrito) -->
   <div class="pos-layout">
-    <!-- Left Column: Header + Productos -->
     <div class="pos-left-column">
-      <!-- Header: Categorías + Búsqueda + Marca -->
       <div class="pos-header-section">
         <app-pos-toolbar
           [mode]="operationMode"
@@ -102,7 +99,6 @@
       <app-button text="+" size="small" ariaLabel="Agregar producto" (buttonClick)="openProductSelector()" />
     </div>
 
-    <!-- Right Column: Carrito (ocupa toda la altura) -->
     <div class="pos-section cart-section">
       <app-cart-panel
         [operationMode]="operationMode"

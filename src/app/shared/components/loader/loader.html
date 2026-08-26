@@ -1,3 +1,11 @@
-<div class="loader-container" [class.fullscreen]="fullscreen" *ngIf="loading">
-    <span class="loader"></span>
-</div>
+@if (loading) {
+  <div
+    class="loader-container"
+    [class.fullscreen]="fullscreen"
+    role="status"
+    aria-live="polite"
+    aria-label="Cargando"
+  >
+    <span class="loader" aria-hidden="true"></span>
+  </div>
+}

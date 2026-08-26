@@ -31,6 +31,7 @@ export class UserCreate {
   ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
+      username: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9._-]{3,50}$/)]],
       direccion: ['', Validators.required],
       numero_celular: ['', Validators.required],
       avatar: null,
@@ -125,6 +126,7 @@ export class UserCreate {
   resetForm() {
     this.form.reset({
       name: '',
+      username: '',
       email: '',
       password: '',
       pin: '',

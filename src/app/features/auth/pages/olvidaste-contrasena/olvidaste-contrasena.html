@@ -1,33 +1,41 @@
-<div class="login-page">
-  <div class="login-card">
-    <div class="brand">
-      <img src="images/logo-white.svg" alt="Logo" (error)="$event.target.style.display='none'" />
-      <h1>{{ nombreApp }}</h1>
-      <p class="subtitle">Ingrese su correo para restablecer su contraseña</p>
-    </div>
+<h2 class="auth-form-title">Recuperar contraseña</h2>
 
-    <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+    <form [formGroup]="formulario" (ngSubmit)="enviar()" class="auth-form" novalidate>
       <div class="field">
-        <label for="email">Correo</label>
-        <input id="email" type="email" formControlName="email" placeholder="tu@correo.com" />
-        <div class="hint" *ngIf="form.controls['email'].touched && form.controls['email'].invalid">
-          <small *ngIf="form.controls['email'].errors?.['required']">El correo es requerido.</small>
-          <small *ngIf="form.controls['email'].errors?.['email']">Correo inválido.</small>
-        </div>
+        <label for="identificador">Correo o nombre de usuario</label>
+        <input id="identificador" type="text" formControlName="identificador" placeholder="Correo o usuario"
+          autocomplete="username" autocapitalize="none" spellcheck="false" />
+        @if (formulario.controls.identificador.touched && formulario.controls.identificador.invalid) {
+          <div class="hint">
+            @if (formulario.controls.identificador.errors?.['required']) {
+              <small>El correo o nombre de usuario es requerido.</small>
+            }
+            @if (formulario.controls.identificador.errors?.['pattern']) {
+              <small>Ingresa un correo o nombre de usuario válido.</small>
+            }
+          </div>
+        }
       </div>
 
       <div class="submit-row">
-        <button type="submit" class="btn-primary" [disabled]="loading">
-          <span *ngIf="!loading">ENVIAR</span>
-          <span *ngIf="loading" class="loader"></span>
+        <button type="submit" class="btn-primary" [disabled]="cargando()">
+          @if (!cargando()) {
+            <span>ENVIAR ENLACE</span>
+          }
+          <app-loader [loading]="cargando()" />
         </button>
       </div>
 
-      <div class="error" *ngIf="error"><small>{{ error }}</small></div>
+      @if (mensajeExito(); as exito) {
+        <div class="success" role="status" aria-live="polite">
+          <small>{{ exito }}</small>
+        </div>
+      }
+      @if (mensajeError(); as error) {
+        <div class="error" role="alert" aria-live="polite">
+          <small>{{ error }}</small>
+        </div>
+      }
     </form>
 
-    <div class="iniciar-sesion">
-        <a [routerLink]="['/login']" >Iniciar Sesión</a>
-    </div>
-  </div>
-</div>
+<div class="auth-link"><a routerLink="/login">Volver a iniciar sesión</a></div>
