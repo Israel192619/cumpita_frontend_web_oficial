@@ -32,6 +32,9 @@
       <div class="product-content">
         <h3 class="product-name">{{ prod.nombre }}</h3>
         <p *ngIf="prod.descripcion" class="product-desc">{{ prod.descripcion }}</p>
+        <div class="product-footer">
+          <span *ngIf="showPrices()" class="product-price">{{ formatPrice(prod.precio) }}</span>
+        </div>
         <span *ngIf="isProductAvailable(prod)" class="product-availability">
           {{ prod.maneja_stock ? (prod.stock || 0) + ' disponibles' : 'En stock' }}
         </span>
@@ -54,9 +57,6 @@
           >
             Reabastecer
           </button>
-        </div>
-        <div class="product-footer">
-          <span *ngIf="showPrices()" class="product-price">{{ formatPrice(prod.precio) }}</span>
         </div>
       </div>
     </div>

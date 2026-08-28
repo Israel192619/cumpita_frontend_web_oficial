@@ -69,6 +69,9 @@ export class CartPanelComponent {
   reservationDate = signal<string | null>(null);
   reservationTime = signal<string | null>(null);
   showReservationControls = signal<boolean>(false);
+  showDesktopReservationEditor = signal<boolean>(false);
+  showMobileDetails = signal<boolean>(false);
+  showMobileActions = signal<boolean>(false);
   itemNotes = signal<Map<number, string>>(new Map());
 
   // Cliente quick-select
@@ -533,29 +536,41 @@ export class CartPanelComponent {
     this.reservationTime.set(nextTime);
     this.reservationDate.set(dateValue);
     this.emitReservationDateTime();
+    this.showDesktopReservationEditor.set(false);
   }
 
   toggleReservationControls(): void {
-    const shouldShow = !this.showReservationControls();
-    this.showReservationControls.set(shouldShow);
-
-    if (shouldShow) {
-      if (!this.reservationDate() || !this.reservationTime()) {
-        this.addMinutesToReservationDate(15);
-        return;
-      }
-      this.emitReservationDateTime();
+    if (this.showReservationControls()) {
       return;
     }
 
+    this.showReservationControls.set(true);
+    this.showDesktopReservationEditor.set(true);
+    if (!this.reservationDate() || !this.reservationTime()) {
+      this.addMinutesToReservationDate(15);
+      return;
+    }
     this.emitReservationDateTime();
   }
 
-  clearReservation(): void {
-    this.showReservationControls.set(false);
-    this.reservationDate.set(null);
-    this.reservationTime.set(null);
-    this.emitReservationDateTime();
+  toggleDesktopReservationEditor(): void {
+    this.showDesktopReservationEditor.update(open => !open);
+  }
+
+  confirmClearReservation(): void {
+    this.confirmDialog.confirm({
+      title: 'Cancelar preorden',
+      message: 'La orden dejará de estar programada. Puedes volver a programarla cuando lo necesites.',
+      confirmText: 'Cancelar preorden',
+      confirmColor: 'danger',
+    }).subscribe(confirmed => {
+      if (!confirmed) return;
+      this.showReservationControls.set(false);
+      this.showDesktopReservationEditor.set(false);
+      this.reservationDate.set(null);
+      this.reservationTime.set(null);
+      this.emitReservationDateTime();
+    });
   }
 
   hasReservationSummary(): boolean {
@@ -590,6 +605,29 @@ export class CartPanelComponent {
 
   formatPrice(price: number): string {
     return formatCurrency(price);
+  }
+
+  toggleMobileDetails(): void {
+    this.showMobileDetails.update(value => !value);
+  }
+
+  toggleMobileActions(): void {
+    this.showMobileActions.update(value => !value);
+  }
+
+  getMobileOrderSummary(): string {
+    const mesa = this.selectedMesa()?.numero;
+    const cliente = this.selectedCliente()?.nombre;
+
+    if (mesa && cliente) return `Mesa ${mesa} · ${cliente}`;
+    if (mesa) return `Mesa ${mesa}`;
+    if (cliente) return cliente;
+
+    return this.orderType() === 'delivery'
+      ? 'Delivery'
+      : this.orderType() === 'to-go'
+        ? 'Para llevar'
+        : 'Sin cliente ni mesa';
   }
 
   // ================= CLIENTE =================
@@ -890,12 +928,18 @@ export class CartPanelComponent {
       this.reservationTime.set(null);
     }
     this.emitReservationDateTime();
+    if (this.reservationDate() && this.reservationTime()) {
+      this.showDesktopReservationEditor.set(false);
+    }
   }
 
   onReservationTimeChange(value: string): void {
     const timeValue = value ? value.trim() : null;
     this.reservationTime.set(timeValue);
     this.emitReservationDateTime();
+    if (this.reservationDate() && timeValue) {
+      this.showDesktopReservationEditor.set(false);
+    }
   }
 
   getProductImage(producto: any): string {

@@ -9,14 +9,20 @@ export type IconName =
   | 'clock'
   | 'coin'
   | 'credit-card'
+  | 'dashboard'
   | 'dots'
   | 'edit'
   | 'eye'
   | 'eye-off'
   | 'qrcode'
+  | 'package'
+  | 'report'
+  | 'restaurant'
+  | 'settings'
   | 'shopping-cart'
   | 'trash'
   | 'trending-up'
+  | 'users'
   | 'wallet';
 
 @Component({

@@ -108,21 +108,29 @@ export class PosHome implements OnInit, OnDestroy {
   pendingOrders = signal<Order[]>([]);
   preorders = signal<Order[]>([]);
   pendingOrdersSearch = signal<string>('');
+  preordersSearch = signal<string>('');
   isPendingOrdersModalOpen = signal<boolean>(false);
   isPreordersModalOpen = signal<boolean>(false);
   isHistoryModalOpen = signal<boolean>(false);
   isProductSelectorOpen = signal<boolean>(false);
+  isMobileActionsOpen = signal<boolean>(false);
 
   pendingOrdersCount = computed(() => this.pendingOrders().length);
   preordersCount = computed(() => this.preorders().length);
   hasUnsavedChanges = computed(() => {
-    return (
+    const hasStartedOrder =
       this.carrito().length > 0 ||
       !!this.selectedCliente() ||
       !!this.selectedMesa() ||
-      !!this.orderDate() ||
-      !!this.preorderDate() ||
-      this.isEditingOrder()
+      this.orderType() !== 'dine-in' ||
+      this.isEditingOrder();
+
+    const hasScheduledPreorder =
+      this.operationMode === 'pos' && !!this.preorderDate();
+
+    return (
+      hasStartedOrder ||
+      hasScheduledPreorder
     );
   });
 
@@ -196,6 +204,24 @@ export class PosHome implements OnInit, OnDestroy {
     return productos.filter((producto) => {
       const haystack = `${producto.nombre || ''} ${producto.descripcion || ''}`.toLowerCase();
       return haystack.includes(query);
+    });
+  });
+
+  filteredPreorders = computed(() => {
+    const query = this.preordersSearch().trim().toLowerCase();
+    return this.preorders().filter((orden) => {
+      const haystack = [
+        orden.numero_orden?.toString() || orden.id.toString(),
+        orden.cliente_nombre || '',
+        orden.cliente_telefono || '',
+        orden.mesa?.numero || '',
+        orden.tipo_orden || '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return !query || haystack.includes(query);
     });
   });
   globalSearchResults = computed(() => this.productSearchQuery().trim() ? this.visibleProductos() : []);
@@ -350,18 +376,41 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onBackRequested(): void {
-    if (this.hasUnsavedChanges()) {
-      const message = 'Si sales se perderán todos los cambios. ¿Deseas continuar?';
-      if (!window.confirm(message)) {
-        return;
-      }
+    const leaveDecision = this.confirmLeave();
+    if (typeof leaveDecision === 'boolean') {
+      if (leaveDecision) this.navigateBack();
+      return;
     }
+    leaveDecision.subscribe(confirmed => {
+      if (confirmed) this.navigateBack();
+    });
+  }
+
+  confirmLeave() {
+    if (!this.hasUnsavedChanges()) return true;
+
+    return this.confirmDialog.confirm({
+      title: '¿Abandonar pedido?',
+      message: 'Tienes un pedido en proceso. Si sales ahora, se perderán todos los productos y cambios sin guardar.',
+      confirmText: 'Abandonar pedido',
+      confirmColor: 'danger',
+    });
+  }
+
+  private navigateBack(): void {
     this.router.navigate([this.operationMode === 'preorden' ? '/app/servicio' : '/app/pedidos']);
   }
 
   onSaveOrderEditsRequested(): void {
     const orderId = this.editingOrderId();
     if (!this.isEditingOrder() || !orderId) {
+      return;
+    }
+
+    if (!this.selectedCliente()) {
+      const message = 'Asigna un cliente antes de guardar los cambios de la orden.';
+      this.error.set(message);
+      this.toastr.error(message);
       return;
     }
 
@@ -522,6 +571,7 @@ export class PosHome implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.error.set('Error al cargar categorías');
+        this.toastr.error('Error al cargar categorías');
         this.isLoadingCategorias.set(false);
       },
     });
@@ -544,6 +594,7 @@ export class PosHome implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.error.set('Error al cargar productos');
+        this.toastr.error('Error al cargar productos');
         this.isLoadingProductos.set(false);
       },
     });
@@ -814,16 +865,11 @@ export class PosHome implements OnInit, OnDestroy {
     const currentClienteId = this.selectedCliente()?.id ?? null;
     const newClienteId = cliente?.id ?? null;
     
-    // If cliente is cleared via the "Cambiar" button:
-    // - when editing an order: reset full order state (cancel edit)
-    // - otherwise: only unset the selected client, keep cart intact
+    // "Cambiar" solo debe liberar el cliente para elegir otro;
+    // una edición de orden conserva sus productos y el resto de cambios.
     if (cliente === null) {
-      if (this.isEditingOrder()) {
-        this.resetCurrentOrderState();
-      } else {
-        this.selectedCliente.set(null);
-        return;
-      }
+      this.selectedCliente.set(null);
+      return;
     }
 
     this.selectedCliente.set(cliente);
@@ -895,6 +941,7 @@ export class PosHome implements OnInit, OnDestroy {
         },
         error: () => {
           this.error.set('Error al actualizar la orden adeudada');
+          this.toastr.error('Error al actualizar la orden adeudada');
           this.isProcessingCheckout.set(false);
         },
       });
@@ -907,6 +954,7 @@ export class PosHome implements OnInit, OnDestroy {
         },
         error: () => {
           this.error.set('Error al procesar la orden adeudada');
+          this.toastr.error('Error al procesar la orden adeudada');
           this.isProcessingCheckout.set(false);
         },
       });
@@ -1044,6 +1092,7 @@ export class PosHome implements OnInit, OnDestroy {
             error: (err) => {
               console.error('Error al registrar la devolución:', err);
               this.error.set('Error al registrar la devolución');
+              this.toastr.error('Error al registrar la devolución');
               this.isProcessingCheckout.set(false);
             },
           });
@@ -1051,6 +1100,7 @@ export class PosHome implements OnInit, OnDestroy {
         error: (err) => {
           console.error('Error al actualizar la orden:', err);
           this.error.set('Error al actualizar la orden');
+          this.toastr.error('Error al actualizar la orden');
           this.isProcessingCheckout.set(false);
         },
       });
@@ -1099,12 +1149,14 @@ export class PosHome implements OnInit, OnDestroy {
             },
             error: (err) => {
               this.error.set('Error al registrar el pago');
+              this.toastr.error('Error al registrar el pago');
               this.isProcessingCheckout.set(false);
             },
           });
         },
         error: () => {
           this.error.set('Error al actualizar la orden');
+          this.toastr.error('Error al actualizar la orden');
           this.isProcessingCheckout.set(false);
         },
       });
@@ -1134,6 +1186,7 @@ export class PosHome implements OnInit, OnDestroy {
               error: (err) => {
                 console.error('crearPagoOrden error:', err);
                 this.error.set('Error al registrar el pago');
+                this.toastr.error('Error al registrar el pago');
                 this.isProcessingCheckout.set(false);
               },
             });
@@ -1149,6 +1202,7 @@ export class PosHome implements OnInit, OnDestroy {
         error: (err) => {
           console.error('crearOrden error:', err);
           this.error.set('Error al procesar la venta');
+          this.toastr.error('Error al procesar la venta');
           this.isProcessingCheckout.set(false);
         },
       });
@@ -1311,6 +1365,35 @@ export class PosHome implements OnInit, OnDestroy {
     this.isProductSelectorOpen.set(true);
   }
 
+  toggleMobileActions(): void {
+    this.isMobileActionsOpen.update(open => !open);
+  }
+
+  openMobilePendingOrders(): void {
+    this.isMobileActionsOpen.set(false);
+    this.onPendingOrdersRequested();
+  }
+
+  openMobilePreorders(): void {
+    this.isMobileActionsOpen.set(false);
+    this.onPreordersRequested();
+  }
+
+  openMobileCaja(): void {
+    this.isMobileActionsOpen.set(false);
+    this.abrirModalCaja(this.cajaActual() ? 'cerrar' : 'abrir');
+  }
+
+  async toggleMobileFullscreen(): Promise<void> {
+    this.isMobileActionsOpen.set(false);
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      this.toastr.info('El navegador no permitió cambiar la pantalla completa.');
+    }
+  }
+
   closeProductSelector(): void {
     this.isProductSelectorOpen.set(false);
   }
@@ -1336,12 +1419,15 @@ export class PosHome implements OnInit, OnDestroy {
 
   closePreordersModal(): void {
     this.isPreordersModalOpen.set(false);
+    this.preordersSearch.set('');
   }
 
   onEditPreorder(orderId: number): void {
-    this.prepareOrderSelection('pending', 'edit');
-    this.closePreordersModal();
-    this.cargarOrdenExistente(orderId);
+    this.confirmOrderReplacement(() => {
+      this.prepareOrderSelection('pending', 'edit');
+      this.closePreordersModal();
+      this.cargarOrdenExistente(orderId);
+    });
   }
 
   onActivatePreorder(order: Order): void {
@@ -1364,20 +1450,42 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onExistingOrderSelected(orderId: number): void {
-    this.prepareOrderSelection('internal', 'edit');
-    this.cargarOrdenExistente(orderId);
+    this.confirmOrderReplacement(() => {
+      this.prepareOrderSelection('internal', 'edit');
+      this.cargarOrdenExistente(orderId);
+    });
   }
 
   onEditPendingOrder(orderId: number): void {
-    this.prepareOrderSelection('pending', 'edit');
-    this.closePendingOrdersModal();
-    this.cargarOrdenExistente(orderId);
+    this.confirmOrderReplacement(() => {
+      this.prepareOrderSelection('pending', 'edit');
+      this.closePendingOrdersModal();
+      this.cargarOrdenExistente(orderId);
+    });
   }
 
   onPayPendingOrder(orderId: number): void {
-    this.prepareOrderSelection('pending', 'pay');
-    this.closePendingOrdersModal();
-    this.cargarOrdenExistente(orderId);
+    this.confirmOrderReplacement(() => {
+      this.prepareOrderSelection('pending', 'pay');
+      this.closePendingOrdersModal();
+      this.cargarOrdenExistente(orderId);
+    });
+  }
+
+  private confirmOrderReplacement(onConfirmed: () => void): void {
+    if (!this.hasUnsavedChanges()) {
+      onConfirmed();
+      return;
+    }
+
+    this.confirmDialog.confirm({
+      title: '¿Cambiar de pedido?',
+      message: 'Tienes un pedido en proceso. Al abrir otra orden se perderán los productos y cambios sin guardar.',
+      confirmText: 'Abrir otra orden',
+      confirmColor: 'danger',
+    }).subscribe(confirmed => {
+      if (confirmed) onConfirmed();
+    });
   }
 
   private prepareOrderSelection(source: 'pending' | 'internal', action: 'edit' | 'pay'): void {

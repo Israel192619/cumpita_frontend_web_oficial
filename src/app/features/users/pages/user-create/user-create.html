@@ -25,7 +25,7 @@
   <app-input-form label="Correo" [control]="getControl('email')" placeholder="ejemplo@gmail.com">
   </app-input-form>
 
-  <app-input-form label="Contraseña" type="password" [control]="getControl('password')" placeholder="********">
+  <app-input-form label="Contraseña" type="password" autocomplete="new-password" [control]="getControl('password')" placeholder="********">
   </app-input-form>
 
   @if (esRolMesero()) {

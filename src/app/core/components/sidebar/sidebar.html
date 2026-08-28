@@ -1,6 +1,11 @@
 <div class="sidebar-shell" [class.is-collapsed]="collapsed">
-  <a class="brand" [routerLink]="homeRoute()" (click)="selectLink()" aria-label="Inicio Toñito">
-    <span class="brand-mark">T</span><span class="brand-copy"><b>Toñito</b><small>Restaurante</small></span>
+  <a class="brand" [routerLink]="homeRoute()" (click)="selectLink()" [attr.aria-label]="'Inicio de ' + nombreApp">
+    <span class="brand-mark">
+      <img src="images/logoSvgWhite2.svg" [alt]="'Logo de ' + nombreApp" />
+    </span>
+    <span class="brand-copy">
+      <b>{{ nombreApp }}</b>
+    </span>
   </a>
 
   <nav class="nav-list">
@@ -8,15 +13,15 @@
       @if (user() && visibleGroups().length) {
         @if (homeRoute() === '/app') {
           <p class="nav-caption">Principal</p>
-          <a class="nav-link" routerLink="/app" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active" (click)="selectLink()"><span class="nav-icon">D</span><span class="nav-label">Dashboard</span></a>
+          <a class="nav-link" routerLink="/app" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active" (click)="selectLink()"><span class="nav-icon"><app-icon name="dashboard" [size]="18" /></span><span class="nav-label">Dashboard</span></a>
         }
         @for (link of directLinks(); track link.route) {
-          <a class="nav-link" [routerLink]="link.route" routerLinkActive="active" (click)="selectLink()"><span class="nav-icon">{{ iconFor(link.label) }}</span><span class="nav-label">{{ link.label }}</span></a>
+          <a class="nav-link" [routerLink]="link.route" routerLinkActive="active" (click)="selectLink()"><span class="nav-icon"><app-icon [name]="iconFor(link.label)" [size]="18" /></span><span class="nav-label">{{ link.label }}</span></a>
         }
         <p class="nav-caption">Módulos</p>
         @for (group of visibleGroups(); track group.key) {
           <section class="nav-group" [class.open]="expanded() === group.key" (mouseenter)="positionFlyout($event, group.children.length)">
-            <button type="button" class="nav-link group-trigger" (click)="toggleGroup(group.key)" [attr.aria-expanded]="expanded() === group.key"><span class="nav-icon">{{ group.icon }}</span><span class="nav-label">{{ group.label }}</span><span class="chevron">›</span></button>
+            <button type="button" class="nav-link group-trigger" (click)="toggleGroup(group.key)" [attr.aria-expanded]="expanded() === group.key"><span class="nav-icon"><app-icon [name]="group.icon" [size]="18" /></span><span class="nav-label">{{ group.label }}</span><span class="chevron"><app-icon name="chevron-right" [size]="16" /></span></button>
             <div class="submenu">@for (child of group.children; track child.route) { <a [routerLink]="child.route" routerLinkActive="active" class="submenu-link" (click)="selectLink()">{{ child.label }}</a> }</div>
             <div class="collapsed-flyout" [style.top.px]="flyoutTop()" role="menu" [attr.aria-label]="group.label">
               <div class="flyout-title">{{ group.label }}</div>
@@ -26,10 +31,10 @@
         }
       } @else {
         @for (link of directLinks(); track link.route) {
-          <a class="nav-link" [routerLink]="link.route" routerLinkActive="active" (click)="selectLink()"><span class="nav-icon">{{ iconFor(link.label) }}</span><span class="nav-label">{{ link.label }}</span></a>
+          <a class="nav-link" [routerLink]="link.route" routerLinkActive="active" (click)="selectLink()"><span class="nav-icon"><app-icon [name]="iconFor(link.label)" [size]="18" /></span><span class="nav-label">{{ link.label }}</span></a>
         }
       }
     }
   </nav>
-  <div class="sidebar-version"><span>TV</span><small>Toñito v1</small></div>
+  <div class="sidebar-version"><span><app-icon name="restaurant" [size]="15" /></span><small>Toñito v1</small></div>
 </div>

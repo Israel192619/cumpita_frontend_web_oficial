@@ -7,6 +7,12 @@
     </div>
     <app-date-picker class="work-date" label="Fecha de trabajo" [value]="getOrderDateInputValue()" [includeTime]="isEditing()" [compact]="true" [clearable]="false" [disabled]="isProcessing()" (valueChange)="onOrderDateChange($event || '')" />
   </div>
+  <button type="button" class="mobile-order-summary" (click)="toggleMobileDetails()" [attr.aria-expanded]="showMobileDetails()">
+    <span class="mobile-order-summary__label">Pedido</span>
+    <strong>{{ getMobileOrderSummary() }}</strong>
+    <span class="mobile-order-summary__action">{{ showMobileDetails() ? 'Ocultar' : 'Detalles' }}</span>
+  </button>
+  <div class="cart-order-details" [class.cart-order-details--open]="showMobileDetails()">
   <!-- Cliente quick-select -->
   <div class="client-area">
     <!-- show mesa label even when no cliente selected -->
@@ -68,38 +74,26 @@
       </div>
     </div>
   </div>
+  <app-date-picker class="mobile-details-date" label="Fecha de trabajo" [value]="getOrderDateInputValue()" [includeTime]="isEditing()" [compact]="true" [clearable]="false" [disabled]="isProcessing()" (valueChange)="onOrderDateChange($event || '')" />
 
   <div class="order-meta-card">
     <div class="order-meta-row compact-order-row">
       <div class="order-meta-column compact-column">
-        <span class="small-label">Pedido</span>
-        <div class="order-date-summary">
-          <!-- <strong>{{ getOrderDateValue() }}</strong>
-          <span *ngIf="getOrderTimeValue()">a las {{ getOrderTimeValue().slice(0,5) }}</span> -->
-        </div>
-        <div *ngIf="hasReservationSummary()" class="reservation-summary">
-          <span>Preorden para</span>
+        <div *ngIf="hasReservationSummary()" class="reservation-summary" title="Usa Editar para cambiar la programación de la preorden.">
+          <span>Preorden</span>
           <strong>{{ getReservationSummaryText() }}</strong>
+          <button type="button" class="desktop-reservation-edit" (click)="toggleDesktopReservationEditor()">{{ showDesktopReservationEditor() ? 'Listo' : 'Editar' }}</button>
         </div>
       </div>
 
       <div class="reservation-actions-group">
-        <button type="button" class="btn btn-secondary btn-tiny reservation-toggle" (click)="toggleReservationControls()">
-          {{ showReservationControls() ? 'Ocultar programación' : 'Programar preorden' }}
-        </button>
-        <button
-          *ngIf="hasReservationSummary() && operationMode() === 'pos'"
-          type="button"
-          class="btn btn-secondary btn-tiny btn-clear-reservation"
-          (click)="clearReservation()"
-          [disabled]="isProcessing()"
-        >
-          Quitar preorden
+        <button *ngIf="!showReservationControls()" type="button" class="btn btn-secondary btn-tiny reservation-toggle" (click)="toggleReservationControls()">
+          Programar preorden
         </button>
       </div>
     </div>
 
-    <div *ngIf="showReservationControls()" class="reservation-meta-card">
+    <div *ngIf="showReservationControls()" class="reservation-meta-card" [class.reservation-meta-card--editing]="showDesktopReservationEditor()">
       <div class="order-meta-row">
         <div class="order-meta-column">
           <span class="small-label">Fecha y hora programadas</span>
@@ -161,6 +155,7 @@
     >
       <span>Delivery</span>
     </button>
+  </div>
   </div>
 
   <!-- Table Header -->
@@ -410,17 +405,23 @@
       </div>
     </div>
 
-    <div class="button-group">
-      <app-button
-        *ngIf="shouldShowPrimaryAction()"
-        [text]="getPrimaryActionLabel()"
-        color="primary"
-        size="medium"
-        [fullWidth]="true"
-        [loading]="isProcessing()"
-        [disabled]="items().length === 0 || isProcessing()"
-        (buttonClick)="onPrimaryAction()"
-      />
+    <app-button
+      *ngIf="shouldShowPrimaryAction()"
+      [text]="getPrimaryActionLabel()"
+      color="primary"
+      size="medium"
+      [fullWidth]="true"
+      [loading]="isProcessing()"
+      [disabled]="items().length === 0 || isProcessing()"
+      (buttonClick)="onPrimaryAction()"
+    />
+
+    <button type="button" class="mobile-actions-toggle" (click)="toggleMobileActions()" [attr.aria-expanded]="showMobileActions()">
+      {{ showMobileActions() ? 'Ocultar acciones' : 'Más acciones' }}
+    </button>
+
+    <div class="cart-secondary-actions" [class.cart-secondary-actions--open]="showMobileActions()">
+      <div class="button-group">
 
       <app-button
         *ngIf="shouldShowPayLater()"
@@ -453,28 +454,38 @@
         [disabled]="isProcessing()"
         (buttonClick)="onEditAction()"
       />
+
+      <app-button
+        *ngIf="!isEditing()"
+        text="Cancelar"
+        color="danger"
+        size="small"
+        [fullWidth]="true"
+        [disabled]="isProcessing()"
+        ariaLabel="Limpiar carrito y empezar de nuevo"
+        (buttonClick)="onCancelOrder()"
+      />
+
+      <app-button
+        *ngIf="isEditing() && hasChanges()"
+        text="Deshacer cambios"
+        color="light"
+        size="small"
+        [fullWidth]="true"
+        [disabled]="isProcessing()"
+        ariaLabel="Deshacer todos los cambios realizados en esta orden"
+        (buttonClick)="onUndoChanges()"
+      />
+      <app-button
+        *ngIf="hasReservationSummary() && operationMode() === 'pos'"
+        text="Cancelar preorden"
+        color="danger"
+        size="small"
+        [fullWidth]="true"
+        [disabled]="isProcessing()"
+        (buttonClick)="confirmClearReservation()"
+      />
+      </div>
     </div>
-
-    <app-button
-      *ngIf="!isEditing()"
-      text="Cancelar"
-      color="danger"
-      size="small"
-      [fullWidth]="true"
-      [disabled]="isProcessing()"
-      ariaLabel="Limpiar carrito y empezar de nuevo"
-      (buttonClick)="onCancelOrder()"
-    />
-
-    <app-button
-      *ngIf="isEditing() && hasChanges()"
-      text="Deshacer cambios"
-      color="light"
-      size="small"
-      [fullWidth]="true"
-      [disabled]="isProcessing()"
-      ariaLabel="Deshacer todos los cambios realizados en esta orden"
-      (buttonClick)="onUndoChanges()"
-    />
   </div>
 </div>

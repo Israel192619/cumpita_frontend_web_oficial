@@ -3,6 +3,7 @@ import { authGuard } from './core/guards/auth-guard';
 import { guestGuard } from './core/guards/guest-guard';
 import { resetTokenGuard } from './core/guards/reset-token-guard';
 import { landingGuard, moduleAccessGuard } from './core/guards/role-guards';
+import { pendingPosOrderGuard } from './core/guards/pending-pos-order-guard';
 
 export const routes: Routes = [
   // Rutas públicas (auth)
@@ -245,7 +246,7 @@ export const routes: Routes = [
       },
       {
         path: 'preordenes/nueva',
-        canActivate: [moduleAccessGuard], data: { access: 'preorden', mode: 'preorden' },
+        canActivate: [moduleAccessGuard], canDeactivate: [pendingPosOrderGuard], data: { access: 'preorden', mode: 'preorden' },
         loadComponent: () =>
           import('./features/pos/pages/pos-home/pos-home').then(m => m.PosHome)
       }
@@ -258,6 +259,7 @@ export const routes: Routes = [
     children: [
       {
         path: '',
+        canDeactivate: [pendingPosOrderGuard],
         loadComponent: () =>
           import('./features/pos/pages/pos-home/pos-home').then(m => m.PosHome)
       }

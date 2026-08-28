@@ -49,6 +49,22 @@
   min-width: 0;
 }
 
+@media (min-width:701px) {
+  .desktop-reservation-edit { display:inline-flex; min-height:24px; margin-left:auto; padding:.12rem .42rem; border:1px solid var(--color-border); border-radius:7px; background:transparent; color:var(--color-primary); font:inherit; font-size:.68rem; font-weight:700; cursor:pointer; }
+  .reservation-meta-card { display:none; }
+  .reservation-meta-card.reservation-meta-card--editing { display:flex; }
+  .cart-footer { padding:.5rem .65rem; }
+  .cart-panel { border:0; border-radius:18px; background:#201f2e; box-shadow:none; }
+  .cart-header,.client-area,.order-type-selector,.cart-footer { background:#201f2e; }
+  .cart-header,.client-area,.order-type-selector,.cart-table-header,.cart-footer { border-color:#393947; }
+  .cart-table-header,.qty-container { background:#282938; }
+  .selected-cliente,.order-meta-card,.reservation-meta-card { background:#2a2b39; border-color:#3b3b49; box-shadow:none; }
+  .client-area .form-input,.order-date-input,.order-note-input { background:#30313f; border-color:#434452; }
+  .order-type-btn { min-height:42px; border-color:#444553; }
+  .order-type-btn.active { color:#fff; }
+  .total-row.total-main { border-color:#3a3b48; }
+}
+
 @media (max-width: 640px) {
   .cart-footer {
     gap: 0.45rem;
@@ -57,4 +73,36 @@
 
   .button-group { grid-template-columns: 1fr; }
   .total-row { font-size: 0.76rem; }
+}
+
+/* El POS conserva todos los controles; en teléfono se revelan solo cuando se necesitan. */
+@media (max-width: 700px) {
+  .cart-panel { padding:0; border:0; border-radius:0; box-shadow:none; }
+  .cart-header { min-height:46px; padding:.55rem .75rem; }
+  .cart-header .work-date { display:none; }
+  .mobile-order-summary { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.5rem; width:100%; padding:.5rem .75rem; border:0; border-bottom:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text); text-align:left; font:inherit; cursor:pointer; }
+  .mobile-order-summary__label { color:var(--color-text-secondary); font-size:.74rem; font-weight:700; }
+  .mobile-order-summary strong { overflow:hidden; font-size:.82rem; text-overflow:ellipsis; white-space:nowrap; }
+  .mobile-order-summary__action { color:var(--color-primary); font-size:.75rem; font-weight:700; }
+  .cart-order-details { display:none; }
+  .cart-order-details.cart-order-details--open { display:block; border-bottom:1px solid var(--color-border); }
+  .mobile-details-date { display:block; width:auto; margin:.45rem .65rem 0; }
+  .client-area { padding:.45rem .65rem; border-bottom:0; }
+  .client-area .form-group { flex-direction:row; gap:.4rem; }
+  .client-area .btn-secondary { min-width:36px; min-height:36px; }
+  .order-meta-card { margin:0 .65rem .45rem; padding:.35rem; }
+  .desktop-reservation-edit { display:none; }
+  .reservation-meta-card { display:flex; }
+  .order-type-selector { padding:.35rem .65rem .5rem; border-bottom:0; }
+  .cart-table-header { display:none; }
+  .cart-items-container { padding:.15rem 0 .25rem; }
+  .cart-item-block { padding:.55rem .7rem; }
+  .cart-footer { gap:.35rem; padding:.45rem .7rem max(.55rem,env(safe-area-inset-bottom)); }
+  .totals-section { display:block; }
+  .totals-section .total-row:not(.total-main) { display:none; }
+  .total-row.total-main { margin:0; padding:0; border:0; font-size:1.05rem; }
+  .mobile-actions-toggle { display:block; width:fit-content; margin:0 auto; padding:.15rem .5rem; border:0; background:transparent; color:var(--color-text-secondary); font:inherit; font-size:.76rem; font-weight:650; cursor:pointer; }
+  .cart-secondary-actions { display:none; }
+  .cart-secondary-actions.cart-secondary-actions--open { display:block; }
+  .cart-secondary-actions .button-group { grid-template-columns:1fr; margin-top:.15rem; }
 }

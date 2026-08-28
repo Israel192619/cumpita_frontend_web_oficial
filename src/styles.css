@@ -11,6 +11,56 @@
   --control-height: 42px; --control-bg: var(--color-surface); --control-border: var(--color-border);
   --control-placeholder: var(--color-text-muted); --control-disabled-bg: var(--color-disabled);
 
+  /* Navegación administrativa — modo claro. Ajusta esta paleta para sidebar y header. */
+  --nav-sidebar-bg: #ffffff;
+  --nav-header-bg: #ffffff;
+  --nav-text: #626a78;
+  --nav-text-strong: #202634;
+  --nav-text-muted: #7e8797;
+  --nav-icon: #697282;
+  --nav-border: #e3e6eb;
+  --nav-submenu-line: #d8dbe2;
+  --nav-hover-bg: #f7f7fa;
+  --nav-active-bg: #f1ecfb;
+  --nav-active-text: #7c43c8;
+  --nav-control-bg: #f1ecfb;
+  --nav-control-hover-bg: #e6dcfa;
+  --nav-control-text: #7040c4;
+  --nav-avatar-from: #53a2ff;
+  --nav-avatar-to: #5865d8;
+  --nav-dropdown-bg: #ffffff;
+  --nav-dropdown-shadow: rgb(31 41 55 / .15);
+
+  /* Dashboard — modo claro. */
+  --dashboard-page-bg: #f8f9fc;
+  --dashboard-card-bg: #ffffff;
+  --dashboard-card-border: #edf0f5;
+  --dashboard-card-shadow: rgb(37 52 83 / .09);
+  --dashboard-primary-from: #713bc0;
+  --dashboard-primary-to: #4d2b9c;
+  --dashboard-info-from: #2698e8;
+  --dashboard-info-to: #1682d5;
+  --dashboard-hero-text: #ffffff;
+  --dashboard-hero-muted: rgb(255 255 255 / .72);
+  --dashboard-hero-icon-bg: rgb(29 31 110 / .28);
+  --dashboard-accent: #6f43c4;
+  --dashboard-accent-soft: #f2edfc;
+
+  /* Tablas — modo claro. */
+  --table-card-bg: #ffffff;
+  --table-card-border: #edf0f5;
+  --table-card-shadow: rgb(37 52 83 / .08);
+  --table-header-bg: #ffffff;
+  --table-tools-bg: #ffffff;
+  --table-head-bg: #ffffff;
+  --table-row-hover: #f7f8fb;
+  --table-footer-bg: #f7f8fc;
+  --table-text: #252b38;
+  --table-muted: #7c8492;
+  --table-accent: #4680ff;
+  --table-accent-hover: #2f6feb;
+  --table-accent-soft: #edf3ff;
+
   /* Alias de compatibilidad: todos derivan de la paleta central. */
   --app-bg: var(--color-bg); --surface: var(--color-surface); --surface-muted: var(--color-hover); --surface-hover: color-mix(in srgb, var(--color-hover) 75%, var(--color-border));
   --text: var(--color-text); --text-muted: var(--color-text-secondary); --text-subtle: var(--color-text-muted); --border: var(--color-border);
@@ -37,6 +87,56 @@
   --color-disabled: #283447; --color-disabled-text: #6f7c91;
   --control-bg: var(--color-surface); --control-border: var(--color-border);
   --control-placeholder: var(--color-text-muted); --control-disabled-bg: var(--color-disabled);
+
+  /* Navegación administrativa — modo oscuro. */
+  --nav-sidebar-bg: #172247;
+  --nav-header-bg: #172247;
+  --nav-text: #b9c5e6;
+  --nav-text-strong: #f3f6ff;
+  --nav-text-muted: #9caad1;
+  --nav-icon: #b9c5e6;
+  --nav-border: rgb(185 197 230 / .14);
+  --nav-submenu-line: rgb(185 197 230 / .28);
+  --nav-hover-bg: rgb(185 197 230 / .08);
+  --nav-active-bg: #29265e;
+  --nav-active-text: #9a4cff;
+  --nav-control-bg: #25205a;
+  --nav-control-hover-bg: #204d86;
+  --nav-control-text: #9faed3;
+  --nav-avatar-from: #2d8cff;
+  --nav-avatar-to: #2856bd;
+  --nav-dropdown-bg: #1b2852;
+  --nav-dropdown-shadow: rgb(7 12 34 / .38);
+
+  /* Dashboard — modo oscuro. */
+  --dashboard-page-bg: #111a38;
+  --dashboard-card-bg: #1b2852;
+  --dashboard-card-border: rgb(185 197 230 / .14);
+  --dashboard-card-shadow: rgb(0 0 0 / .26);
+  --dashboard-primary-from: #6235b7;
+  --dashboard-primary-to: #3d2586;
+  --dashboard-info-from: #197fcc;
+  --dashboard-info-to: #155da7;
+  --dashboard-hero-text: #ffffff;
+  --dashboard-hero-muted: rgb(255 255 255 / .72);
+  --dashboard-hero-icon-bg: rgb(11 18 58 / .34);
+  --dashboard-accent: #a173ff;
+  --dashboard-accent-soft: rgb(124 58 237 / .2);
+
+  /* Tablas — modo oscuro. */
+  --table-card-bg: #1b2852;
+  --table-card-border: rgb(185 197 230 / .14);
+  --table-card-shadow: rgb(0 0 0 / .26);
+  --table-header-bg: #1b2852;
+  --table-tools-bg: #1b2852;
+  --table-head-bg: #202e5a;
+  --table-row-hover: rgb(185 197 230 / .08);
+  --table-footer-bg: #202e5a;
+  --table-text: #edf2ff;
+  --table-muted: #9caad1;
+  --table-accent: #75a0ff;
+  --table-accent-hover: #a5c1ff;
+  --table-accent-soft: rgb(117 160 255 / .18);
   --app-bg: var(--color-bg); --surface: var(--color-surface); --surface-muted: var(--color-hover); --surface-hover: color-mix(in srgb, var(--color-hover) 75%, var(--color-border));
   --text: var(--color-text); --text-muted: var(--color-text-secondary); --text-subtle: var(--color-text-muted); --border: var(--color-border);
   --primary: var(--color-primary); --primary-strong: var(--color-primary-hover); --primary-soft: color-mix(in srgb, var(--color-primary) 14%, transparent);
@@ -75,15 +175,15 @@ h1, h2, h3, h4, h5, h6, p { margin-top: 0; } ::selection { color: white; backgro
 
 /* Estados compartidos del DataTable, prefijados para evitar afectar otros módulos. */
 app-data-table .loading-state { padding: 20px 22px 24px; }
-app-data-table .loading-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 16px; color: var(--text-muted); font-size: 12px; }
-app-data-table .spinner { width: 17px; height: 17px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: table-spin .75s linear infinite; }
-app-data-table .skeleton-row { display: grid; grid-template-columns: 1.2fr 2fr 1fr .7fr; gap: 20px; padding: 13px 0; border-top: 1px solid var(--border); }
-app-data-table .skeleton-row i { height: 11px; border-radius: 5px; background: linear-gradient(90deg, var(--surface-muted), var(--surface-hover), var(--surface-muted)); background-size: 220% 100%; animation: table-shimmer 1.3s ease infinite; }
-app-data-table .empty-state { display: grid; justify-items: center; padding: 50px 22px; color: var(--text-muted); text-align: center; }
-app-data-table .empty-icon { display: grid; width: 58px; height: 58px; margin-bottom: 13px; place-items: center; border: 1px solid var(--border); border-radius: 16px; color: var(--text-subtle); background: var(--surface-muted); }
+app-data-table .loading-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 16px; color: var(--table-muted); font-size: 12px; }
+app-data-table .spinner { width: 17px; height: 17px; border: 2px solid var(--table-card-border); border-top-color: var(--table-accent); border-radius: 50%; animation: table-spin .75s linear infinite; }
+app-data-table .skeleton-row { display: grid; grid-template-columns: 1.2fr 2fr 1fr .7fr; gap: 20px; padding: 13px 0; border-top: 1px solid var(--table-card-border); }
+app-data-table .skeleton-row i { height: 11px; border-radius: 5px; background: linear-gradient(90deg, var(--table-tools-bg), var(--table-row-hover), var(--table-tools-bg)); background-size: 220% 100%; animation: table-shimmer 1.3s ease infinite; }
+app-data-table .empty-state { display: grid; justify-items: center; padding: 50px 22px; color: var(--table-muted); text-align: center; }
+app-data-table .empty-icon { display: grid; width: 58px; height: 58px; margin-bottom: 13px; place-items: center; border: 1px solid var(--table-card-border); border-radius: 16px; color: var(--table-muted); background: var(--table-row-hover); }
 app-data-table .empty-icon svg { width: 31px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
-app-data-table .empty-state strong { color: var(--text); font-size: 13px; }
-app-data-table .empty-state button { margin-top: 12px; border: 0; color: var(--primary); background: transparent; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+app-data-table .empty-state strong { color: var(--table-text); font-size: 13px; }
+app-data-table .empty-state button { margin-top: 12px; border: 0; color: var(--table-accent); background: transparent; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 @keyframes table-spin { to { transform: rotate(360deg); } }
 @keyframes table-shimmer { to { background-position: -220% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
@@ -99,3 +199,5 @@ app-data-table .empty-state button { margin-top: 12px; border: 0; color: var(--p
   body:has(.report-page) app-data-table .table-footer { display: none !important; }
   body:has(.report-page) app-data-table .data-card { border-color: #bbb; box-shadow: none; }
 }
+/* Identificación operativa de órdenes y preórdenes en el POS. */
+.pos-container .pending-order-identity{min-width:0}.pos-container .pending-order-heading{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem}.pos-container .pending-order-client-row{display:flex;align-items:center;flex-wrap:wrap;gap:.7rem;margin-top:.55rem}.pos-container .pending-order-client{overflow:hidden;color:var(--color-text);font-size:1.15rem;font-weight:800;text-overflow:ellipsis;white-space:nowrap}.pos-container .pending-order-table{display:inline-flex;align-items:baseline;gap:.3rem;padding:.28rem .58rem;border:1px solid color-mix(in srgb,var(--color-primary) 38%,transparent);border-radius:.65rem;background:color-mix(in srgb,var(--color-primary) 12%,transparent);color:var(--color-primary)}.pos-container .pending-order-table small{color:var(--color-text-secondary);font-size:.72rem;font-weight:700;text-transform:uppercase}.pos-container .pending-order-table strong{font-size:1.25rem;line-height:1}.pos-container .waiter-change-badge{display:inline-flex;align-items:center;gap:.18rem;padding:.25rem .55rem;border:1px solid color-mix(in srgb,var(--color-warning) 68%,transparent);border-radius:999px;background:color-mix(in srgb,var(--color-warning) 14%,transparent);color:var(--color-warning);font-size:.68rem;font-weight:800;letter-spacing:.025em;text-transform:uppercase}.pos-container .waiter-change-badge span{display:inline-grid;width:1rem;height:1rem;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--color-warning) 22%,transparent);font-size:.9rem;line-height:1}.pos-container .preorder-status-badge{display:inline-flex;padding:.25rem .55rem;border-radius:999px;background:color-mix(in srgb,var(--color-success) 16%,transparent);color:var(--color-success);font-size:.68rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase}.pos-container .preorder-scheduled-date{display:flex;flex-direction:column;align-items:flex-end;gap:.15rem;color:var(--color-primary);font-weight:800;text-align:right}.pos-container .preorder-scheduled-date small{color:var(--color-text-secondary);font-size:.68rem;font-weight:700;text-transform:uppercase}@media(max-width:700px){.pos-container .pending-order-main{align-items:flex-start;flex-direction:column;gap:.75rem}.pos-container .pending-order-amount{align-self:flex-start}.pos-container .pending-order-client{max-width:100%;font-size:1.08rem}.pos-container .pending-order-table strong{font-size:1.18rem}.pos-container .preorder-scheduled-date{align-items:flex-start;text-align:left}}
