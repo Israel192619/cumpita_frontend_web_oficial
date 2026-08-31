@@ -2,32 +2,26 @@
     <div class="modal-body">
       <div class="section">
         <div class="section-title-row">
-          <h3 *ngIf="!isRefundMode()">Resumen</h3>
-          <h3 *ngIf="isRefundMode()">Resumen de devolución</h3>
+          <h3>Resumen del pedido</h3>
           <span class="summary-pill">{{ formatPrice(total()) }}</span>
         </div>
         <div class="items-summary">
-          <div *ngIf="isRefundMode(); else normalItems">
-            <!-- Items que siguen en el carrito (sin devolución) -->
-            <div *ngFor="let item of items(); trackBy: trackByItem" class="summary-item">
-              <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
-              <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
-            </div>
-            <!-- Items eliminados/devueltos con fondo rojo -->
-            <div *ngIf="deletedItems().length > 0" class="deleted-items-block">
-              <div class="deleted-items-title">Productos a devolver</div>
-              <div *ngFor="let item of deletedItems(); trackBy: trackByItem" class="summary-item deleted-refund">
-                <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
-                <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
-              </div>
-            </div>
+          <div *ngFor="let item of items(); trackBy: trackByItem" class="summary-item">
+            <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
+            <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
           </div>
-          <ng-template #normalItems>
-            <div *ngFor="let item of items(); trackBy: trackByItem" class="summary-item">
-              <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
-              <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
-            </div>
-          </ng-template>
+          <span *ngIf="items().length === 0" class="summary-empty">No quedan productos en la orden.</span>
+        </div>
+
+        <div *ngIf="isRefundMode() && deletedItems().length > 0" class="refund-items-block">
+          <div class="refund-items-title">
+            <span>Productos retirados</span>
+            <strong>Devolver {{ formatPrice(refundAmount()) }}</strong>
+          </div>
+          <div *ngFor="let item of deletedItems(); trackBy: trackByItem" class="summary-item deleted-refund">
+            <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
+            <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
+          </div>
         </div>
       </div>
 
@@ -113,7 +107,7 @@
             (click)="onSelectPaymentMethod(method.id)"
             [disabled]="isProcessing()"
           >
-            <span class="payment-icon">{{ method.icon }}</span>
+            <span class="payment-icon"><app-icon [name]="method.icon" size="22" /></span>
             <span class="payment-name">{{ method.nombre }}</span>
             <span class="selection-mark" aria-hidden="true">✓</span>
           </button>

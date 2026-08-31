@@ -1,0 +1,8 @@
+:host { display:block; }
+.adjustment-detail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.85rem; }
+.adjustment-detail div { display:grid; gap:.2rem; padding:.7rem; border:1px solid var(--border-color); border-radius:9px; background:var(--bg-main); }
+.adjustment-detail span { color:var(--text-muted); font-size:.72rem; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
+.adjustment-detail strong { color:var(--text-primary); font-size:.9rem; overflow-wrap:anywhere; }
+.reverted-note { grid-column:1 / -1; margin:0; color:var(--text-muted); font-size:.84rem; }
+.detail-close { min-height:38px; border:1px solid var(--border-color); border-radius:8px; padding:.45rem .85rem; background:var(--bg-main); color:var(--text-primary); font:inherit; font-weight:700; cursor:pointer; }
+@media (max-width:520px) { .adjustment-detail { grid-template-columns:1fr; } }

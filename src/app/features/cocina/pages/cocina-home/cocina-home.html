@@ -1,82 +1,71 @@
 <main class="kds">
-  <header class="kds-header">
-    <div class="kds-title">
-      <div>
-        <h1>KDS · {{ estacionActual()?.nombre || 'Estación' }}</h1>
-        <p>{{ ordenesVisibles().length }} pedidos activos</p>
+  <header *ngIf="!controlesOcultos()" class="kds-header">
+    <div class="kds-header__primary">
+      <div class="kds-title">
+        <div>
+          <span class="kds-title__eyebrow">Monitor de producción</span>
+          <h1>{{ estacionActual()?.nombre || 'Estación' }}</h1>
+          <p>{{ verServidos() ? ordenesCompletadas().length + ' pedidos servidos' : ordenesVisibles().length + ' pedidos activos' }}</p>
+        </div>
+        <div class="kds-quick-actions">
+          <button type="button" class="kds-quick-action" (click)="toggleFullscreen()" [attr.aria-label]="isFullscreen() ? 'Reducir pantalla' : 'Ampliar pantalla'" [attr.aria-pressed]="isFullscreen()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+              <path *ngIf="!isFullscreen()" d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>
+              <path *ngIf="isFullscreen()" d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v-5"/>
+            </svg>
+          </button>
+          <button type="button" class="kds-quick-action" (click)="themeService.toggle()" [attr.aria-label]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'" [attr.aria-pressed]="themeService.theme() === 'dark'">
+            <svg *ngIf="themeService.theme() === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            <svg *ngIf="themeService.theme() !== 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
+          </button>
+          <button type="button" class="kds-served-toggle" [class.is-active]="verServidos()" (click)="toggleVerServidos()"
+            [attr.aria-pressed]="verServidos()" [title]="verServidos() ? 'Ocultar pedidos servidos' : 'Ver pedidos servidos'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+            <span>{{ verServidos() ? 'Servidos' : 'Ver servidos' }}</span>
+            <b>{{ ordenesCompletadas().length }}</b>
+          </button>
+          <button *ngIf="esAdministrador()" type="button" class="kds-quick-action kds-quick-action--exit" (click)="salirDeCocina()"
+            aria-label="Volver a órdenes" title="Volver a órdenes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+          </button>
+          <button *ngIf="!esAdministrador()" type="button" class="kds-logout-button" (click)="salirDeCocina()" title="Cerrar sesión">
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+
+      <nav *ngIf="puedeCambiarEstacion()" class="kds-stations" aria-label="Estación del KDS">
+        <button *ngFor="let estacion of estacionesDisponibles()" type="button"
+          [class.kds-station--active]="estacionActual()?.id === estacion.id"
+          (click)="seleccionarEstacion(estacion)">{{ estacion.nombre }}</button>
+      </nav>
+    </div>
+
+    <div class="kds-header__actions">
+      <div class="kds-filters">
+        <div class="kds-filter-fields" [class.is-mobile-open]="mobileFiltersOpen()">
+          <select [value]="categoriaSeleccionada()" (change)="onCategoriaChange($event)" aria-label="Filtrar por categoría">
+            <option value="todos">Todas las categorías</option>
+            <option *ngFor="let categoria of categorias()" [value]="categoria">{{ categoria }}</option>
+          </select>
+          <input type="date" [value]="fechaSeleccionada()" (change)="onFechaChange($event)" aria-label="Fecha de pedidos">
+        </div>
+        <input type="search" placeholder="Buscar cliente o producto" [value]="busqueda()" (input)="onBusquedaChange($event)">
+        <button type="button" class="kds-mobile-filter-toggle" [attr.aria-expanded]="mobileFiltersOpen()" (click)="toggleMobileFilters()">
+          {{ mobileFiltersOpen() ? 'Ocultar filtros' : 'Filtros · fecha y categoría' }}
+        </button>
       </div>
     </div>
 
-    <nav *ngIf="puedeCambiarEstacion()" class="kds-stations" aria-label="Estación del KDS">
-      <button *ngFor="let estacion of estacionesDisponibles()" type="button"
-        [class.kds-station--active]="estacionActual()?.id === estacion.id"
-        (click)="seleccionarEstacion(estacion)">{{ estacion.nombre }}</button>
-    </nav>
-
-    <div class="kds-filters">
-      <select [value]="categoriaSeleccionada()" (change)="onCategoriaChange($event)" aria-label="Filtrar por categoría">
-        <option value="todos">Todas las categorías</option>
-        <option *ngFor="let categoria of categorias()" [value]="categoria">{{ categoria }}</option>
-      </select>
-      <input type="date" [value]="fechaSeleccionada()" (change)="onFechaChange($event)" aria-label="Fecha de pedidos">
-      <input type="search" placeholder="Buscar cliente o producto" [value]="busqueda()" (input)="onBusquedaChange($event)">
-      <button *ngIf="estacionActual()?.codigo === 'COCINA'" type="button" class="kds-button kds-button--secondary" (click)="abrirSeleccionPuesto()">
-        {{ puestoActual() ? 'Mi puesto: ' + puestoActual()?.nombre : 'Seleccionar puesto' }}
-      </button>
-    </div>
-
-    <div class="puesto-modal" *ngIf="puestoModalAbierto()">
-      <div class="puesto-modal__backdrop" (click)="cerrarSeleccionPuesto()"></div>
-      <section class="puesto-modal__content">
-        <header class="puesto-modal__header">
-          <h2>Seleccionar puesto</h2>
-          <button type="button" class="kds-button kds-button--secondary" (click)="cerrarSeleccionPuesto()">Cerrar</button>
-        </header>
-        <div class="puesto-modal__body">
-          <ng-container *ngIf="puestoActual(); else seleccionarPuesto">
-            <div class="puesto-current">
-              <h3>Puesto actual</h3>
-              <p><strong>{{ puestoActual()?.nombre }}</strong></p>
-              <p>Usuario: {{ usuario()?.name }}</p>
-              <div class="current-actions">
-                <button type="button" class="kds-button kds-button--primary" (click)="entrarAControl()">Entrar a control</button>
-                <button type="button" class="kds-button kds-button--secondary" (click)="finalizarPuesto()">Finalizar puesto</button>
-              </div>
-            </div>
-          </ng-container>
-          <ng-template #seleccionarPuesto>
-            <p>Elige un puesto para ver su lista de órdenes.</p>
-            <div *ngIf="puestosDisponibles().length === 0" class="puestos-warning">
-              Todos los puestos están ocupados actualmente.
-            </div>
-            <ul class="puesto-list">
-              <li *ngFor="let puesto of puestos()" class="puesto-item">
-                <div>
-                  <strong>{{ puesto.nombre }}</strong>
-                  <p>{{ puesto.user_id ? 'Ocupado por ' + puesto.user_nombre : 'Disponible' }}</p>
-                </div>
-                <button
-                  type="button"
-                  class="kds-button kds-button--primary"
-                  (click)="abrirOPuesto(puesto)"
-                  [disabled]="puesto.user_id !== null">
-                  {{ puesto.user_id === null ? 'Ocupar y abrir' : 'No disponible' }}
-                </button>
-              </li>
-            </ul>
-          </ng-template>
-        </div>
-      </section>
-    </div>
   </header>
 
   <section *ngIf="preordenesProgramadas().length" class="programmed-preorders" aria-label="Preórdenes programadas">
-    <div class="programmed-preorders__heading"><strong>Preórdenes programadas</strong><span>{{ preordenesProgramadas().length }} bloqueadas hasta activación de Caja</span></div>
+    <div class="programmed-preorders__heading"><strong>Próximas preórdenes</strong><span>{{ preordenesProgramadas().length }} programadas</span></div>
     <div class="programmed-preorders__list">
       <article *ngFor="let orden of preordenesProgramadas()" class="programmed-preorder">
-        <div><b>#{{ orden.numero_orden || orden.id }}</b><span>{{ orden.fecha_programada | date:'dd/MM HH:mm' }}</span></div>
-        <p>{{ orden.detalles.length }} producto(s) · {{ orden.cliente?.nombre || 'Cliente pendiente' }}</p>
-        <strong>BLOQUEADA</strong>
+        <div class="programmed-preorder__meta"><time>{{ orden.fecha_programada | date:'HH:mm' }}</time><small>#{{ orden.numero_orden || orden.id }}</small></div>
+        <strong>{{ orden.cliente?.nombre || 'Cliente pendiente' }}</strong>
+        <p>{{ resumenPreorden(orden) }}</p>
       </article>
     </div>
   </section>
@@ -102,6 +91,15 @@
     </div>
 
     <span *ngIf="!isLoading() && !tieneProduccionPendiente()" class="production-summary__empty">Sin producción pendiente</span>
+
+    <button type="button" class="kds-controls-toggle" (click)="toggleControles()"
+      [attr.aria-label]="controlesOcultos() ? 'Mostrar controles del monitor' : 'Ocultar controles del monitor'"
+      [attr.aria-expanded]="!controlesOcultos()" [title]="controlesOcultos() ? 'Mostrar controles' : 'Ocultar controles'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+        <path *ngIf="controlesOcultos()" d="M6 9l6 6 6-6" />
+        <path *ngIf="!controlesOcultos()" d="M18 15l-6-6-6 6" />
+      </svg>
+    </button>
   </section>
 
   <aside class="kds-service-panel" *ngIf="ordenEnServicio() as ordenEnServicio">
@@ -119,13 +117,17 @@
 
   <section class="kds-board" aria-live="polite">
     <div *ngIf="isLoading()" class="kds-empty">Cargando pedidos de {{ estacionActual()?.nombre || 'la estación' }}…</div>
-    <div *ngIf="!isLoading() && ordenesVisibles().length === 0" class="kds-empty">
+    <div *ngIf="!isLoading() && ordenesTablero().length === 0" class="kds-empty">
       <span>✓</span>
-      <h2>No hay pedidos pendientes</h2>
-      <p>Los nuevos pedidos aparecerán aquí automáticamente.</p>
+      <h2>{{ verServidos() ? 'No hay pedidos servidos' : 'No hay pedidos pendientes' }}</h2>
+      <p>{{ verServidos() ? 'No hay pedidos completamente servidos con estos filtros.' : 'Los nuevos pedidos aparecerán aquí automáticamente.' }}</p>
     </div>
 
-    <article *ngFor="let orden of ordenesVisibles()" class="kds-ticket" [class.kds-ticket--cancelled]="orden.estado === 'cancelado'"
+    <article *ngFor="let orden of ordenesTablero()" class="kds-ticket" [class.kds-ticket--cancelled]="orden.estado === 'cancelado'"
+      [class.kds-ticket--asignada-amarillo]="orden.asignacion?.color === 'amarillo'"
+      [class.kds-ticket--asignada-indigo]="orden.asignacion?.color === 'indigo'"
+      [class.kds-ticket--asignada-salmon]="orden.asignacion?.color === 'salmon'"
+      [class.kds-ticket--asignada-verde]="orden.asignacion?.color === 'verde'"
       [class.kds-ticket--ready-attention]="orden.detalles.some(detalle => detalle.listo_para_atender)">
       <div *ngIf="orden.estado === 'cancelado'" class="cancelled-stamp">CANCELADO</div>
       <header class="ticket-header">
@@ -134,11 +136,13 @@
           <h2>{{ orden.cliente?.nombre || 'Cliente sin nombre' }}</h2>
         </div>
         <span class="ticket-time" [class.ticket-time--urgent]="esUrgente(orden)">{{ tiempoTranscurrido(orden) }}</span>
+        <span *ngIf="orden.asignacion" class="ticket-assignment">Para {{ orden.asignacion.nombre }}</span>
       </header>
 
       <div class="ticket-meta">
         <strong>#{{ orden.numero_orden || orden.id }}</strong>
         <span>{{ etiquetaTipoOrden(orden) }}</span>
+        <span *ngIf="orden.preorden_temprana" class="ticket-preorder-early">Preorden · {{ orden.fecha_programada | date:'HH:mm' }}</span>
         <span class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
       </div>
 
@@ -152,27 +156,53 @@
         </div>
       </section>
 
+      <section *ngIf="!verServidos() && detallesCompletados(orden).length" class="ticket-completed">
+        <button type="button" class="ticket-completed__toggle" (click)="toggleDetallesCompletados(orden.id)"
+          [attr.aria-expanded]="detallesCompletadosAbiertosPara(orden.id)">
+          <span>✓</span>
+          <strong>{{ detallesCompletados(orden).length }} producto{{ detallesCompletados(orden).length === 1 ? '' : 's' }} servido{{ detallesCompletados(orden).length === 1 ? '' : 's' }}</strong>
+          <small>{{ detallesCompletadosAbiertosPara(orden.id) ? 'Ocultar' : 'Revisar' }}</small>
+        </button>
+        <div *ngIf="detallesCompletadosAbiertosPara(orden.id)" class="ticket-completed__details">
+          <div *ngFor="let grupo of gruposCompletados(orden)" class="ticket-completed__product">
+            <div><strong>{{ grupo.cantidad }}× {{ grupo.producto.nombre }}</strong><small *ngIf="grupo.opciones.length">{{ grupo.opciones.join(' · ') }}</small></div>
+            <label *ngFor="let detalle of detallesDelGrupo(grupo)" class="serve-switch">
+              <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'"
+                [disabled]="detalleActualizando() === detalle.id" (change)="marcarServido(detalle, $any($event.target).checked)">
+              <span></span><b>Servido</b>
+            </label>
+          </div>
+        </div>
+      </section>
+
       <section *ngFor="let grupo of gruposPorCategoria(orden)" class="ticket-category">
         <h3>{{ grupo.categoria }}</h3>
-        <div *ngFor="let detalle of grupo.detalles" class="ticket-item"
-          [class.ticket-item--locked]="detalle.bloqueado"
-          [class.ticket-item--ready-attention]="detalle.listo_para_atender">
+        <div *ngFor="let detalleGrupo of grupo.grupos" class="ticket-item ticket-item--group"
+          [class.ticket-item--locked]="detalleGrupo.todosBloqueados"
+          [class.ticket-item--ready-attention]="detalleGrupo.tieneListos">
           <div class="ticket-item__product">
-            <strong><span>{{ detalle.cantidad }}×</span> {{ detalle.producto.nombre }}</strong>
-            <small *ngIf="detalle.nota">Nota: {{ detalle.nota }}</small>
-            <span *ngIf="detalle.opciones?.length" class="ticket-options-inline">
-              <ng-container *ngFor="let opcion of detalle.opciones; let ultimo = last">
-                {{ opcion.modificador_opcion?.nombre }}<span *ngIf="!ultimo"> · </span>
+            <strong><span>{{ detalleGrupo.cantidad }}×</span> {{ detalleGrupo.producto.nombre }}</strong>
+            <small *ngIf="detalleGrupo.nota">Nota: {{ detalleGrupo.nota }}</small>
+            <span *ngIf="detalleGrupo.opciones.length" class="ticket-options-inline">
+              <ng-container *ngFor="let opcion of detalleGrupo.opciones; let ultimo = last">
+                {{ opcion }}<span *ngIf="!ultimo"> · </span>
               </ng-container>
             </span>
-            <span *ngIf="detalle.bloqueado" class="dependency-state dependency-state--locked">Bloqueado · esperando Parrilla</span>
-            <span *ngIf="detalle.listo_para_atender" class="dependency-state dependency-state--ready">Listo para atender</span>
           </div>
-          <label class="serve-switch" [class.serve-switch--loading]="detalleActualizando() === detalle.id">
-            <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="detalleActualizando() === detalle.id || detalle.bloqueado" (change)="marcarServido(detalle, $any($event.target).checked)">
-            <span></span>
-            <b>{{ detalle.bloqueado ? 'Bloqueado' : detalleActualizando() === detalle.id ? 'Guardando' : 'Servido' }}</b>
-          </label>
+          <div class="ticket-item__states">
+            <div *ngFor="let estado of detalleGrupo.estados" class="ticket-item__state"
+              [class.ticket-item__state--locked]="estado.bloqueado"
+              [class.ticket-item__state--ready]="estado.listoParaAtender">
+              <span class="ticket-item__state-label"><b>{{ estado.cantidad }}{{ estado.cantidad === 1 ? ' unidad' : ' unidades' }}</b>{{ estado.etiqueta }}</span>
+              <div *ngIf="!estado.bloqueado" class="ticket-item__state-controls">
+                <label *ngFor="let detalle of estado.detalles" class="serve-switch" [class.serve-switch--loading]="detalleActualizando() === detalle.id">
+                  <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="detalleActualizando() === detalle.id || detalle.bloqueado" (change)="marcarServido(detalle, $any($event.target).checked)">
+                  <span></span>
+                  <b>{{ detalle.bloqueado ? 'Bloqueado' : detalleActualizando() === detalle.id ? 'Guardando' : 'Servido' }}</b>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

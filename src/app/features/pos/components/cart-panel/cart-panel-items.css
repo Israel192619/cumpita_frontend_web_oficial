@@ -231,7 +231,7 @@
     }
 
     &.qty-btn-minus {
-      color: #ff6b6b;
+      color: var(--color-danger);
 
       &:hover:not(:disabled) {
         background: rgba(255, 107, 107, 0.1);
@@ -239,7 +239,7 @@
     }
 
     &.qty-btn-plus {
-      color: #51cf66;
+      color: var(--color-success);
 
       &:hover:not(:disabled) {
         background: rgba(81, 207, 102, 0.1);

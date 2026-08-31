@@ -1,5 +1,15 @@
+.confirm-dialog-panel .mat-mdc-dialog-container,
+.confirm-dialog-panel .mat-mdc-dialog-surface,
+.confirm-dialog-panel .mdc-dialog__surface {
+  --mdc-dialog-container-color: var(--color-surface);
+  color: var(--color-text) !important;
+  background-color: var(--color-surface) !important;
+}
+
 .dialog-container {
   padding: 8px 4px;
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 .dialog-header {
@@ -12,6 +22,7 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  color: var(--color-text) !important;
 }
 
 .icon {
@@ -21,7 +32,7 @@
 .content {
   margin-top: 10px;
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary) !important;
 }
 
 .actions {
@@ -29,7 +40,22 @@
   gap: 10px;
 }
 
+.actions .btn-light {
+  color: var(--color-text) !important;
+  border-color: var(--color-border);
+  background: var(--color-hover);
+}
+
 .confirm-button.primary { color: #fff; background: var(--color-primary); }
 .confirm-button.success { color: #fff; background: var(--color-success); }
-.confirm-button.warning { color: var(--color-text); background: var(--color-warning); }
+.confirm-button.warning { color: #fff; background: var(--color-warning); }
 .confirm-button.danger { color: #fff; background: var(--color-danger); }
+
+:root[data-theme='dark'] .confirm-dialog-panel .dialog-container,
+:root[data-theme='dark'] .confirm-dialog-panel .dialog-header h2 {
+  color: #f5f7fb !important;
+}
+
+:root[data-theme='dark'] .confirm-dialog-panel .content {
+  color: #c6d0df !important;
+}

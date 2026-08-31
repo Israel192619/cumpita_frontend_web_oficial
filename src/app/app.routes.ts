@@ -216,23 +216,23 @@ export const routes: Routes = [
           }
         ]
       },
-      {
-        path: 'kds',
-        canActivate: [moduleAccessGuard], data: { access: 'kds' },
-        loadComponent: () =>
-          import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
-      },
-      {
-        path: 'kds/:estacion',
-        canActivate: [moduleAccessGuard], data: { access: 'kds' },
-        loadComponent: () =>
-          import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
-      },
+      // Mantiene compatibilidad con accesos anteriores sin cargar el KDS dentro
+      // del layout administrativo.
+      { path: 'kds', pathMatch: 'full', redirectTo: '/cocina' },
+      { path: 'kds/:estacion', redirectTo: route => `/cocina/${route.params['estacion']}` },
       {
         path: 'servicio',
         canActivate: [moduleAccessGuard], data: { access: 'servicio' },
         loadComponent: () =>
           import('./features/servicio/pages/servicio-home/servicio-home').then(m => m.ServicioHome)
+      },
+      {
+        path: 'ajustes-stock',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
+        children: [
+          { path: '', loadComponent: () => import('./features/productos/pages/ajustes-stock-list/ajustes-stock-list').then(m => m.AjustesStockList) },
+          { path: 'create', loadComponent: () => import('./features/productos/pages/ajuste-stock-create/ajuste-stock-create').then(m => m.AjusteStockCreate) },
+        ]
       },
       {
         path: 'reportes',
@@ -276,11 +276,10 @@ export const routes: Routes = [
           import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
       },
       {
-            path: 'control',
-            canActivate: [moduleAccessGuard], data: { access: 'kds', station: 'cocina' },
-            loadComponent: () => import('./features/cocina/pages/cocina-control/cocina-control').then(m => m.CocinaControlPage)
-          },
-      
-      ]
+        path: ':estacion',
+        canActivate: [moduleAccessGuard], data: { access: 'kds' },
+        loadComponent: () => import('./features/cocina/pages/cocina-home/cocina-home').then(m => m.CocinaHome)
+      },
+    ]
   }
 ];

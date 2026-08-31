@@ -10,7 +10,7 @@ import { formatCurrency } from '@app/core/config/currency.config';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './product-grid.html',
-  styleUrl: './product-grid.css',
+  styleUrls: ['./product-grid.css', './product-grid-restock.css'],
 })
 export class ProductGridComponent {
   productos = input<Producto[]>([]);
@@ -22,7 +22,9 @@ export class ProductGridComponent {
   productAdded = output<Producto>();
   stockAdjusted = output<void>();
 
-  restockQuantities = signal<Record<number, string>>({});
+  restockingProductId = signal<number | null>(null);
+  restockProduct = signal<Producto | null>(null);
+  restockQuantity = signal('1');
 
   constructor(
     private productoService: ProductoService,
@@ -70,28 +72,40 @@ export class ProductGridComponent {
     return 'ok';
   }
 
-  getRestockQuantity(producto: Producto): string {
-    return this.restockQuantities()[producto.id] ?? '10';
+  openRestockDialog(producto: Producto): void {
+    if (this.restockingProductId() !== null) return;
+    this.restockProduct.set(producto);
+    this.restockQuantity.set('1');
   }
 
-  setRestockQuantity(producto: Producto, value: string): void {
-    const nextValue = value.replace(/\D/g, '');
-    this.restockQuantities.set({
-      ...this.restockQuantities(),
-      [producto.id]: nextValue || '1'
-    });
+  closeRestockDialog(): void {
+    if (this.restockingProductId() === null) this.restockProduct.set(null);
   }
 
-  onRestockProduct(producto: Producto): void {
-    const quantity = Number.parseInt(this.getRestockQuantity(producto), 10);
-    const amount = Number.isFinite(quantity) && quantity > 0 ? quantity : 10;
+  setRestockQuantity(value: string): void {
+    this.restockQuantity.set(value.replace(/\D/g, '') || '1');
+  }
 
-    this.productoService.ajustarStock(producto.id, amount).subscribe({
+  confirmRestock(): void {
+    const producto = this.restockProduct();
+    const quantity = Number.parseInt(this.restockQuantity(), 10);
+    if (!producto || !Number.isFinite(quantity) || quantity < 1) {
+      this.toastr.warning('Ingresa una cantidad válida para reabastecer.');
+      return;
+    }
+
+    this.restockingProductId.set(producto.id);
+    this.productoService.ajustarStock(producto.id, quantity).subscribe({
       next: () => {
-        this.toastr.success(`Se reabastecieron ${amount} unidades de ${producto.nombre}`);
+        this.restockingProductId.set(null);
+        this.restockProduct.set(null);
+        this.toastr.success(`Se reabastecieron ${quantity} ${quantity === 1 ? 'unidad' : 'unidades'} de ${producto.nombre}`);
         this.stockAdjusted.emit();
       },
-      error: () => this.toastr.error('No se pudo reabastecer el producto')
+      error: error => {
+        this.restockingProductId.set(null);
+        this.toastr.error(error?.error?.message || 'No se pudo reabastecer el producto');
+      }
     });
   }
 

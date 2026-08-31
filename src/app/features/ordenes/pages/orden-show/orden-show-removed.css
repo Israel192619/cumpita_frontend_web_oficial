@@ -1,0 +1,26 @@
+.removed-products {
+  border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger) 6%, var(--color-surface));
+}
+
+.removed-products h3 { color: var(--color-danger); }
+
+.removed-item {
+  grid-template-columns: minmax(220px, 1fr) 100px 105px;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 5%, transparent);
+}
+
+.removed-item .product strong,
+.removed-item > span,
+.removed-item > strong {
+  color: var(--color-danger);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.removed-item > strong { text-align: right; }
+
+@media (max-width: 700px) {
+  .removed-item { grid-template-columns: 1fr auto; }
+}

@@ -54,15 +54,15 @@
   .reservation-meta-card { display:none; }
   .reservation-meta-card.reservation-meta-card--editing { display:flex; }
   .cart-footer { padding:.5rem .65rem; }
-  .cart-panel { border:0; border-radius:18px; background:#201f2e; box-shadow:none; }
-  .cart-header,.client-area,.order-type-selector,.cart-footer { background:#201f2e; }
-  .cart-header,.client-area,.order-type-selector,.cart-table-header,.cart-footer { border-color:#393947; }
-  .cart-table-header,.qty-container { background:#282938; }
-  .selected-cliente,.order-meta-card,.reservation-meta-card { background:#2a2b39; border-color:#3b3b49; box-shadow:none; }
-  .client-area .form-input,.order-date-input,.order-note-input { background:#30313f; border-color:#434452; }
-  .order-type-btn { min-height:42px; border-color:#444553; }
-  .order-type-btn.active { color:#fff; }
-  .total-row.total-main { border-color:#3a3b48; }
+  .cart-panel { border:0; border-radius:18px; background:var(--color-surface); box-shadow:none; }
+  .cart-header,.client-area,.order-type-selector,.cart-footer { background:var(--color-surface); }
+  .cart-header,.client-area,.order-type-selector,.cart-table-header,.cart-footer { border-color:var(--color-border); }
+  .cart-table-header,.qty-container { background:var(--color-hover); }
+  .selected-cliente,.order-meta-card,.reservation-meta-card { background:var(--color-hover); border-color:var(--color-border); box-shadow:none; }
+  .client-area .form-input,.order-date-input,.order-note-input { background:var(--color-bg); border-color:var(--color-border); }
+  .order-type-btn { min-height:42px; border-color:var(--color-border); }
+  .order-type-btn.active { color:var(--color-on-brand); }
+  .total-row.total-main { border-color:var(--color-border); }
 }
 
 @media (max-width: 640px) {

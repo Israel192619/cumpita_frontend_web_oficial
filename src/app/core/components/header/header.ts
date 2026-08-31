@@ -15,7 +15,7 @@ export class Header implements OnInit {
   readonly user = signal<User | null>(null);
   readonly canOpenPos = computed(() => !!this.user() && userCanAccess(this.user()!, 'pos'));
   readonly canOpenKds = computed(() => !!this.user() && userCanAccess(this.user()!, 'kds'));
-  readonly kdsRoute = computed(() => this.user() ? `/app/kds/${kdsStation(this.user()!)}` : '/app/kds');
+  readonly kdsRoute = computed(() => this.user() ? `/cocina/${kdsStation(this.user()!)}` : '/cocina');
   readonly enServicio = signal(false);
   readonly userMenuOpen = signal(false);
 

@@ -12,9 +12,15 @@ import { AppCurrencyPipe } from '@app/shared/pipes/app-currency.pipe';
 })
 export class PosToolbarComponent implements OnInit, OnDestroy {
   isLoading = input(false);
+  backLabel = input('Volver');
+  theme = input<'light' | 'dark'>('light');
   pendingOrdersCount = input(0);
   preordersCount = input(0);
   cajaAbierta = input(false);
+  cajaCompartida = input(false);
+  cajaPuedeCerrar = input(false);
+  cajaResponsable = input('');
+  puedeRegistrarGastos = input(false);
   cajaMontoEsperado = input(0);
   cajaPagosEfectivo = input(0);
   mode = input<'pos' | 'preorden'>('pos');
@@ -23,7 +29,10 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   searchChanged = output<string>();
   backRequested = output<void>();
   pendingOrdersRequested = output<void>();
+  todayOrdersRequested = output<void>();
   preordersRequested = output<void>();
+  gastoRequested = output<void>();
+  themeToggle = output<void>();
   cajaActionRequested = output<'abrir' | 'cerrar'>();
 
   currentDate = signal(new Date());
@@ -48,6 +57,7 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   }
 
   onCajaAction(): void {
+    if (this.cajaAbierta() && !this.cajaPuedeCerrar()) return;
     this.cajaActionRequested.emit(this.cajaAbierta() ? 'cerrar' : 'abrir');
   }
 

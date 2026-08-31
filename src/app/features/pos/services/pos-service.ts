@@ -67,6 +67,8 @@ export interface Order {
   estado_pago?: 'pendiente' | 'parcial' | 'completado';
   pagos?: PagoOrden[];
   saldo_pendiente?: number;
+  version?: number;
+  reserva_sesion_id?: string;
   created_at?: string;
   ultimo_cambio_mesero_en?: string | null;
 }
@@ -85,6 +87,7 @@ export interface OrderPayload {
   descuento?: number;
   total: number;
   observaciones?: string;
+  reserva_sesion_id?: string;
 }
 
 export interface OrderItem {
@@ -139,6 +142,16 @@ export interface Caja {
   estado: 'abierta' | 'cerrada';
   observacion_apertura?: string | null;
   observacion_cierre?: string | null;
+  puede_cerrar?: boolean;
+  es_compartida?: boolean;
+  user?: CajaUsuario;
+  usuarios?: CajaUsuario[];
+}
+
+export interface CajaUsuario {
+  id: number;
+  name: string;
+  username?: string | null;
 }
 
 @Injectable({
@@ -149,8 +162,9 @@ export class PosService {
 
   constructor(private http: HttpClient) {}
 
-  crearOrden(order: Order): Observable<any> {
+  crearOrden(order: Order, reservaSesionId?: string): Observable<any> {
     const payload = this.mapOrderToPayload(order);
+    if (reservaSesionId) payload.reserva_sesion_id = reservaSesionId;
     return this.http.post<any>(`${this.apiUrl}/ordenes`, payload);
   }
 
@@ -164,12 +178,25 @@ export class PosService {
     return this.http.get<{ orden: Order }>(`${this.apiUrl}/ordenes/${id}`);
   }
 
-  actualizarOrden(id: number, data: OrderPayload): Observable<any> {
-    return this.http.put(`${this.apiUrl}/ordenes/${id}`, data);
+  obtenerHistorialOrden(id: number): Observable<any[]> {
+    return this.http.get<{ historial: any[] }>(`${this.apiUrl}/ordenes/${id}/historial`).pipe(
+      map(response => response.historial || [])
+    );
+  }
+
+  actualizarOrden(id: number, data: OrderPayload, expectedVersion: number): Observable<any> {
+    return this.http.put(`${this.apiUrl}/ordenes/${id}`, { ...data, expected_version: expectedVersion });
   }
 
   eliminarOrden(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/ordenes/${id}`);
+  }
+
+  cancelarVenta(id: number, expectedVersion: number, metodoPago?: 'efectivo' | 'qr'): Observable<any> {
+    return this.http.post(`${this.apiUrl}/ordenes/${id}/cancelar-venta`, {
+      expected_version: expectedVersion,
+      metodo_pago: metodoPago ?? null,
+    });
   }
 
   obtenerMetodosPago(): Observable<PaymentMethodOption[]> {
@@ -234,6 +261,18 @@ export class PosService {
     return this.http.post<{ caja: Caja; resumen: CajaResumen }>(`${this.apiUrl}/cajas/${id}/cerrar`, data);
   }
 
+  obtenerUsuariosDisponiblesCaja(id: number): Observable<{ usuarios: CajaUsuario[] }> {
+    return this.http.get<{ usuarios: CajaUsuario[] }>(`${this.apiUrl}/cajas/${id}/usuarios-disponibles`);
+  }
+
+  actualizarUsuariosCaja(id: number, usuarios: number[]): Observable<{ caja: Caja }> {
+    return this.http.put<{ caja: Caja }>(`${this.apiUrl}/cajas/${id}/usuarios`, { usuarios });
+  }
+
+  registrarGastoCaja(data: { categoria: string; concepto?: string | null; monto: number }): Observable<unknown> {
+    return this.http.post(`${this.apiUrl}/gastos-caja`, data);
+  }
+
   /**
    * Mapea un Order (del frontend) a OrderPayload (para el backend)
    */
@@ -252,6 +291,7 @@ export class PosService {
       descuento: order.descuento || 0,
       total: order.total,
       observaciones: order.cliente_nombre ? `Cliente: ${order.cliente_nombre}` : undefined,
+      reserva_sesion_id: order.reserva_sesion_id,
       items: order.items.map(item => ({
         // Conserva el identificador al editar: el backend compara este detalle
         // con el existente en vez de borrar y crear toda la orden nuevamente.
@@ -305,12 +345,8 @@ export class PosService {
       return normalized.replace(' ', 'T');
     }
 
-    if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}$/.test(normalized)) {
-      return `${normalized}:00`;
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}:\d{2}$/.test(normalized)) {
-      return normalized;
+    if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}(?::\d{2})?$/.test(normalized)) {
+      return normalized.split(':').length === 2 ? `${normalized}:00` : normalized;
     }
 
     const parsed = new Date(normalized);

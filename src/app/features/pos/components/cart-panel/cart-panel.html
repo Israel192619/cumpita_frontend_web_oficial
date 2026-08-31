@@ -412,7 +412,7 @@
       size="medium"
       [fullWidth]="true"
       [loading]="isProcessing()"
-      [disabled]="items().length === 0 || isProcessing()"
+      [disabled]="(items().length === 0 && getPrimaryActionType() !== 'refund') || isProcessing()"
       (buttonClick)="onPrimaryAction()"
     />
 

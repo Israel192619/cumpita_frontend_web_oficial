@@ -2,6 +2,11 @@
   <header class="service-header">
     <div class="brand"><span>DESPACHO</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
     <div class="service-header-actions">
+      <label class="service-date-filter">
+        <span>Fecha</span>
+        <input type="date" [value]="fechaTablero()" (change)="cambiarFechaTablero($any($event.target).value)" aria-label="Filtrar órdenes por fecha">
+      </label>
+      @if (fechaTablero() !== fechaHoy) { <app-button text="Hoy" color="secondary" (buttonClick)="volverAHoy()" /> }
       @if (sesionSeleccionada()) { <app-button text="Buscar orden" color="secondary" (buttonClick)="abrirBuscadorOrden()" /> }
       @if (permiteSesionesPin()) { <app-button text="+ Ingresar mesero" (buttonClick)="abrirIngreso()" /> }
     </div>

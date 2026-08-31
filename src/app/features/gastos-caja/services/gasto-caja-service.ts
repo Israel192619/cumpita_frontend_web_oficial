@@ -14,7 +14,7 @@ export interface GastoCaja {
   id: number;
   caja_id: number;
   categoria: CategoriaGasto;
-  concepto: string;
+  concepto?: string | null;
   monto: number;
   estado: 'ACTIVO' | 'ANULADO';
   created_at: string;
@@ -26,7 +26,7 @@ export interface GastoCaja {
 
 export interface CrearGasto {
   categoria: CategoriaGasto;
-  concepto: string;
+  concepto?: string | null;
   monto: number;
 }
 

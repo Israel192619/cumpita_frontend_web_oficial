@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CartItem, PagoOrden } from '@app/features/pos/services/pos-service';
 import { Button } from '@app/shared/components/button/button';
+import { Icon, IconName } from '@app/shared/components/icon/icon';
 import { Modal } from '@app/shared/components/modal/modal';
 import { CURRENCY_CONFIG, formatCurrency } from '@app/core/config/currency.config';
 
@@ -12,7 +13,7 @@ export type PaymentStatus = 'insufficient' | 'exact' | 'excess';
 @Component({
   selector: 'app-checkout-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, Modal, Button],
+  imports: [CommonModule, ReactiveFormsModule, Modal, Button, Icon],
   templateUrl: './checkout-modal.html',
   styleUrl: './checkout-modal.css',
 })
@@ -41,9 +42,9 @@ export class CheckoutModalComponent implements OnChanges {
   checkoutCancelled = output<void>();
 
   form: FormGroup;
-  paymentMethods: Array<{ id: PaymentMethodType; nombre: string; icon: string }> = [
-    { id: 'efectivo', nombre: 'Efectivo', icon: '💵' },
-    { id: 'qr', nombre: 'Pago QR', icon: '📱' },
+  paymentMethods: Array<{ id: PaymentMethodType; nombre: string; icon: IconName }> = [
+    { id: 'efectivo', nombre: 'Efectivo', icon: 'banknote' },
+    { id: 'qr', nombre: 'Pago QR', icon: 'qrcode' },
   ];
   quickAmounts = [20, 50, 100, 200];
 

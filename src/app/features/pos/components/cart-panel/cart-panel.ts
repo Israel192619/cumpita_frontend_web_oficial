@@ -353,8 +353,9 @@ export class CartPanelComponent {
       return `Devolver ${this.formatPrice(Math.abs(balance))}`;
     }
 
+    if (this.hasEdits()) return 'Guardar cambios';
     if (this.showHistoryButton()) return 'Ver historial';
-    return `Cobrar ${this.formatPrice(this.total())}`;
+    return 'Guardar cambios';
   }
 
   getPrimaryActionType(): 'checkout' | 'refund' | 'history' | 'edit' {
@@ -370,8 +371,9 @@ export class CartPanelComponent {
     if (balance > 0) return 'checkout';
     if (balance < 0) return 'refund';
 
+    if (this.hasEdits()) return 'edit';
     if (this.showHistoryButton()) return 'history';
-    return 'checkout';
+    return 'edit';
   }
 
   shouldShowPayLater(): boolean {
@@ -384,7 +386,7 @@ export class CartPanelComponent {
   }
 
   shouldShowEditOrderButton(): boolean {
-    return this.isEditing() && this.hasEdits();
+    return this.isEditing() && this.hasEdits() && this.getPrimaryActionType() !== 'edit';
   }
 
   getEditOrderButtonLabel(): string {

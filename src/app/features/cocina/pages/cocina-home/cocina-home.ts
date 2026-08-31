@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, Inject, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { ReverbService } from '@app/core/services/reverb-service';
 import { AuthService } from '@app/core/services/auth-service';
@@ -7,8 +7,28 @@ import { User } from '@app/core/models/user';
 import { ToastrService } from 'ngx-toastr';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ActualizacionEstadoCocinaResponse, CocinaService, KdsCambioOrden, KdsDetalle, KdsEstacion, KdsOrden } from '../../services/cocina-service';
-import { PuestosCocinaService, PuestoCocina } from '../../services/puestos-cocina';
 import { formatCurrency } from '@app/core/config/currency.config';
+import { ThemeService } from '@app/core/services/theme-service';
+
+interface KdsDetalleEstadoAgrupado {
+  clave: string;
+  etiqueta: string;
+  cantidad: number;
+  detalles: KdsDetalle[];
+  bloqueado: boolean;
+  listoParaAtender: boolean;
+}
+
+interface KdsDetalleAgrupado {
+  clave: string;
+  cantidad: number;
+  producto: KdsDetalle['producto'];
+  nota?: string | null;
+  opciones: string[];
+  estados: KdsDetalleEstadoAgrupado[];
+  tieneListos: boolean;
+  todosBloqueados: boolean;
+}
 
 @Component({
   selector: 'app-cocina-home',
@@ -24,42 +44,50 @@ export class CocinaHome implements OnInit, OnDestroy {
   busqueda = signal<string>('');
   isLoading = signal<boolean>(true);
   detalleActualizando = signal<number | null>(null);
-  puestos = signal<PuestoCocina[]>([]);
-  puestosLoading = signal<boolean>(false);
   usuario = signal<User | null>(null);
   private subscriptions: Subscription[] = [];
+  private sesionHeartbeat?: ReturnType<typeof setInterval>;
+  private actualizacionPreordenTimer?: ReturnType<typeof setInterval>;
+  private estacionSesionId: number | null = null;
+  private readonly claveAlertasPreorden = 'tonito-kds-preordenes-alertadas';
+  private preordenesAlertadas = new Set<string>();
+  private ordenesAlertadas = new Set<number>();
+  private contextoAlertas?: AudioContext;
+  private alertasSonorasHabilitadas = false;
+  private readonly habilitarAlertasSonoras = (): void => {
+    if (this.contextoAlertas) return;
+    try {
+      const contexto = new AudioContext();
+      void contexto.resume().then(() => {
+        this.contextoAlertas = contexto;
+        this.alertasSonorasHabilitadas = contexto.state === 'running';
+      }).catch(() => void contexto.close());
+    } catch {
+      // El aviso visual funciona aunque el equipo no admita sonido.
+    }
+  };
   estacionId = signal<number | null>(null);
   estacionActual = signal<KdsEstacion | null>(null);
   estacionesDisponibles = signal<KdsEstacion[]>([]);
   estacionSolicitada = signal<string | null>(null);
-  selectedOrdenPorPuesto = signal<Record<number, number | null>>({});
-  puestoModalAbierto = signal(false);
-
-  puestoActual = computed(() => {
-    const user = this.usuario();
-    return this.puestos().find((puesto) => puesto.user_id === user?.id) ?? null;
-  });
-
-  puestosDisponibles = computed(() => this.puestos().filter((puesto) => puesto.user_id === null));
-
-  bothPuestosOcupados = computed(() => this.puestos().length > 0 && this.puestos().every((puesto) => puesto.user_id !== null));
-
-  ordenesParaAsignar = computed(() => {
-    const ordenesAsignadas = new Set(this.puestos().map((puesto) => puesto.orden_id).filter((id): id is number => id !== null && id !== undefined));
-    return this.ordenesVisibles().filter((orden) => !ordenesAsignadas.has(orden.id));
-  });
-
-  isCocinaCocinero = computed(() => {
-    const user = this.usuario();
-    return user?.estacion?.codigo === 'COCINA' && user?.role?.nombre === 'Cocinero';
-  });
+  mobileFiltersOpen = signal(false);
+  isFullscreen = signal(false);
+  controlesOcultos = signal(true);
+  verServidos = signal(false);
+  detallesCompletadosAbiertos = signal<Record<number, boolean>>({});
 
   puedeCambiarEstacion = computed(() => this.estacionesDisponibles().length > 1);
+  esAdministrador = computed(() => {
+    const rol = this.usuario()?.role?.nombre?.trim().toLowerCase() ?? '';
+    return rol === 'admin' || rol === 'administrador';
+  });
 
   produccionParrilla = computed(() => {
     const productos = new Map<string, { etiqueta: string; cantidad: number; terminos: Map<string, number> }>();
     for (const orden of this.ordenes()) {
       for (const detalle of orden.detalles) {
+        if (this.esDetalleCompletado(detalle)) continue;
+        if (!detalle.producto) continue;
         const precio = Number(detalle.precio_unitario ?? 0);
         const clave = `${detalle.producto.id}|${precio.toFixed(2)}`;
         const actual = productos.get(clave) ?? {
@@ -93,6 +121,8 @@ export class CocinaHome implements OnInit, OnDestroy {
     };
     for (const orden of this.ordenes()) {
       for (const detalle of orden.detalles) {
+        if (this.esDetalleCompletado(detalle)) continue;
+        if (!detalle.producto) continue;
         if (detalle.incluye_producto) sumar(`p-${detalle.producto.id}`, detalle.producto.nombre, detalle.cantidad);
         for (const opcion of detalle.opciones ?? []) {
           const seleccion = opcion.modificador_opcion;
@@ -120,17 +150,35 @@ export class CocinaHome implements OnInit, OnDestroy {
     const texto = this.busqueda().trim().toLowerCase();
 
     return this.ordenes()
-      .map((orden) => ({
-        ...orden,
-        detalles: orden.detalles.filter((detalle) => {
+      .filter((orden) => {
+        const coincideDetalleActivo = orden.detalles.some((detalle) => {
           const categoriaDetalle = detalle.producto.categoria?.nombre || 'Sin categoría';
           const coincideCategoria = categoria === 'todos' || categoriaDetalle === categoria;
           const contenido = `${orden.cliente?.nombre || ''} ${orden.numero_orden} ${detalle.producto.nombre}`.toLowerCase();
-          return coincideCategoria && (!texto || contenido.includes(texto));
-        }),
-      }))
-      .filter((orden) => orden.detalles.length > 0 || this.tieneCambiosRecientes(orden) || orden.estado === 'cancelado');
+          return !this.esDetalleCompletado(detalle) && coincideCategoria && (!texto || contenido.includes(texto));
+        });
+        return coincideDetalleActivo || this.tieneCambiosRecientes(orden) || orden.estado === 'cancelado';
+      });
   });
+
+  ordenesCompletadas = computed(() => {
+    const categoria = this.categoriaSeleccionada();
+    const texto = this.busqueda().trim().toLowerCase();
+
+    return this.ordenes().filter((orden) => {
+      const detallesEnCategoria = orden.detalles.filter((detalle) =>
+        categoria === 'todos' || (detalle.producto.categoria?.nombre || 'Sin categoría') === categoria
+      );
+      const contenido = `${orden.cliente?.nombre || ''} ${orden.numero_orden} ${orden.detalles.map((detalle) => detalle.producto.nombre).join(' ')}`.toLowerCase();
+      return detallesEnCategoria.length > 0
+        && orden.detalles.every((detalle) => this.esDetalleCompletado(detalle))
+        && (!texto || contenido.includes(texto));
+    });
+  });
+
+  ordenesTablero = computed(() => this.verServidos()
+    ? this.ordenesCompletadas()
+    : this.ordenesVisibles());
 
   ordenEnServicio = computed(() => {
     return this.ordenes().find((orden) =>
@@ -140,24 +188,32 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   constructor(
     private cocinaService: CocinaService,
-    private puestosCocinaService: PuestosCocinaService,
     private reverb: ReverbService,
     private authService: AuthService,
     private toastr: ToastrService,
     private router: Router,
     private route: ActivatedRoute,
+    readonly themeService: ThemeService,
+    @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
   ngOnInit(): void {
+    this.themeService.initialize();
+    this.cargarAlertasPreordenMostradas();
+    this.syncFullscreenState();
+    this.document.addEventListener('fullscreenchange', this.syncFullscreenState);
+    // Chrome solo permite iniciar audio después de un toque o tecla del usuario.
+    this.document.addEventListener('pointerdown', this.habilitarAlertasSonoras, { once: true });
+    this.document.addEventListener('keydown', this.habilitarAlertasSonoras, { once: true });
+    // Solo consulta IDs de preórdenes cada minuto; el tablero completo se
+    // recarga únicamente si alguna cruzó la ventana de preparación.
+    this.actualizacionPreordenTimer = setInterval(() => this.revisarPreordenesProximas(), 60000);
     this.authService.me().subscribe({
       next: (user: User) => {
         this.usuario.set(user);
         this.estacionId.set(user.estacion_id ?? null);
         this.estacionSolicitada.set(this.route.snapshot.paramMap.get('estacion'));
         this.cargarPedidos();
-        if (user.estacion?.codigo === 'COCINA') {
-          this.cargarPuestos();
-        }
         this.escucharEventosReverb();
       },
       error: () => {
@@ -169,77 +225,52 @@ export class CocinaHome implements OnInit, OnDestroy {
     
   }
 
-  abrirSeleccionPuesto(): void {
-    this.puestoModalAbierto.set(true);
+  toggleMobileFilters(): void {
+    this.mobileFiltersOpen.update(open => !open);
   }
 
-  cerrarSeleccionPuesto(): void {
-    this.puestoModalAbierto.set(false);
-  }
-
-  entrarAControl(): void {
-    this.cerrarSeleccionPuesto();
-    this.router.navigate(['/cocina/control']);
-  }
-
-  finalizarPuesto(): void {
-    const puesto = this.puestoActual();
-    if (!puesto) {
-      return;
-    }
-
-    this.puestosCocinaService.liberarPuesto(puesto.id).subscribe({
-      next: (respuesta) => {
-        this.actualizarPuestoLocal(respuesta.puesto);
-        this.cerrarSeleccionPuesto();
-        this.toastr.success('Puesto finalizado.');
-      },
-      error: (err) => {
-        this.toastr.error(err?.error?.message || 'No se pudo finalizar el puesto.');
-      },
-    });
-  }
-
-  abrirOPuesto(puesto: PuestoCocina): void {
-    const user = this.usuario();
-
-    if (!user) {
-      this.toastr.error('Necesitas iniciar sesión para seleccionar un puesto.');
-      return;
-    }
-
-    if (puesto.user_id === null) {
-      this.puestosCocinaService.ocuparPuesto(puesto.id).subscribe({
-        next: (respuesta) => {
-          this.actualizarPuestoLocal(respuesta.puesto);
-          this.cerrarSeleccionPuesto();
-          this.router.navigate(['/cocina/control']);
-        },
-        error: (err) => {
-          this.toastr.error(err?.error?.message || 'No se pudo ocupar el puesto.');
-        },
-      });
-      return;
-    }
-
-    if (puesto.user_id !== user.id) {
-      this.toastr.warning('El puesto ya está ocupado por otro usuario.');
-      return;
-    }
-
-    this.cerrarSeleccionPuesto();
-    this.router.navigate(['/cocina/puesto', puesto.id]);
+  toggleControles(): void {
+    this.controlesOcultos.update(ocultos => !ocultos);
   }
 
   ngOnDestroy(): void {
+    this.document.removeEventListener('fullscreenchange', this.syncFullscreenState);
+    this.document.removeEventListener('pointerdown', this.habilitarAlertasSonoras);
+    this.document.removeEventListener('keydown', this.habilitarAlertasSonoras);
     this.subscriptions.forEach((subscription) => subscription.unsubscribe());
+    if (this.sesionHeartbeat) clearInterval(this.sesionHeartbeat);
+    if (this.actualizacionPreordenTimer) clearInterval(this.actualizacionPreordenTimer);
+    void this.contextoAlertas?.close();
+  }
+
+  async toggleFullscreen(): Promise<void> {
+    try {
+      if (this.document.fullscreenElement) await this.document.exitFullscreen();
+      else if (this.document.documentElement.requestFullscreen) await this.document.documentElement.requestFullscreen();
+    } catch {
+      // Algunos navegadores móviles pueden impedir este modo según su política.
+    }
+  }
+
+  async salirDeCocina(): Promise<void> {
+    if (this.document.fullscreenElement) {
+      try { await this.document.exitFullscreen(); } catch { /* Se continúa con la salida. */ }
+    }
+
+    if (this.esAdministrador()) {
+      await this.router.navigate(['/app/pedidos']);
+      return;
+    }
+
+    this.authService.logout().subscribe({ error: () => undefined });
   }
 
   private escucharEventosReverb(): void {
     this.subscriptions.push(
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCreada').subscribe((data: { tipo?: string; orden_id?: number }) => {
         if (data.orden_id) {
-          this.cargarPedidos(false);
+          this.cargarPedidos(false, false, data.orden_id);
+          this.registrarActividadKds();
         }
       }),
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((data: { tipo?: string; orden_id?: number }) => {
@@ -247,42 +278,15 @@ export class CocinaHome implements OnInit, OnDestroy {
           this.cargarPedidos(false, true);
         }
       }),
-      this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(() => this.cargarPedidos(false)),
-      this.reverb.escucharCanal('canal-ordenes', '.PuestoCocinaActualizado').subscribe((data: { id?: number; nombre?: string; estacion_id?: number; ocupado?: boolean; user_id?: number | null; user_nombre?: string | null; orden_id?: number | null; orden_numero?: number | null }) => {
-        if (data?.id) {
-          this.handlePuestoActualizadoEvent({
-            ...data,
-            id: data.id
-        });
-        }
+      this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(() => {
+        this.cargarPedidos(false);
+        this.registrarActividadKds();
       }),
-      this.reverb.escucharCanal('canal-ordenes', '.PuestoCocinaOrdenAsignada').subscribe((data: { id?: number; nombre?: string; estacion_id?: number; ocupado?: boolean; user_id?: number | null; user_nombre?: string | null; orden_id?: number | null; orden_numero?: number | null }) => {
-        if (data?.id) {
-          this.handlePuestoActualizadoEvent({
-            ...data,
-            id: data.id,
-          });
-        }
-      }),
-      this.reverb.escucharCanal('canal-ordenes', '.PuestoCocinaOrdenLista').subscribe((data: any) => {
-        if (data?.puesto?.id) {
-          this.handlePuestoActualizadoEvent({
-            id: data.puesto.id,
-            nombre: data.puesto.nombre,
-            estacion_id: data.puesto.estacion_id,
-            ocupado: data.puesto.ocupado,
-            user_id: data.puesto.user_id,
-            user_nombre: data.puesto.user_nombre,
-            orden_id: data.puesto.orden_id,
-            orden_numero: data.puesto.orden_numero,
-            orden_estado_cocina: data.puesto.orden_estado_cocina,
-          });
-        }
-      }),
+      this.reverb.escucharCanal('canal-ordenes', '.KdsColaActualizada').subscribe(() => this.cargarPedidos(false)),
     );
   }
 
-  cargarPedidos(mostrarCarga = true, detectarDesbloqueos = false): void {
+  cargarPedidos(mostrarCarga = true, detectarDesbloqueos = false, alertarNuevaOrdenId?: number): void {
     if (mostrarCarga) this.isLoading.set(true);
     const bloqueadosAntes = new Set(this.ordenes().flatMap(orden =>
       orden.detalles.filter(detalle => detalle.bloqueado).map(detalle => detalle.id)
@@ -295,6 +299,9 @@ export class CocinaHome implements OnInit, OnDestroy {
         this.estacionesDisponibles.set(res.estaciones_disponibles || []);
         this.ordenes.set(ordenes);
         this.preordenesProgramadas.set(res.preordenes_programadas || []);
+        if (res.estacion.codigo === 'PARRILLA') this.avisarPreordenesTempranas(ordenes);
+        if (alertarNuevaOrdenId) this.avisarNuevaOrden(ordenes, alertarNuevaOrdenId, res.estacion);
+        this.iniciarSesionKds(res.estacion.id);
         if (detectarDesbloqueos && res.estacion.codigo === 'COCINA') {
           const desbloqueados = ordenes.flatMap(orden => orden.detalles)
             .filter(detalle => detalle.listo_para_atender && bloqueadosAntes.has(detalle.id));
@@ -316,8 +323,37 @@ export class CocinaHome implements OnInit, OnDestroy {
   seleccionarEstacion(estacion: KdsEstacion): void {
     this.estacionSolicitada.set(estacion.codigo.toLowerCase());
     this.categoriaSeleccionada.set('todos');
-    this.router.navigate(['/app/kds', estacion.codigo.toLowerCase()]);
+    this.router.navigate(['/cocina', estacion.codigo.toLowerCase()]);
     this.cargarPedidos();
+  }
+
+  private iniciarSesionKds(estacionId: number): void {
+    if (this.estacionSesionId === estacionId) return;
+    this.estacionSesionId = estacionId;
+    if (this.sesionHeartbeat) clearInterval(this.sesionHeartbeat);
+    this.sesionHeartbeat = setInterval(() => this.registrarActividadKds(), 60000);
+    this.registrarActividadKds();
+  }
+
+  private registrarActividadKds(): void {
+    const estacionId = this.estacionSesionId;
+    if (!estacionId) return;
+    this.cocinaService.registrarSesion(estacionId).subscribe({ error: () => undefined });
+  }
+
+  private revisarPreordenesProximas(): void {
+    if (this.estacionActual()?.codigo !== 'PARRILLA') return;
+
+    this.cocinaService.obtenerPreordenesProximas(this.fechaSeleccionada(), this.estacionSolicitada()).subscribe({
+      next: ({ ids }) => {
+        const actuales = this.ordenes().filter(orden => orden.preorden_temprana).map(orden => orden.id).sort((a, b) => a - b);
+        const proximas = [...ids].sort((a, b) => a - b);
+        if (actuales.length !== proximas.length || actuales.some((id, indice) => id !== proximas[indice])) {
+          this.cargarPedidos(false);
+        }
+      },
+      error: () => undefined,
+    });
   }
 
   onFechaChange(event: Event): void {
@@ -333,158 +369,211 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.busqueda.set((event.target as HTMLInputElement).value);
   }
 
-  cargarPuestos(): void {
-    this.puestosLoading.set(true);
-    this.puestosCocinaService.obtenerPuestos().subscribe({
-      next: (res) => {
-        this.puestos.set(res.puestos || []);
-        this.puestosLoading.set(false);
-      },
-      error: (err) => {
-        this.puestosLoading.set(false);
-        console.log(err);
-        this.toastr.error(err?.error?.message || 'No se pudieron cargar los puestos de Cocina.');
-      },
+  resumenPreorden(orden: KdsOrden): string {
+    const productos = new Map<string, { cantidad: number; nombre: string; precio: number }>();
+    orden.detalles.forEach(detalle => {
+      if (!detalle.producto) return;
+      const precio = Number(detalle.precio_unitario ?? 0);
+      const clave = `${detalle.producto.id}|${precio}`;
+      const actual = productos.get(clave) ?? { cantidad: 0, nombre: detalle.producto.nombre, precio };
+      actual.cantidad += detalle.cantidad;
+      productos.set(clave, actual);
     });
+    return [...productos.values()]
+      .map(item => `${item.cantidad} × ${item.nombre}${item.precio > 0 ? ` · ${formatCurrency(item.precio)}` : ''}`)
+      .join(' · ');
   }
 
-  ocuparPuesto(puesto: PuestoCocina): void {
-    if (this.puestoActual() !== null) {
-      return;
+  private avisarPreordenesTempranas(ordenes: KdsOrden[]): void {
+    const nuevas = ordenes.filter(orden => orden.preorden_temprana && !this.preordenesAlertadas.has(this.claveAlertaPreorden(orden)));
+    if (!nuevas.length) return;
+
+    nuevas.forEach(orden => {
+      this.preordenesAlertadas.add(this.claveAlertaPreorden(orden));
+      const hora = orden.fecha_programada ? new Date(orden.fecha_programada).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) : '';
+      this.toastr.warning(
+        `#${orden.numero_orden || orden.id} · ${orden.cliente?.nombre || 'Cliente pendiente'}${hora ? ` · ${hora}` : ''}`,
+        'Preorden para preparar en Parrilla',
+        { timeOut: 8000, progressBar: true, enableHtml: false }
+      );
+    });
+    this.guardarAlertasPreordenMostradas();
+    this.reproducirAlertaPreorden();
+  }
+
+  private avisarNuevaOrden(ordenes: KdsOrden[], ordenId: number, estacion: KdsEstacion): void {
+    if (this.ordenesAlertadas.has(ordenId)) return;
+    const orden = ordenes.find(item => item.id === ordenId && !item.preorden_temprana);
+    if (!orden) return;
+
+    this.ordenesAlertadas.add(ordenId);
+    const cantidad = orden.detalles.reduce((total, detalle) => total + detalle.cantidad, 0);
+    this.toastr.info(
+      `#${orden.numero_orden || orden.id} · ${orden.cliente?.nombre || 'Cliente pendiente'} · ${cantidad} producto${cantidad === 1 ? '' : 's'}`,
+      `Nuevo pedido para ${estacion.nombre}`,
+      { timeOut: 7000, progressBar: true, enableHtml: false }
+    );
+    this.reproducirTono([523, 659, 784]);
+  }
+
+  private claveAlertaPreorden(orden: KdsOrden): string {
+    return `${orden.id}:${orden.fecha_programada ?? ''}`;
+  }
+
+  private cargarAlertasPreordenMostradas(): void {
+    try {
+      const guardadas = JSON.parse(sessionStorage.getItem(this.claveAlertasPreorden) ?? '[]');
+      if (Array.isArray(guardadas)) this.preordenesAlertadas = new Set(guardadas.filter((clave): clave is string => typeof clave === 'string'));
+    } catch {
+      this.preordenesAlertadas.clear();
     }
-
-    this.puestosCocinaService.ocuparPuesto(puesto.id).subscribe({
-      next: (respuesta) => {
-        this.actualizarPuestoLocal(respuesta.puesto);
-        this.toastr.success(`Has ocupado ${respuesta.puesto.nombre}.`);
-      },
-      error: (err) => {
-        this.toastr.error(err?.error?.message || 'No se pudo ocupar el puesto.');
-      },
-    });
   }
 
-  liberarPuesto(puesto: PuestoCocina): void {
-    if (this.puestoActual()?.id !== puesto.id) {
-      return;
+  private guardarAlertasPreordenMostradas(): void {
+    try {
+      sessionStorage.setItem(this.claveAlertasPreorden, JSON.stringify([...this.preordenesAlertadas]));
+    } catch {
+      // Si el navegador impide guardar la sesión, el tablero sigue funcionando.
     }
-
-    this.puestosCocinaService.liberarPuesto(puesto.id).subscribe({
-      next: (respuesta) => {
-        this.actualizarPuestoLocal(respuesta.puesto);
-        this.toastr.success(`${respuesta.puesto.nombre} ha quedado disponible.`);
-      },
-      error: (err) => {
-        this.toastr.error(err?.error?.message || 'No se pudo liberar el puesto.');
-      },
-    });
   }
 
-  seleccionarOrden(puesto: PuestoCocina, event: Event): void {
-    const ordenId = (event.target as HTMLSelectElement).value;
-    this.selectedOrdenPorPuesto.update((state) => ({
-      ...state,
-      [puesto.id]: ordenId ? Number(ordenId) : null,
-    }));
+  private reproducirAlertaPreorden(): void {
+    this.reproducirTono([784, 1046]);
   }
 
-  asignarOrden(puesto: PuestoCocina): void {
-    const ordenId = this.selectedOrdenPorPuesto()[puesto.id];
+  private reproducirTono(frecuencias: number[]): void {
+    if (!this.alertasSonorasHabilitadas || this.contextoAlertas?.state !== 'running') return;
 
-    if (!ordenId) {
-      this.toastr.warning('Selecciona una orden para asignar al puesto.');
-      return;
+    try {
+      const contexto = this.contextoAlertas;
+      if (!contexto) return;
+      const inicio = contexto.currentTime;
+      frecuencias.forEach((frecuencia, indice) => {
+        const retraso = indice * .18;
+        const tono = contexto.createOscillator();
+        const volumen = contexto.createGain();
+        tono.type = 'sine';
+        tono.frequency.value = frecuencia;
+        volumen.gain.setValueAtTime(.0001, inicio + retraso);
+        volumen.gain.exponentialRampToValueAtTime(.13, inicio + retraso + .02);
+        volumen.gain.exponentialRampToValueAtTime(.0001, inicio + retraso + .16);
+        tono.connect(volumen).connect(contexto.destination);
+        tono.start(inicio + retraso);
+        tono.stop(inicio + retraso + .15);
+      });
+    } catch {
+      // El aviso visual se mantiene si el equipo no puede reproducir el tono.
     }
-
-    this.puestosCocinaService.asignarOrden(puesto.id, ordenId).subscribe({
-      next: (respuesta) => {
-        this.actualizarPuestoLocal(respuesta.puesto);
-        this.selectedOrdenPorPuesto.update((state) => {
-          const { [puesto.id]: _, ...rest } = state;
-          return rest;
-        });
-        this.toastr.success(`Orden #${respuesta.puesto.orden_numero || respuesta.puesto.orden_id} asignada a ${respuesta.puesto.nombre}.`);
-      },
-      error: (err) => {
-        this.toastr.error(err?.error?.message || 'No se pudo asignar la orden al puesto.');
-      },
-    });
   }
 
-  liberarOrden(puesto: PuestoCocina): void {
-    if (this.puestoActual()?.id !== puesto.id) {
-      return;
-    }
-
-    this.puestosCocinaService.liberarOrden(puesto.id).subscribe({
-      next: (respuesta) => {
-        this.actualizarPuestoLocal(respuesta.puesto);
-        this.toastr.success(`Orden liberada de ${respuesta.puesto.nombre}.`);
-      },
-      error: (err) => {
-        this.toastr.error(err?.error?.message || 'No se pudo liberar la orden del puesto.');
-      },
-    });
-  }
-
-  marcarOrdenLista(puesto: PuestoCocina): void {
-    if (this.puestoActual()?.id !== puesto.id) {
-      return;
-    }
-
-    this.puestosCocinaService.marcarOrdenLista(puesto.id).subscribe({
-      next: (respuesta) => {
-        this.actualizarPuestoLocal(respuesta.puesto);
-        this.toastr.success(`Orden #${respuesta.orden.numero_orden || respuesta.orden.id} marcada como lista.`);
-      },
-      error: (err) => {
-        this.toastr.error(err?.error?.message || 'No se pudo marcar la orden como lista.');
-      },
-    });
-  }
-
-  private actualizarPuestoLocal(puesto: PuestoCocina): void {
-    this.puestos.update((puestos) => {
-      const index = puestos.findIndex((item) => item.id === puesto.id);
-      if (index === -1) {
-        return [...puestos, puesto];
-      }
-      return puestos.map((item) => item.id === puesto.id ? puesto : item);
-    });
-  }
-
-  private handlePuestoActualizadoEvent(data: { id: number; nombre?: string; estacion_id?: number; ocupado?: boolean; user_id?: number | null; user_nombre?: string | null; orden_id?: number | null; orden_numero?: number | null; orden_estado_cocina?: string | null }): void {
-    // accept optional orden_estado_cocina from events
-    const anyData = data as any;
-    this.puestos.update((puestos) => {
-      const index = puestos.findIndex((item) => item.id === data.id);
-      const puestoActualizado: PuestoCocina = {
-        id: data.id,
-        estacion_id: data.estacion_id ?? 0,
-        nombre: data.nombre || `Puesto ${data.id}`,
-        user_id: data.ocupado ? data.user_id ?? null : null,
-        user_nombre: data.ocupado ? data.user_nombre ?? null : null,
-        orden_id: data.orden_id ?? null,
-        orden_numero: data.orden_numero ?? null,
-        // @ts-ignore
-        orden_estado_cocina: anyData.orden_estado_cocina ?? anyData.puesto?.orden_estado_cocina ?? null,
-      };
-
-      if (index === -1) {
-        return [...puestos, puestoActualizado];
-      }
-
-      return puestos.map((item) => item.id === data.id ? { ...item, ...puestoActualizado } : item);
-    });
-  }
-
-  gruposPorCategoria(orden: KdsOrden): Array<{ categoria: string; detalles: KdsDetalle[] }> {
+  gruposPorCategoria(orden: KdsOrden): Array<{ categoria: string; grupos: KdsDetalleAgrupado[] }> {
     const grupos = new Map<string, KdsDetalle[]>();
-    orden.detalles.forEach((detalle) => {
+    orden.detalles.filter((detalle) => !!detalle.producto && (this.verServidos()
+      ? this.esDetalleCompletado(detalle)
+      : !this.esDetalleCompletado(detalle)
+    )).forEach((detalle) => {
       const categoria = detalle.producto.categoria?.nombre || 'Sin categoría';
       grupos.set(categoria, [...(grupos.get(categoria) || []), detalle]);
     });
-    return [...grupos.entries()].map(([categoria, detalles]) => ({ categoria, detalles }));
+    return [...grupos.entries()].map(([categoria, detalles]) => ({
+      categoria,
+      grupos: this.agruparDetalles(detalles),
+    }));
+  }
+
+  detallesCompletados(orden: KdsOrden): KdsDetalle[] {
+    return orden.detalles.filter((detalle) => this.esDetalleCompletado(detalle));
+  }
+
+  gruposCompletados(orden: KdsOrden): KdsDetalleAgrupado[] {
+    return this.agruparDetalles(this.detallesCompletados(orden));
+  }
+
+  detallesDelGrupo(grupo: KdsDetalleAgrupado): KdsDetalle[] {
+    return grupo.estados.flatMap((estado) => estado.detalles);
+  }
+
+  toggleVerServidos(): void {
+    this.verServidos.update((activo) => !activo);
+  }
+
+  toggleDetallesCompletados(ordenId: number): void {
+    this.detallesCompletadosAbiertos.update((estado) => ({
+      ...estado,
+      [ordenId]: !estado[ordenId],
+    }));
+  }
+
+  detallesCompletadosAbiertosPara(ordenId: number): boolean {
+    return this.detallesCompletadosAbiertos()[ordenId] === true;
+  }
+
+  private agruparDetalles(detalles: KdsDetalle[]): KdsDetalleAgrupado[] {
+    const grupos = new Map<string, KdsDetalleAgrupado>();
+
+    for (const detalle of detalles) {
+      const opciones = (detalle.opciones ?? [])
+        .map(opcion => opcion.modificador_opcion)
+        .filter((opcion): opcion is NonNullable<typeof opcion> => !!opcion)
+        .sort((a, b) => a.id - b.id);
+      const clave = [
+        detalle.producto.id,
+        Number(detalle.precio_unitario ?? 0).toFixed(2),
+        detalle.nota?.trim() ?? '',
+        detalle.estacion_id ?? '',
+        detalle.incluye_producto ? 'producto' : 'opcion',
+        opciones.map(opcion => opcion.id).join(','),
+      ].join('|');
+      const estado = this.estadoAgrupado(detalle);
+      const actual = grupos.get(clave) ?? {
+        clave,
+        cantidad: 0,
+        producto: detalle.producto,
+        nota: detalle.nota,
+        opciones: opciones.map(opcion => opcion.nombre),
+        estados: [],
+        tieneListos: false,
+        todosBloqueados: true,
+      };
+      const estadoActual = actual.estados.find(item => item.clave === estado.clave);
+
+      if (estadoActual) {
+        estadoActual.cantidad += detalle.cantidad;
+        estadoActual.detalles.push(detalle);
+      } else {
+        actual.estados.push({ ...estado, cantidad: detalle.cantidad, detalles: [detalle] });
+      }
+
+      actual.cantidad += detalle.cantidad;
+      actual.tieneListos ||= detalle.listo_para_atender === true;
+      actual.todosBloqueados &&= detalle.bloqueado === true;
+      grupos.set(clave, actual);
+    }
+
+    return [...grupos.values()];
+  }
+
+  private estadoAgrupado(detalle: KdsDetalle): Omit<KdsDetalleEstadoAgrupado, 'cantidad' | 'detalles'> {
+    if (detalle.bloqueado) {
+      return { clave: 'bloqueado', etiqueta: 'Bloqueado · esperando Parrilla', bloqueado: true, listoParaAtender: false };
+    }
+    if (detalle.listo_para_atender) {
+      return { clave: 'listo-para-atender', etiqueta: 'Listo para atender', bloqueado: false, listoParaAtender: true };
+    }
+
+    const etiquetas: Record<KdsDetalle['estado_cocina'], string> = {
+      pendiente: 'Pendiente',
+      en_preparacion: 'En preparación',
+      listo_para_recoger: 'Listo para recoger',
+      recogido: 'Recogido',
+      servido: 'Servido',
+    };
+    return {
+      clave: detalle.estado_cocina,
+      etiqueta: etiquetas[detalle.estado_cocina],
+      bloqueado: false,
+      listoParaAtender: false,
+    };
   }
 
   marcarServido(detalle: KdsDetalle, servido: boolean): void {
@@ -497,8 +586,18 @@ export class CocinaHome implements OnInit, OnDestroy {
         this.detalleActualizando.set(null);
         this.cargarPedidos(false);
       },
-      error: () => this.detalleActualizando.set(null),
+      error: (error) => {
+        this.detalleActualizando.set(null);
+        this.toastr.warning(
+          error?.error?.message || 'No se pudo cambiar el estado del producto.'
+        );
+        this.cargarPedidos(false);
+      },
     });
+  }
+
+  private esDetalleCompletado(detalle: KdsDetalle): boolean {
+    return detalle.estado_cocina === 'servido';
   }
 
   /**
@@ -544,12 +643,18 @@ export class CocinaHome implements OnInit, OnDestroy {
             }),
           };
         })
-        .filter((orden) => this.tieneDetallesPendientes(orden));
+        .filter((orden) => this.tieneDetallesParaKds(orden));
     });
   }
 
   private tieneDetallesPendientes(orden: KdsOrden): boolean {
     return orden.detalles.some((detalle) => detalle.estado_cocina === 'pendiente');
+  }
+
+  private tieneDetallesParaKds(orden: KdsOrden): boolean {
+    return orden.detalles.some((detalle) =>
+      ['pendiente', 'en_preparacion', 'listo_para_recoger', 'servido'].includes(detalle.estado_cocina)
+    );
   }
 
   private debeMostrarseEnKds(orden: KdsOrden): boolean {
@@ -559,7 +664,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     }
 
     const cuentaDetalles = orden.detalles.length > 0;
-    const pendientes = this.tieneDetallesPendientes(orden);
+    const pendientes = this.tieneDetallesParaKds(orden);
     const tieneEstacionAsignada = this.estacionId() !== null;
 
     if (tieneEstacionAsignada) {
@@ -657,7 +762,12 @@ export class CocinaHome implements OnInit, OnDestroy {
   tiempoTranscurrido(orden: KdsOrden): string {
     const fecha = new Date(orden.fecha_orden || orden.created_at);
     const minutos = Math.max(0, Math.floor((Date.now() - fecha.getTime()) / 60000));
-    return minutos < 1 ? 'Ahora' : `${minutos} min`;
+    if (minutos < 1) return 'Ahora';
+    if (minutos < 60) return `${minutos} min`;
+
+    const horas = Math.floor(minutos / 60);
+    const minutosRestantes = minutos % 60;
+    return minutosRestantes ? `${horas}h ${minutosRestantes}m` : `${horas}h`;
   }
 
   esUrgente(orden: KdsOrden): boolean {
@@ -672,6 +782,10 @@ export class CocinaHome implements OnInit, OnDestroy {
   private normalizar(valor: string): string {
     return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
+
+  private readonly syncFullscreenState = (): void => {
+    this.isFullscreen.set(!!this.document.fullscreenElement);
+  };
 
   private fechaDeHoy(): string {
     const hoy = new Date();

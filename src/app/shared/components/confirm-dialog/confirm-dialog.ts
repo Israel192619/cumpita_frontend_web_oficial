@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, ViewEncapsulation } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 
 export interface ConfirmDialogData {
@@ -10,6 +10,7 @@ export interface ConfirmDialogData {
 }
 @Component({
   selector: 'app-confirm-dialog',
+  encapsulation: ViewEncapsulation.None,
   imports: [
     MatDialogModule,
   ],

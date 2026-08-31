@@ -4,5 +4,5 @@
   createText="+ Nuevo gasto" [rowActions]="rowActions" (refresh)="cargar()"
   (action)="handleAction($event)">
 </app-data-table>
-<app-anular-movimiento-dialog [open]="!!gastoAAnular()" [data]="gastoAAnular() ? { monto: gastoAAnular()!.monto, concepto: gastoAAnular()!.concepto, entidad: 'gasto' } : null" [busy]="anulando()"
+<app-anular-movimiento-dialog [open]="!!gastoAAnular()" [data]="gastoAAnular() ? { monto: gastoAAnular()!.monto, concepto: gastoAAnular()!.concepto ?? undefined, entidad: 'gasto' } : null" [busy]="anulando()"
   (cancelled)="gastoAAnular.set(null)" (confirmed)="confirmarAnulacion($event)" />

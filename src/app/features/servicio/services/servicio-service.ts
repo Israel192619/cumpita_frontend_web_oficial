@@ -17,8 +17,11 @@ export class ServicioService {
 
   constructor(private http: HttpClient) {}
 
-  listar(token?: string): Observable<ServicioTablero> {
-    return this.http.get<ServicioTablero>(`${this.api}/fichas`, this.opciones(token));
+  listar(token?: string, fecha?: string): Observable<ServicioTablero> {
+    return this.http.get<ServicioTablero>(`${this.api}/fichas`, {
+      ...this.opciones(token),
+      params: fecha ? { fecha } : undefined,
+    });
   }
   tomar(id: number, token?: string) { return this.http.post(`${this.api}/fichas/${id}/tomar`, {}, this.opciones(token)); }
   liberar(id: number, token?: string) { return this.http.post(`${this.api}/fichas/${id}/liberar`, {}, this.opciones(token)); }

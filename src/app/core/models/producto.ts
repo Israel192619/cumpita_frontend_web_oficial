@@ -30,6 +30,7 @@ export interface Producto {
   activo: boolean;
   maneja_stock: boolean;
   stock?: number;
+  stock_disponible?: number | null;
   stock_minimo?: number;
   imagen?: string;
   imagen_url?: string;

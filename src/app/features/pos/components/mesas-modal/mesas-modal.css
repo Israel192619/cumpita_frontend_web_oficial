@@ -52,12 +52,23 @@
 }
 
 .mesa-btn {
+  display: grid;
+  min-height: 98px;
+  place-content: center;
+  gap: 0.3rem;
   padding: 1rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
   background: var(--bg-main);
+  color: var(--color-text);
+  font: inherit;
+  text-align: center;
   cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
 }
 
-.mesa-number { font-weight:700; font-size:1.1rem; }
-.mesa-capacity { font-size:0.8rem; opacity:0.8 }
+.mesa-btn:hover { border-color: var(--color-primary); background: var(--color-hover); transform: translateY(-1px); }
+.mesa-btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+
+.mesa-number { color:var(--color-text); font-weight:800; font-size:1.15rem; }
+.mesa-capacity { color:var(--color-text-secondary); font-size:0.8rem; opacity:1; }

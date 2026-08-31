@@ -1,0 +1,27 @@
+<app-data-table
+  title="Ajustes de stock"
+  [data]="ajustes()"
+  [columns]="columns"
+  [loading]="loading()"
+  [error]="error()"
+  createLink="/app/ajustes-stock/create"
+  createText="+ Registrar ajuste"
+  [rowActions]="rowActions"
+  (refresh)="cargar()"
+  (action)="handleAction($event)">
+</app-data-table>
+
+<app-modal [open]="!!selectedAdjustment()" title="Detalle del ajuste" size="small" (closed)="selectedAdjustment.set(null)">
+  @if (selectedAdjustment(); as ajuste) {
+    <div class="adjustment-detail">
+      <div><span>Producto</span><strong>{{ ajuste.producto.nombre }}</strong></div>
+      <div><span>Tipo</span><strong>{{ ajuste.tipo }}</strong></div>
+      <div><span>Cantidad</span><strong>{{ ajuste.cantidad }}</strong></div>
+      <div><span>Stock</span><strong>{{ ajuste.stock_anterior }} → {{ ajuste.stock_final }}</strong></div>
+      <div><span>Registrado por</span><strong>{{ ajuste.usuario.name }}</strong></div>
+      <div><span>Motivo</span><strong>{{ ajuste.motivo }}</strong></div>
+      @if (ajuste.revertido_por_ajuste_id) { <p class="reverted-note">Este ajuste fue revertido y conserva su historial.</p> }
+    </div>
+  }
+  <div modal-actions><button type="button" class="detail-close" (click)="selectedAdjustment.set(null)">Cerrar</button></div>
+</app-modal>

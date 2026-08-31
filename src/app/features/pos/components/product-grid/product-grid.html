@@ -42,20 +42,14 @@
           Falta stock
         </span>
         <div *ngIf="isOutOfStock(prod) && allowStockAdjustment()" class="restock-controls">
-          <input
-            type="number"
-            class="restock-input"
-            min="1"
-            [value]="getRestockQuantity(prod)"
-            (input)="setRestockQuantity(prod, $any($event.target).value)"
-            (click)="$event.stopPropagation()"
-          />
           <button
             type="button"
             class="restock-btn"
-            (click)="$event.stopPropagation(); onRestockProduct(prod)"
+            [disabled]="restockingProductId() === prod.id"
+            (click)="$event.stopPropagation(); openRestockDialog(prod)"
           >
-            Reabastecer
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            {{ restockingProductId() === prod.id ? 'Reabasteciendo…' : 'Reabastecer stock' }}
           </button>
         </div>
       </div>
@@ -70,5 +64,23 @@
   <!-- Cargando -->
   <div *ngIf="isLoading()" class="loading-state">
     <p>Cargando productos...</p>
+  </div>
+
+  <div *ngIf="restockProduct() as producto" class="restock-dialog-backdrop" (click)="closeRestockDialog()">
+    <section class="restock-dialog" role="dialog" aria-modal="true" aria-labelledby="restock-dialog-title" (click)="$event.stopPropagation()">
+      <span class="restock-dialog__eyebrow">AJUSTE DE STOCK</span>
+      <h2 id="restock-dialog-title">Reabastecer {{ producto.nombre }}</h2>
+      <p>Indica cuántas unidades deseas agregar al inventario.</p>
+      <label>
+        <span>Cantidad a agregar</span>
+        <input type="number" min="1" inputmode="numeric" [value]="restockQuantity()" (input)="setRestockQuantity($any($event.target).value)" [disabled]="restockingProductId() === producto.id" autofocus>
+      </label>
+      <div class="restock-dialog__actions">
+        <button type="button" class="restock-dialog__cancel" [disabled]="restockingProductId() === producto.id" (click)="closeRestockDialog()">Cancelar</button>
+        <button type="button" class="restock-dialog__confirm" [disabled]="restockingProductId() === producto.id" (click)="confirmRestock()">
+          {{ restockingProductId() === producto.id ? 'Guardando…' : 'Confirmar reabastecimiento' }}
+        </button>
+      </div>
+    </section>
   </div>
 </div>

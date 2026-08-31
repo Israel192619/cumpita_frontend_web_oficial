@@ -70,17 +70,29 @@
 .summary-item > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .summary-item .price { flex: 0 0 auto; color: var(--color-text); font-weight: 700; }
 
-.deleted-items-block {
-  margin-top: 0.4rem;
-  padding-top: 0.35rem;
-  border-top: 1px dashed var(--color-border);
+.summary-empty { color: var(--color-text-secondary); font-size: 0.84rem; }
+
+.refund-items-block {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.55rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, var(--color-border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface));
 }
 
-.deleted-items-title {
-  margin-bottom: 0.2rem;
+.refund-items-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px dashed color-mix(in srgb, var(--color-danger) 30%, var(--color-border));
   color: var(--color-danger);
   font-size: 0.76rem;
-  font-weight: 750;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .summary-item.deleted-refund {
@@ -224,9 +236,9 @@
 
 .payment-btn:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-hover); }
 .payment-btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 1px; }
-.payment-btn.active { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); box-shadow: inset 3px 0 0 var(--color-primary); }
+.payment-btn.active { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); }
 .payment-btn:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
-.payment-icon { font-size: 1.15rem; line-height: 1; }
+.payment-icon { display: grid; place-items: center; line-height: 1; }
 .payment-name { font-size: 0.84rem; font-weight: 700; }
 .selection-mark { position: absolute; top: 0.5rem; right: 0.55rem; display: grid; width: 20px; height: 20px; place-items: center; border: 1px solid var(--color-border); border-radius: 50%; color: transparent; background: var(--color-surface); font-size: 0.7rem; }
 .payment-btn.active .selection-mark { border-color: var(--color-primary); color: var(--color-on-brand); background: var(--color-primary); }

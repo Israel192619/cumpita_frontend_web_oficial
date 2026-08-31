@@ -26,7 +26,7 @@ export const kdsStation = (user: User): 'cocina' | 'parrilla' => {
 export const homeForUser = (user: User): string => {
   if (isAdministrator(user)) return '/app';
   if (userCanAccess(user, 'pos')) return '/pos';
-  if (userCanAccess(user, 'kds')) return `/app/kds/${kdsStation(user)}`;
+  if (userCanAccess(user, 'kds')) return `/cocina/${kdsStation(user)}`;
   if (userCanAccess(user, 'servicio')) return '/app/servicio';
   return '/login';
 };

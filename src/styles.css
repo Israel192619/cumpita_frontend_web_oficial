@@ -1,4 +1,16 @@
 :root {
+  /* POS Toñito — paleta editable. Cambia estos cinco colores para reidentificar el POS. */
+  --pos-orange: #ff4500;
+  --pos-black: #171411;
+  --pos-white: #ffffff;
+  --pos-mustard: #c99000;
+  --pos-red: #c92a22;
+  --pos-page: #f6f1e9;
+  --pos-surface: #ffffff;
+  --pos-border: #e6ddd2;
+  --pos-text: var(--pos-black);
+  --pos-text-muted: #766d62;
+  --pos-hover: #fff0e9;
   /* Paleta oficial Toñito — tema claro. */
   --color-primary: #4680ff; --color-primary-hover: #2563eb;
   --color-secondary: #64748b; --color-secondary-hover: #475569;
@@ -76,6 +88,18 @@
 }
 
 :root[data-theme='dark'] {
+  /* POS Toñito — variantes para contraste en modo oscuro. */
+  --pos-orange: #ff6a33;
+  --pos-black: #111111;
+  --pos-white: #fdfbf8;
+  --pos-mustard: #f2bd3d;
+  --pos-red: #ff625b;
+  --pos-page: #111111;
+  --pos-surface: #1c1b19;
+  --pos-border: #3a3530;
+  --pos-text: var(--pos-white);
+  --pos-text-muted: #b8afa5;
+  --pos-hover: #292521;
   /* Paleta oficial Toñito — tema oscuro. */
   --color-primary: #75a0ff; --color-primary-hover: #94b7ff;
   --color-secondary: #a8b3c3; --color-secondary-hover: #c2cad6;
@@ -83,7 +107,7 @@
   --color-bg: #111827; --color-surface: #182131; --color-sidebar: #182131; --color-header: #182131;
   --color-border: #2b3749; --color-text: #eef3f9; --color-text-secondary: #a8b3c3; --color-text-muted: #748196;
   --color-text-disabled: #657186; --color-hover: #202b3c; --color-focus: rgb(117 160 255 / .28);
-  --color-on-brand: #081120; --color-neutral: #334155; --color-neutral-hover: #475569;
+  --color-on-brand: #ffffff; --color-neutral: #334155; --color-neutral-hover: #475569;
   --color-disabled: #283447; --color-disabled-text: #6f7c91;
   --control-bg: var(--color-surface); --control-border: var(--color-border);
   --control-placeholder: var(--color-text-muted); --control-disabled-bg: var(--color-disabled);
@@ -148,6 +172,10 @@
 html { min-width: 320px; min-height: 100%; background: var(--app-bg); }
 body { min-height: 100vh; margin: 0; color: var(--text); background: var(--app-bg); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; } button, a { -webkit-tap-highlight-color: transparent; } img { max-width: 100%; } a { color: var(--primary); }
+
+/* POS: traduce la paleta oficial a los colores semánticos usados por sus componentes. */
+:root .pos-container { --color-primary:var(--pos-orange); --color-primary-hover:color-mix(in srgb,var(--pos-orange) 82%,var(--pos-black)); --color-accent:var(--pos-orange); --color-focus:color-mix(in srgb,var(--pos-orange) 28%,transparent); --color-bg:var(--pos-page); --color-surface:var(--pos-surface); --bg-main:var(--pos-page); --bg-surface:var(--pos-surface); --color-text:var(--pos-text); --text-primary:var(--pos-text); --color-text-secondary:var(--pos-text-muted); --text-muted:var(--pos-text-muted); --color-border:var(--pos-border); --border-color:var(--pos-border); --color-hover:var(--pos-hover); --color-danger:var(--pos-red); --color-warning:var(--pos-mustard); --color-on-brand:var(--pos-white); --color-neutral:var(--pos-black); --color-neutral-hover:color-mix(in srgb,var(--pos-black) 86%,var(--pos-white)); --color-success:#25864c; }
+:root[data-theme='dark'] .pos-container { --color-success:#48bf76; }
 h1, h2, h3, h4, h5, h6, p { margin-top: 0; } ::selection { color: white; background: var(--primary); }
 ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { border-radius: 10px; background: color-mix(in srgb, var(--text-subtle) 45%, transparent); }
 

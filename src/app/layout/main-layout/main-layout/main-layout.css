@@ -1,9 +1,9 @@
 :host { display: block; min-height: 100vh; }
 .app-shell {
-  /* Proporción de panel administrativo: navegación amplia y barra superior dominante. */
-  --sidebar-width: 324px;
-  --sidebar-collapsed: 78px;
-  --header-height: 108px;
+  /* Navegación compacta para aprovechar el espacio de trabajo. */
+  --sidebar-width: 264px;
+  --sidebar-collapsed: 68px;
+  --header-height: 76px;
   min-height: 100vh;
   width: 100%;
   max-width: 100vw;
@@ -12,12 +12,15 @@
 }
 .app-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 40; width: var(--sidebar-width); background: var(--color-sidebar); border-right: 1px solid var(--color-border); transition: width .22s ease, transform .22s ease; }
 .app-header { position: fixed; z-index: 30; top: 0; right: 0; left: var(--sidebar-width); height: var(--header-height); background: color-mix(in srgb, var(--color-header) 94%, transparent); border-bottom: 1px solid var(--color-border); backdrop-filter: blur(14px); transition: left .22s ease; }
-.app-main { min-width: 0; min-height: calc(100vh - var(--footer-height)); padding: calc(var(--header-height) + 24px) 26px 28px calc(var(--sidebar-width) + 26px); overflow-x: clip; transition: padding-left .22s ease; }
+.app-main { min-width: 0; min-height: calc(100vh - var(--footer-height)); padding: calc(var(--header-height) + 18px) 20px 24px calc(var(--sidebar-width) + 20px); overflow-x: clip; transition: padding-left .22s ease; }
 .app-content { width: 100%; min-width: 0; max-width: 1600px; margin: 0 auto; }
+/* Los componentes creados por el router quedan junto al router-outlet. Fuerza que
+   siempre ocupen el área disponible, incluso cuando una tabla tenga columnas anchas. */
+.app-content > router-outlet + * { display: block; width: 100%; min-width: 0; max-width: 100%; }
 .app-footer { margin-left: var(--sidebar-width); min-height: var(--footer-height); transition: margin-left .22s ease; }
 .sidebar-collapsed .app-sidebar { width: var(--sidebar-collapsed); }
 .sidebar-collapsed .app-header { left: var(--sidebar-collapsed); }
-.sidebar-collapsed .app-main { padding-left: calc(var(--sidebar-collapsed) + 26px); }
+.sidebar-collapsed .app-main { padding-left: calc(var(--sidebar-collapsed) + 20px); }
 .sidebar-collapsed .app-footer { margin-left: var(--sidebar-collapsed); }
 .sidebar-backdrop { display: none; }
 @media (max-width: 900px) {

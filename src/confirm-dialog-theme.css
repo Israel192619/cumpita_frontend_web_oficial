@@ -1,0 +1,10 @@
+.confirm-dialog-panel .mat-mdc-dialog-container .mdc-dialog__surface,
+.confirm-dialog-panel .mat-mdc-dialog-surface {
+  color: var(--color-text) !important;
+  background: var(--color-surface) !important;
+}
+
+.confirm-dialog-panel .mat-mdc-dialog-title,
+.confirm-dialog-panel .mat-mdc-dialog-content {
+  color: var(--color-text) !important;
+}

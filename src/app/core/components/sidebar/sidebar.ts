@@ -25,7 +25,7 @@ export class Sidebar implements OnInit {
     const user = this.user();
     if (!user || isAdministrator(user)) return [];
     if (userCanAccess(user, 'pos')) return [{ label: 'POS', route: '/pos' }];
-    if (userCanAccess(user, 'kds')) return [{ label: `KDS ${kdsStation(user) === 'parrilla' ? 'Parrilla' : 'Cocina'}`, route: `/app/kds/${kdsStation(user)}` }];
+    if (userCanAccess(user, 'kds')) return [{ label: `KDS ${kdsStation(user) === 'parrilla' ? 'Parrilla' : 'Cocina'}`, route: `/cocina/${kdsStation(user)}` }];
     if (userCanAccess(user, 'servicio')) {
       const links = [{ label: 'Servicio', route: '/app/servicio' }];
       if (userCanAccess(user, 'preorden')) links.push({ label: 'Nueva preorden', route: '/app/preordenes/nueva' });
@@ -47,11 +47,11 @@ export class Sidebar implements OnInit {
   private readonly adminGroups: NavGroup[] = [
     { key: 'operacion', label: 'Operación', icon: 'restaurant', children: [
       { label: 'POS', route: '/pos' }, { label: 'Órdenes', route: '/app/pedidos' }, { label: 'Mesas', route: '/app/mesas' },
-      { label: 'KDS Cocina', route: '/app/kds/cocina' }, { label: 'KDS Parrilla', route: '/app/kds/parrilla' }, { label: 'Servicio / Despacho', route: '/app/servicio' }
+      { label: 'KDS Cocina', route: '/cocina/cocina' }, { label: 'KDS Parrilla', route: '/cocina/parrilla' }, { label: 'Servicio / Despacho', route: '/app/servicio' }
     ]},
     { key: 'productos', label: 'Productos', icon: 'package', children: [
       { label: 'Productos', route: '/app/productos' }, { label: 'Categorías', route: '/app/categorias' },
-      { label: 'Modificadores', route: '/app/modificadores' }
+      { label: 'Modificadores', route: '/app/modificadores' }, { label: 'Ajustes de stock', route: '/app/ajustes-stock' }
     ]},
     { key: 'contactos', label: 'Contactos', icon: 'users', children: [{ label: 'Clientes', route: '/app/clientes' }] },
     { key: 'usuarios', label: 'Administración', icon: 'settings', children: [{ label: 'Usuarios', route: '/app/users' }] },

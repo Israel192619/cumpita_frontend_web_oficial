@@ -22,7 +22,7 @@
       <h3>Productos</h3>
       <div class="items">
         <div class="item headings"><span>Producto</span><span>Cant.</span><span>Precio</span><span>Total</span></div>
-        @for (detail of detalles(); track detail.id ?? $index) {
+        @for (detail of detallesAgrupados(); track detail.groupKey) {
           <article class="item">
             <div class="product">
               <strong>{{ productoNombre(detail) }}</strong>
@@ -36,6 +36,21 @@
         } @empty { <div class="empty">El pedido no tiene productos registrados.</div> }
       </div>
     </section>
+
+    @if (detallesRetirados().length) {
+      <section class="section removed-products">
+        <h3>Productos retirados</h3>
+        <div class="items">
+          @for (detail of detallesRetirados(); track detail.clave) {
+            <article class="item removed-item">
+              <div class="product"><strong>{{ detail.cantidad }}× {{ detail.nombre }}</strong></div>
+              <span data-label="Precio">{{ detail.precio | appCurrency }}</span>
+              <strong data-label="Retirado">− {{ detail.subtotal | appCurrency }}</strong>
+            </article>
+          }
+        </div>
+      </section>
+    }
 
     <div class="lower-grid">
       @if (pagos().length) {

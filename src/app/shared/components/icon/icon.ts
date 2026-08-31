@@ -3,6 +3,7 @@ import { Component, Input } from '@angular/core';
 export type IconName =
   | 'arrow-down-right-circle'
   | 'arrow-up-right-circle'
+  | 'banknote'
   | 'chevron-down'
   | 'chevron-right'
   | 'chevron-up'

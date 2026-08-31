@@ -13,6 +13,7 @@ export class ConfirmDialogService {
     const dialogRef = this.dialog.open(ConfirmDialog, {
       width: '400px',
       disableClose: true,
+      panelClass: 'confirm-dialog-panel',
       data
     });
 

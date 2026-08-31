@@ -23,8 +23,8 @@ describe('role access policy', () => {
   });
 
   it('routes Cocinero to the assigned station', () => {
-    expect(homeForUser(user('Cocinero', 'Cocina'))).toBe('/app/kds/cocina');
-    expect(homeForUser(user('Cocinero', 'Parrilla'))).toBe('/app/kds/parrilla');
+    expect(homeForUser(user('Cocinero', 'Cocina'))).toBe('/cocina/cocina');
+    expect(homeForUser(user('Cocinero', 'Parrilla'))).toBe('/cocina/parrilla');
   });
 
   it('limits Mesero and Despacho to Servicio', () => {

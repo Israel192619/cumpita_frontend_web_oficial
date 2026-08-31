@@ -15,7 +15,7 @@ const protect = (route: ActivatedRouteSnapshot) => {
       if (access === 'kds') {
         const requestedStation = (route.paramMap.get('estacion') || route.data['station'])?.toLocaleLowerCase();
         if (requestedStation && !isAdministrator(user) && requestedStation !== kdsStation(user)) {
-          return router.createUrlTree([`/app/kds/${kdsStation(user)}`]);
+          return router.createUrlTree([`/cocina/${kdsStation(user)}`]);
         }
       }
       return true;

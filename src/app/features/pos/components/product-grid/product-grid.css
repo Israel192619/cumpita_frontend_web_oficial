@@ -84,7 +84,7 @@
   }
 
   &.disabled {
-    opacity: 0.5;
+    opacity: 1;
     cursor: not-allowed;
 
     &:hover {
@@ -133,8 +133,8 @@
 }
 
 .stock-badge-warning {
-  background: #f59e0b;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+  background: var(--color-warning);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-warning) 25%, transparent);
 }
 
 .stock-badge-empty {
@@ -143,8 +143,8 @@
 }
 
 .stock-badge-ok {
-  background: #16a34a;
-  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
+  background: var(--color-success);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-success) 20%, transparent);
 }
 
 .product-content {
@@ -224,8 +224,8 @@
   padding: 0.35rem 0.4rem;
   font-size: 0.8rem;
   text-align: center;
-  background: rgba(255, 255, 255, 0.95);
-  color: #111111;
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .restock-input:focus {
@@ -238,7 +238,7 @@
   border: none;
   border-radius: var(--radius-md);
   background: var(--color-accent);
-  color: #111111;
+  color: var(--color-on-brand);
   padding: 0.4rem 0.6rem;
   font-size: 0.72rem;
   font-weight: 700;
@@ -318,7 +318,7 @@
     overflow: visible;
     border: 0;
     border-radius: 18px;
-    background: #201f2e;
+    background: var(--color-surface);
     box-shadow: none;
   }
   .product-card:hover:not(:disabled) { transform:translateY(-3px); box-shadow:0 14px 28px rgb(8 7 17 / .28); border-color:transparent; }

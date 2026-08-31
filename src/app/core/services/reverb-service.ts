@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 (window as any).Pusher = Pusher;
 
 @Injectable({
@@ -11,10 +12,14 @@ export class ReverbService {
   private echo: Echo<any>;
 
   constructor() {
+    const apiHost = new URL(environment.apiUrl).hostname;
+    const socketHost = typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost'
+      ? window.location.hostname
+      : apiHost;
     this.echo = new Echo({
       broadcaster: 'reverb',
       key: '6x0supev9eq3anpkyr8s',
-      wsHost: '127.0.0.1',
+      wsHost: socketHost,
       wsPort: 8080,
       forceTLS: false,
       enabledTransports: ['ws', 'wss']

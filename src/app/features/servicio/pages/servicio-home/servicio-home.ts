@@ -49,6 +49,8 @@ export class ServicioHome implements OnInit, OnDestroy {
   cantidadAdicional = signal(1);
   opcionesSeleccionadas = signal<number[]>([]);
   notaAdicional = signal('');
+  readonly fechaHoy = this.fechaLocal(new Date());
+  fechaTablero = signal(this.fechaHoy);
   productosFiltrados = computed(() => {
     const q = this.busquedaProducto().trim().toLowerCase();
     return this.productos().filter(producto => !q || `${producto.nombre} ${producto.descripcion ?? ''}`.toLowerCase().includes(q));
@@ -206,7 +208,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     if (mostrarCarga) this.loading.set(true);
     const sesion = this.sesionSeleccionada();
     this.cargaSub?.unsubscribe();
-    this.cargaSub = this.servicio.listar(sesion?.token).subscribe({
+    this.cargaSub = this.servicio.listar(sesion?.token, this.fechaTablero()).subscribe({
       next: tablero => {
         this.disponibles.set(tablero.disponibles ?? []);
         this.misFichas.set(tablero.mis_fichas ?? []);
@@ -238,6 +240,19 @@ export class ServicioHome implements OnInit, OnDestroy {
   seleccionarSesion(sesion: ServicioSesion): void {
     this.sesiones401Notificadas.delete(sesion.session_id);
     this.sesionSeleccionada.set(sesion);
+    this.cargar();
+  }
+
+  cambiarFechaTablero(value: string): void {
+    if (!value) return;
+    this.fechaTablero.set(value);
+    this.cargar();
+  }
+
+  volverAHoy(): void {
+    const hoy = this.fechaHoy;
+    if (this.fechaTablero() === hoy) return;
+    this.fechaTablero.set(hoy);
     this.cargar();
   }
 
@@ -468,5 +483,12 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.loading.set(false);
     this.confirmarCierre.set(false);
     this.fichaALiberar.set(null);
+  }
+
+  private fechaLocal(fecha: Date): string {
+    const año = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const día = String(fecha.getDate()).padStart(2, '0');
+    return `${año}-${mes}-${día}`;
   }
 }

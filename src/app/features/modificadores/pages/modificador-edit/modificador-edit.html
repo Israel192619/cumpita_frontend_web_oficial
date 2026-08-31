@@ -2,23 +2,21 @@
   (submit)="editarModificador()" (cancelar)="cancelar()">
   <div class="modifier-form">
     <section class="form-section">
-      <div class="section-heading"><span class="section-number">1</span><div><h3>Información general</h3></div></div>
+      <div class="section-heading"><span class="section-number">1</span><div><h3>Información general</h3></div><button type="button" class="help-trigger" aria-label="Ayuda sobre estación de trabajo"><span>?</span><span class="help-tooltip">Elige una estación solo si esta opción requiere trabajo adicional allí. “Sin estación” acompaña al producto, sin crear otra tarea.</span></button></div>
       <div class="field-grid">
         <app-input-form label="Nombre del modificador" [control]="getControl('nombre')" placeholder="Ej. Tamaño, punto de cocción, aderezo"></app-input-form>
         <app-select label="Estación de trabajo" [control]="getControl('estacion_id')" [options]="estacionOptions"></app-select>
       </div>
-      <p class="field-help">Usa “Sin estación” cuando no aplique.</p>
     </section>
     <section class="form-section">
-      <div class="section-heading"><span class="section-number">2</span><div><h3>Comportamiento</h3></div></div>
+      <div class="section-heading"><span class="section-number">2</span><div><h3>Comportamiento</h3></div><button type="button" class="help-trigger" aria-label="Ayuda sobre tipo de selección"><span>?</span><span class="help-tooltip">Selección única permite elegir una opción; selección múltiple permite elegir varias.</span></button></div>
       <div class="behavior-grid">
         <app-select label="Tipo de selección" [control]="getControl('tipo')" [options]="[{ label: 'Selección única', value: 'unico' }, { label: 'Selección múltiple', value: 'multiple' }]"></app-select>
-        <div class="selection-hint">Las opciones son opcionales al agregar el producto.</div>
-        <label class="toggle-card"><input type="checkbox" [formControl]="getControl('activo')"><span><strong>Activo</strong><small>Disponible en el sistema</small></span></label>
+        <label class="toggle-card"><input type="checkbox" [formControl]="getControl('activo')"><span><strong>Activo</strong></span></label>
       </div>
     </section>
     <section class="form-section options-section">
-      <div class="section-heading options-heading"><span class="section-number">3</span><div><h3>Opciones</h3><p>Nombre, precio y estado.</p></div></div>
+      <div class="section-heading options-heading"><span class="section-number">3</span><div><h3>Opciones disponibles</h3></div><button type="button" class="help-trigger" aria-label="Ayuda sobre opciones"><span>?</span><span class="help-tooltip">Cada opción puede tener un precio adicional y desactivarse temporalmente sin eliminarla.</span></button></div>
       <div [formArray]="opcionesForm" class="options-list">
         <div *ngFor="let opcion of opcionesForm.controls; let i = index" [formGroupName]="i" class="option-card">
           <div class="option-header"><div><span class="option-index">{{ i + 1 }}</span><strong>Opción {{ i + 1 }}</strong></div><button type="button" class="btn-remove" [disabled]="opcionesForm.length === 1" (click)="eliminarOpcion(i)"><app-icon name="trash" [size]="16"/> Eliminar</button></div>

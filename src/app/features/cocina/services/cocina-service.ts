@@ -70,7 +70,9 @@ export interface KdsOrden {
   fecha_programada?: string | null;
   tipo_flujo?: 'normal' | 'preorden';
   estado_preorden?: 'programada' | 'activada' | null;
+  preorden_temprana?: boolean;
   bloqueada?: boolean;
+  asignacion?: { user_id: number; nombre: string; color: 'amarillo' | 'indigo' | 'salmon' | 'verde' } | null;
 }
 
 export interface ActualizacionEstadoCocinaResponse {
@@ -100,7 +102,17 @@ export class CocinaService {
     return this.http.get<KdsPedidosResponse>(`${this.apiUrl}/kds/pedidos`, { params });
   }
 
+  obtenerPreordenesProximas(fecha: string, estacion?: string | number | null): Observable<{ ids: number[] }> {
+    const params: Record<string, string> = { fecha };
+    if (estacion !== null && estacion !== undefined) params['estacion'] = String(estacion);
+    return this.http.get<{ ids: number[] }>(`${this.apiUrl}/kds/preordenes-proximas`, { params });
+  }
+
   actualizarEstadoDetalle(id: number, estacion_id: number, estado_cocina: 'pendiente' | 'en_preparacion' | 'listo_para_recoger' | 'recogido' | 'servido'): Observable<ActualizacionEstadoCocinaResponse> {
     return this.http.patch<ActualizacionEstadoCocinaResponse>(`${this.apiUrl}/kds/detalles/${id}`, { estacion_id, estado_cocina });
+  }
+
+  registrarSesion(estacion_id: number): Observable<{ sesion: { id: number; color: string; ultima_actividad: string } }> {
+    return this.http.post<{ sesion: { id: number; color: string; ultima_actividad: string } }>(`${this.apiUrl}/kds/sesion`, { estacion_id });
   }
 }

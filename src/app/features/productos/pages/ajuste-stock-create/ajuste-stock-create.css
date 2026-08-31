@@ -1,0 +1,6 @@
+:host { display:block; max-width:900px; }
+.adjustment-intro { grid-column:1 / -1; margin:0; padding:.8rem 1rem; border-radius:10px; background:color-mix(in srgb,var(--color-primary) 8%,var(--bg-surface)); color:var(--text-muted); font-size:.9rem; line-height:1.45; }
+.adjustment-field { display:grid; gap:.45rem; min-width:0; }
+.adjustment-field > label { color:var(--text-primary); font-size:.84rem; font-weight:750; }
+.adjustment-field select { width:100%; min-height:42px; box-sizing:border-box; border:1px solid var(--border-color); border-radius:9px; padding:.55rem .7rem; background:var(--bg-main); color:var(--text-primary); font:inherit; }
+.adjustment-field small { color:var(--text-muted); font-size:.78rem; line-height:1.35; }

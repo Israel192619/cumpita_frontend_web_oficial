@@ -23,7 +23,7 @@ export class GastoCreate {
   constructor(private fb: FormBuilder, private service: GastoCajaService, private router: Router, private toastr: ToastrService) {
     this.form = this.fb.group({
       categoria: ['INSUMOS', Validators.required],
-      concepto: ['', [Validators.required, Validators.maxLength(255)]],
+      concepto: ['', [Validators.maxLength(255)]],
       monto: [null as number | null, [Validators.required, Validators.min(0.01)]],
     });
   }
