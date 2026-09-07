@@ -13,8 +13,12 @@
         <div><span>Tipo</span><strong>{{ etiquetaTipo(order.tipo_orden) }}</strong></div>
         @if (order.mesa) { <div><span>Mesa</span><strong>{{ order.mesa.numero }}</strong></div> }
         @if (order.cliente || order.cliente_nombre) { <div><span>Cliente</span><strong>{{ order.cliente?.nombre || order.cliente_nombre }}</strong></div> }
-        @if (order.user) { <div><span>Registrado por</span><strong>{{ order.user.name }}</strong></div> }
-        @if (order.estado_pago) { <div><span>Pago</span><strong>{{ order.estado_pago | titlecase }}</strong></div> }
+        @if (order.user || order.estado_pago) {
+          <div class="fact-stack">
+            @if (order.user) { <span>Registrado por</span><strong>{{ order.user.name }}</strong> }
+            @if (order.estado_pago) { <span class="payment-label">Pago</span><strong>{{ order.estado_pago | titlecase }}</strong> }
+          </div>
+        }
       </div>
     </section>
 
@@ -53,11 +57,20 @@
     }
 
     <div class="lower-grid">
-      @if (pagos().length) {
-        <section class="section payments"><h3>Pagos realizados</h3>
-          @for (payment of pagos(); track payment.id) { <div class="payment"><span><strong>{{ payment.metodo_pago | uppercase }}</strong><small>{{ payment.fecha_pago | date:'dd/MM/yyyy HH:mm' }}</small></span><strong>{{ payment.monto_pagado | appCurrency }}</strong>@if (+payment.cambio_devuelto > 0) { <small>Cambio: {{ payment.cambio_devuelto | appCurrency }}</small> }</div> }
-        </section>
-      }
+      <section class="section payments"><h3>Pagos y devoluciones</h3>
+        @for (payment of pagos(); track payment.id) {
+          <div class="payment" [class.refund]="payment.tipo_pago === 'devolucion'">
+            <span>
+              <strong>{{ payment.tipo_pago === 'devolucion' ? 'Devolución' : 'Pago' }} · {{ payment.metodo_pago | uppercase }}</strong>
+              <small>{{ payment.fecha_pago | date:'dd/MM/yyyy HH:mm' }}</small>
+            </span>
+            <strong>{{ payment.tipo_pago === 'devolucion' ? '− ' : '' }}{{ importeMovimiento(payment) | appCurrency }}</strong>
+            @if (+payment.cambio_devuelto > 0) { <small class="change">Cambio: {{ payment.cambio_devuelto | appCurrency }}</small> }
+          </div>
+        } @empty {
+          <p class="no-payments">Aún no se registraron pagos ni devoluciones.</p>
+        }
+      </section>
       <section class="section totals"><h3>Resumen</h3>
         <div><span>Subtotal</span><strong>{{ order.subtotal | appCurrency }}</strong></div>
         @if (+order.descuento > 0) { <div><span>Descuento</span><strong>− {{ order.descuento | appCurrency }}</strong></div> }

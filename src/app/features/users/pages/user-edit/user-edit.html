@@ -12,14 +12,17 @@
   <app-input-form label="Numero de celular" [control]="getControl('numero_celular')" placeholder="Ej. 65784***">
   </app-input-form>
 
-  <app-input-form label="Avatar" type="file" [control]="getControl('avatar')" [initialPreview]="user()?.perfil_usuarios?.avatar_url || null">
+  <app-input-form label="Avatar" type="file" [control]="getControl('avatar')" [initialPreview]="user()?.perfil_usuarios?.avatar_url || null" (imageCleared)="quitarAvatar()" (imageSelected)="seleccionarAvatar()">
   </app-input-form>
 
   <app-select label="Rol" [control]="getControl('role_id')" [options]="roles()">
   </app-select>
 
-  <app-select label="Estación" [control]="getControl('estacion_id')" [options]="estaciones()">
-  </app-select>
+  @if (esRolCocinero()) {
+    <app-select label="Estación" [control]="getControl('estacion_id')" [options]="estaciones()"></app-select>
+  } @else if (esRolMesero()) {
+    <app-input-form label="Estación" [value]="estacionAutomatica()" [readonly]="true" helpText="Se asigna automáticamente al rol Mesero."></app-input-form>
+  }
 
   <app-input-form label="Correo" [control]="getControl('email')" placeholder="ejemplo@gmail.com">
   </app-input-form>

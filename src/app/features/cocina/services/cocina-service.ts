@@ -51,8 +51,8 @@ export interface KdsCambioOrden {
   tipo_cambio: 'detalle_agregado' | 'detalle_modificado' | 'detalle_eliminado' | 'estado_cambiado' | 'orden_cancelada';
   cantidad_anterior?: number | null;
   cantidad_nueva?: number | null;
-  datos_anterior?: { producto_id?: number; producto_nombre?: string | null; cantidad?: number; nota?: string | null } | null;
-  datos_nuevo?: { producto_id?: number; producto_nombre?: string | null; cantidad?: number; nota?: string | null } | null;
+  datos_anterior?: { producto_id?: number; producto_nombre?: string | null; cantidad?: number; nota?: string | null; modificadores?: string[] } | null;
+  datos_nuevo?: { producto_id?: number; producto_nombre?: string | null; cantidad?: number; nota?: string | null; modificadores?: string[] } | null;
   producto?: { id: number; nombre: string } | null;
 }
 
@@ -68,6 +68,7 @@ export interface KdsOrden {
   detalles: KdsDetalle[];
   cambios_recientes?: KdsCambioOrden[];
   fecha_programada?: string | null;
+  preorden_activada_en?: string | null;
   tipo_flujo?: 'normal' | 'preorden';
   estado_preorden?: 'programada' | 'activada' | null;
   preorden_temprana?: boolean;
@@ -79,6 +80,11 @@ export interface ActualizacionEstadoCocinaResponse {
   detalle: KdsDetalle;
   orden_estado: string;
   orden_id: number;
+}
+
+export interface ActualizacionMasivaEstadoCocinaResponse {
+  detalle_ids: number[];
+  ordenes: Array<{ orden_id: number; orden_estado: string }>;
 }
 
 export interface KdsPedidosResponse {
@@ -110,6 +116,10 @@ export class CocinaService {
 
   actualizarEstadoDetalle(id: number, estacion_id: number, estado_cocina: 'pendiente' | 'en_preparacion' | 'listo_para_recoger' | 'recogido' | 'servido'): Observable<ActualizacionEstadoCocinaResponse> {
     return this.http.patch<ActualizacionEstadoCocinaResponse>(`${this.apiUrl}/kds/detalles/${id}`, { estacion_id, estado_cocina });
+  }
+
+  actualizarEstadoDetalles(ids: number[], estacion_id: number, estado_cocina: 'pendiente' | 'servido'): Observable<ActualizacionMasivaEstadoCocinaResponse> {
+    return this.http.patch<ActualizacionMasivaEstadoCocinaResponse>(`${this.apiUrl}/kds/detalles`, { ids, estacion_id, estado_cocina });
   }
 
   registrarSesion(estacion_id: number): Observable<{ sesion: { id: number; color: string; ultima_actividad: string } }> {

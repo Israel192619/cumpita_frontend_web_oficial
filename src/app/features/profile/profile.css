@@ -1,0 +1,2 @@
+.profile-page{width:min(100%,900px);margin:0 auto}.profile-intro{margin:0 0 1rem}.profile-intro span{color:var(--color-text-secondary);font-size:.72rem;font-weight:800;letter-spacing:.13em}.profile-intro h1{margin:.25rem 0 0;font-size:clamp(1.65rem,3vw,2.25rem)}.profile-intro p{margin:.3rem 0 0;color:var(--color-text-secondary);font-size:.9rem}
+ :host{display:block;padding:clamp(16px,3vw,32px);color:var(--color-text-primary)}

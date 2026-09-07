@@ -1,4 +1,4 @@
-<app-modal [open]="isOpen()" [title]="isRefundMode() ? 'Devolución' : 'Pago y cierre'" size="large" [busy]="isProcessing()" (closed)="onCancel()">
+<app-modal [open]="isOpen()" [title]="isRefundMode() ? 'Devolución' : 'Pago y cierre'" size="large" panelClass="checkout-modal" [busy]="isProcessing()" (closed)="onCancel()">
     <div class="modal-body">
       <div class="section">
         <div class="section-title-row">
@@ -22,6 +22,14 @@
             <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
             <span class="price">{{ formatPrice(item.cantidad * item.precio_unitario) }}</span>
           </div>
+        </div>
+
+        <div *ngIf="isRefundMode() && cancelacionInfo() as info" class="refund-cash-info" [class.refund-cash-info--blocked]="info.faltante_efectivo > 0">
+          <strong>Cobro original: caja #{{ info.caja_origen_id || 'sin registro' }}</strong>
+          <span *ngIf="info.caja_origen_estado">Estado: {{ info.caja_origen_estado }}</span>
+          <span *ngIf="info.caja_actual_id">Caja actual #{{ info.caja_actual_id }}: {{ formatPrice(info.efectivo_disponible) }} disponibles</span>
+          <span *ngIf="!info.caja_actual_id">No tienes acceso a una caja abierta.</span>
+          <strong *ngIf="info.faltante_efectivo > 0">Faltan {{ formatPrice(info.faltante_efectivo) }} para devolver en efectivo. Registra un ingreso o traslado autorizado antes de cancelar.</strong>
         </div>
       </div>
 
@@ -105,7 +113,7 @@
             [class.active]="selectedPaymentMethod() === method.id"
             [attr.aria-pressed]="selectedPaymentMethod() === method.id"
             (click)="onSelectPaymentMethod(method.id)"
-            [disabled]="isProcessing()"
+            [disabled]="isProcessing() || (method.id === 'efectivo' && efectivoInsuficiente())"
           >
             <span class="payment-icon"><app-icon [name]="method.icon" size="22" /></span>
             <span class="payment-name">{{ method.nombre }}</span>

@@ -62,7 +62,7 @@ export class ModificadorEdit {
         this.form.patchValue({
           nombre: modificador.nombre,
           tipo: modificador.tipo,
-          requerido: false,
+          requerido: modificador.requerido,
           activo: modificador.activo,
           estacion_id: modificador.estacion_id ?? null,
         });
@@ -76,7 +76,7 @@ export class ModificadorEdit {
                 id: [opcion.id],
                 nombre: [opcion.nombre, Validators.required],
                 precio_extra: [opcion.precio_extra, [Validators.required, Validators.min(0)]],
-                activo: [opcion.activo]
+                activo: [opcion.activo], maneja_stock: [opcion.maneja_stock ?? false], stock: [opcion.stock ?? null], stock_minimo: [opcion.stock_minimo ?? null]
               })
             );
           });
@@ -94,7 +94,7 @@ export class ModificadorEdit {
     const opcionForm = this.fb.group({
       nombre: ['', Validators.required],
       precio_extra: [0, [Validators.required, Validators.min(0)]],
-      activo: [true]
+      activo: [true], maneja_stock: [false], stock: [null], stock_minimo: [null]
     });
     this.opcionesForm.push(opcionForm);
   }

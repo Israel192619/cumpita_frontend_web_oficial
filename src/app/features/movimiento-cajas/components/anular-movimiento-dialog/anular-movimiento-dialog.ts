@@ -3,7 +3,7 @@ import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Button, Modal } from '../../../../shared/components';
 import { CURRENCY_CONFIG } from '@app/core/config/currency.config';
 
-export interface AnulacionData { motivo?: string; concepto?: string; monto: number; entidad?: string; }
+export interface AnulacionData { motivo?: string | null; concepto?: string | null; monto: number; entidad?: string; }
 
 @Component({
   selector: 'app-anular-movimiento-dialog',

@@ -14,9 +14,11 @@
           class="product-image" 
           [src]="getProductImage(prod)" 
           [alt]="prod.nombre"
+          loading="lazy"
+          decoding="async"
         />
         <div 
-          *ngIf="prod.maneja_stock && prod.stock !== undefined" 
+          *ngIf="getAvailableUnits(prod) !== null" 
           class="stock-badge"
           [ngClass]="{
             'stock-badge-warning': getStockState(prod) === 'warning',
@@ -24,19 +26,20 @@
             'stock-badge-ok': getStockState(prod) === 'ok'
           }"
         >
-          {{ prod.stock }}
+          {{ getAvailableUnits(prod) }}
         </div>
       </div>
 
       <!-- Contenido -->
       <div class="product-content">
         <h3 class="product-name">{{ prod.nombre }}</h3>
+        <span *ngIf="cartQuantityByProduct()[prod.id]" class="product-cart-quantity">{{ cartQuantityByProduct()[prod.id] }} en carrito</span>
         <p *ngIf="prod.descripcion" class="product-desc">{{ prod.descripcion }}</p>
         <div class="product-footer">
           <span *ngIf="showPrices()" class="product-price">{{ formatPrice(prod.precio) }}</span>
         </div>
         <span *ngIf="isProductAvailable(prod)" class="product-availability">
-          {{ prod.maneja_stock ? (prod.stock || 0) + ' disponibles' : 'En stock' }}
+          {{ getAvailableUnits(prod) !== null ? getAvailableUnits(prod) + ' disponibles' : 'En stock' }}
         </span>
         <span *ngIf="!isProductAvailable(prod)" class="product-unavailable">
           Falta stock
@@ -71,6 +74,12 @@
       <span class="restock-dialog__eyebrow">AJUSTE DE STOCK</span>
       <h2 id="restock-dialog-title">Reabastecer {{ producto.nombre }}</h2>
       <p>Indica cuántas unidades deseas agregar al inventario.</p>
+      <label *ngIf="!producto.maneja_stock">
+        <span>Presa u opción</span>
+        <select [value]="restockOptionId()" (change)="setRestockOption($any($event.target).value)" [disabled]="restockingProductId() === producto.id">
+          <option *ngFor="let option of stockOptions(producto)" [value]="option.id">{{ option.nombre }} · {{ option.stock_disponible ?? option.stock ?? 0 }} disponibles</option>
+        </select>
+      </label>
       <label>
         <span>Cantidad a agregar</span>
         <input type="number" min="1" inputmode="numeric" [value]="restockQuantity()" (input)="setRestockQuantity($any($event.target).value)" [disabled]="restockingProductId() === producto.id" autofocus>

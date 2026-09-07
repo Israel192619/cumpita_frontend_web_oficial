@@ -106,3 +106,171 @@
   .cart-secondary-actions.cart-secondary-actions--open { display:block; }
   .cart-secondary-actions .button-group { grid-template-columns:1fr; margin-top:.15rem; }
 }
+
+/* Apariencia serena: la jerarquía se construye con espacio y contraste, no con líneas. */
+.cart-panel { background:var(--color-surface); border-color:transparent; }
+.cart-header { padding:.75rem .8rem .6rem; border-bottom:0; }
+.cart-header h2 { font-size:1rem; letter-spacing:-.01em; }
+.cart-title .item-badge { min-width:22px; padding:.12rem .38rem; color:var(--color-on-brand); background:var(--color-primary); }
+.client-area { padding:.35rem .8rem; border-bottom:0; }
+.client-area .form-input { border-color:color-mix(in srgb,var(--color-border) 68%,transparent); background:var(--color-bg); box-shadow:none; }
+.client-area .btn-secondary { border-color:transparent; background:color-mix(in srgb,var(--color-primary) 10%,transparent); }
+.selected-cliente { border-color:transparent; background:var(--color-bg); }
+.order-meta-card { padding:.25rem .8rem .45rem; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.reservation-summary { padding:.2rem 0; border:0; border-radius:0; background:transparent; }
+.reservation-meta-card { padding:.25rem 0 0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.order-type-selector { gap:.5rem; padding:.35rem .8rem .7rem; border-bottom:0; }
+.order-type-btn { min-height:38px; border-color:color-mix(in srgb,var(--color-border) 68%,transparent); border-radius:9px; background:var(--color-bg); }
+.order-type-btn.active { color:var(--color-on-brand); border-color:var(--color-primary); background:var(--color-primary); box-shadow:0 5px 14px color-mix(in srgb,var(--color-primary) 16%,transparent); }
+.cart-table-header { padding:.48rem .8rem; border-block:0; color:var(--color-text-muted); background:color-mix(in srgb,var(--color-bg) 58%,transparent); font-size:.65rem; }
+.cart-items-container { padding:.45rem .6rem .7rem; }
+.cart-item-block { margin-bottom:.42rem; padding:.62rem; border:0; border-radius:11px; background:color-mix(in srgb,var(--color-bg) 72%,var(--color-surface)); }
+.cart-item-block:last-child { margin-bottom:0; }
+.item-image { border-color:transparent; }
+.qty-container { border-color:transparent; background:var(--color-surface); }
+.order-note-input { border-color:transparent; background:var(--color-surface); }
+.modifier-edit-btn,.btn-delete { border-color:transparent; background:var(--color-surface); }
+.empty-state { color:var(--color-text-secondary); }
+.empty-state-icon { display:grid; width:54px; height:54px; margin-bottom:1rem; place-items:center; border-radius:50%; color:var(--color-primary); background:color-mix(in srgb,var(--color-primary) 10%,transparent); }
+.empty-state .empty-title { margin-bottom:.25rem; font-size:1rem; }
+.empty-state .empty-subtitle { font-size:.78rem; }
+.cart-footer { padding:.75rem .8rem; border-top:0; background:linear-gradient(180deg,color-mix(in srgb,var(--color-surface) 78%,transparent),var(--color-surface) 18%); box-shadow:0 -12px 28px color-mix(in srgb,var(--color-text) 4%,transparent); }
+.totals-section { gap:.38rem; }
+.total-row.total-main { margin-top:.25rem; padding-top:.55rem; border-color:color-mix(in srgb,var(--color-border) 55%,transparent); }
+.button-group { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); }
+.button-group app-button { min-width:0; }
+
+@media (max-width:700px) {
+  .cart-header { padding:.7rem .75rem .45rem; }
+  .mobile-order-summary { border-bottom:0; background:var(--color-bg); }
+  .cart-order-details.cart-order-details--open { border-bottom:0; }
+  .client-area { padding:.4rem .7rem; }
+  .order-meta-card { margin:0; padding:.2rem .7rem .4rem; }
+  .order-type-selector { gap:.45rem; padding:.3rem .7rem .65rem; }
+  .cart-items-container { padding:.45rem .55rem; }
+  .cart-item-block { padding:.65rem; }
+  .cart-footer { padding:.65rem .7rem max(.7rem,env(safe-area-inset-bottom)); }
+  .cart-secondary-actions .button-group { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); }
+}
+
+/* Contraste de acciones principales y tono destructivo del POS. */
+:host ::ng-deep .cart-footer>app-button .btn-primary{color:#fff}
+:host ::ng-deep .cart-footer .btn-danger{
+  color:#fff;
+  background:#a5161d;
+}
+:host ::ng-deep .cart-footer .btn-danger:hover:not(:disabled){background:#8f1017}
+
+/* Cabecera del carrito sin contornos decorativos. */
+:host ::ng-deep .work-date .date-picker input,
+:host ::ng-deep .mobile-details-date .date-picker input{
+  border:0;
+  background:var(--color-bg);
+  box-shadow:none;
+}
+:host ::ng-deep .work-date .date-picker input:focus,
+:host ::ng-deep .mobile-details-date .date-picker input:focus{border:0;outline:0;box-shadow:none}
+.client-area .form-input{
+  border:0;
+  background:var(--color-bg);
+  box-shadow:none;
+}
+.client-area .form-input:focus{border:0;box-shadow:none}
+.client-area .btn-secondary,
+.reservation-toggle,
+.desktop-reservation-edit{border:0;box-shadow:none}
+.order-type-btn{border:0;background:var(--color-bg);box-shadow:none}
+.order-type-btn.active{border:0;box-shadow:none}
+.order-type-btn.active:hover:not(:disabled){
+  border:0;
+  color:#fff;
+  background:color-mix(in srgb,var(--color-primary) 84%,#000);
+  box-shadow:none;
+}
+.search-results{
+  border:0;
+  background:var(--color-surface);
+  box-shadow:none;
+}
+.result-item{
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+.result-item:hover{
+  background:var(--color-hover);
+  box-shadow:none;
+  transform:none;
+}
+.result-order{border:0;background:color-mix(in srgb,var(--color-primary) 7%,var(--color-surface))}
+.result-order:hover{
+  padding:.85rem 1rem;
+  color:var(--color-text);
+  background:color-mix(in srgb,var(--color-primary) 12%,var(--color-surface));
+}
+.search-results::-webkit-scrollbar-thumb{border:0}
+.order-date-input{
+  border:0;
+  background:var(--color-bg);
+  box-shadow:none;
+}
+.order-date-input:focus{border:0;outline:0;box-shadow:none}
+.order-meta-actions .btn-secondary{
+  border:0;
+  color:var(--color-primary);
+  background:color-mix(in srgb,var(--color-primary) 9%,var(--color-surface));
+  box-shadow:none;
+}
+.order-meta-actions .btn-secondary:hover:not(:disabled){
+  border:0;
+  background:color-mix(in srgb,var(--color-primary) 15%,var(--color-surface));
+}
+
+/* Primero se arma el carrito; la ficha se completa cuando se necesita. */
+.cart-header .work-date{display:none}
+.mobile-order-summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.5rem;width:100%;padding:.38rem .75rem;border:0;background:var(--color-bg);color:var(--color-text);text-align:left;font:inherit;cursor:pointer}
+.mobile-order-summary__label{color:var(--color-text-secondary);font-size:.68rem;font-weight:700;text-transform:uppercase}
+.mobile-order-summary strong{overflow:hidden;font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}
+.mobile-order-summary__action{color:var(--color-primary);font-size:.72rem;font-weight:750}
+.cart-order-details{display:none}
+.cart-order-details.cart-order-details--open{display:block;border-bottom:1px solid var(--color-border)}
+.mobile-details-date{display:block;width:auto;margin:.35rem .65rem 0}
+
+/* Más productos visibles sin perder los controles esenciales. */
+.cart-items-container{padding:.28rem .42rem .4rem;scroll-behavior:smooth}
+.cart-item-block{gap:.22rem;margin-bottom:.28rem;padding:.42rem .48rem;transition:background .2s ease,box-shadow .2s ease}
+.cart-item-block--added{background:color-mix(in srgb,var(--color-primary) 12%,var(--color-surface))}
+.item-header-row{gap:.35rem}.item-left{gap:.42rem}.item-image{width:27px;height:27px}.item-details{gap:.08rem}.item-right{gap:.38rem}
+.item-modifier-controls{min-width:0;margin-left:1.45rem}.modifier-tags{min-width:0;flex:1;flex-wrap:wrap;overflow:visible}
+.modifier-chip{flex:0 0 auto}.item-inline-actions{display:flex;align-self:flex-start;gap:.3rem;margin-left:auto}
+.modifier-edit-btn{width:25px;height:25px;flex-basis:25px}.btn-delete{width:27px;height:27px;flex-basis:27px;border-radius:7px}.btn-delete .trash-icon{width:14px;height:14px}
+.item-footer-row{min-width:0;gap:.3rem}.item-note-toggle{min-width:0;max-width:100%;overflow:hidden;padding:.12rem .25rem;border:0;background:transparent;color:var(--color-text-muted);font:inherit;font-size:.68rem;text-align:left;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}.item-note-toggle:hover{color:var(--color-primary)}
+.order-note-input{min-height:28px;padding:.2rem .4rem}
+
+/* Solo el total y la acción principal permanecen fijos. */
+.cart-footer{gap:.35rem;padding:.48rem .65rem}.mobile-actions-toggle{display:block;width:fit-content;margin:0 auto;padding:.1rem .45rem;border:0;background:transparent;color:var(--color-text-secondary);font:inherit;font-size:.7rem;font-weight:650;cursor:pointer}
+.cart-secondary-actions{display:none}.cart-secondary-actions.cart-secondary-actions--open{display:block}.total-row.total-main{margin:0;padding-top:.35rem;font-size:.92rem}
+
+/* Copiar modificadores mediante pulsación prolongada y arrastre. */
+.modifier-tags{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.modifier-tags:active{cursor:grabbing}
+.cart-item-block--copy-source{opacity:.58}
+.cart-item-block--copy-compatible{outline:1px dashed color-mix(in srgb,var(--color-success) 72%,transparent);outline-offset:-2px}
+.cart-item-block--copy-target{outline:2px solid var(--color-success);outline-offset:-2px;background:color-mix(in srgb,var(--color-success) 12%,var(--color-surface));transform:scale(.99)}
+.cart-item-block--copy-incompatible{opacity:.38;filter:grayscale(.35)}
+.modifier-copy-ghost{position:fixed;z-index:2500;display:grid;gap:.05rem;min-width:112px;padding:.42rem .6rem;border:1px solid color-mix(in srgb,var(--color-primary) 45%,transparent);border-radius:9px;color:var(--color-text);background:var(--color-surface);box-shadow:0 8px 24px rgba(0,0,0,.28);pointer-events:none;transform:translate(12px,-50%)}
+.modifier-copy-ghost strong{color:var(--color-primary);font-size:.72rem}.modifier-copy-ghost span{font-size:.68rem}
+
+/* Cuatro acciones de edición deben conservarse dentro del ancho del carrito. */
+:host ::ng-deep .cart-secondary-actions .button-group .button-wrapper{
+  min-height:34px;
+  padding:.3rem .22rem;
+  font-size:.62rem;
+  line-height:1.1;
+  white-space:normal;
+}
+:host ::ng-deep .cart-secondary-actions .button-group .button-text{
+  max-width:100%;
+  overflow:hidden;
+  text-align:center;
+}

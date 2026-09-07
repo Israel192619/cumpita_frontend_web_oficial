@@ -12,6 +12,7 @@
       <div class="section-heading"><span class="section-number">2</span><div><h3>Comportamiento</h3></div><button type="button" class="help-trigger" aria-label="Ayuda sobre tipo de selección"><span>?</span><span class="help-tooltip">Selección única permite elegir una opción; selección múltiple permite elegir varias.</span></button></div>
       <div class="behavior-grid">
         <app-select label="Tipo de selección" [control]="getControl('tipo')" [options]="[{ label: 'Selección única', value: 'unico' }, { label: 'Selección múltiple', value: 'multiple' }]"></app-select>
+        <label class="toggle-card"><input type="checkbox" [formControl]="getControl('requerido')"><span><strong>Obligatorio</strong><small>El cajero debe elegir una opción.</small></span></label>
         <label class="toggle-card"><input type="checkbox" [formControl]="getControl('activo')"><span><strong>Activo</strong></span></label>
       </div>
     </section>
@@ -21,8 +22,11 @@
         <div *ngFor="let opcion of opcionesForm.controls; let i = index" [formGroupName]="i" class="option-card">
           <div class="option-header"><div><span class="option-index">{{ i + 1 }}</span><strong>Opción {{ i + 1 }}</strong></div><button type="button" class="btn-remove" [disabled]="opcionesForm.length === 1" (click)="eliminarOpcion(i)"><app-icon name="trash" [size]="16"/> Eliminar</button></div>
           <div class="option-fields">
-            <app-input-form label="Nombre" [control]="getOpcionControl(i, 'nombre')" placeholder="Ej. Grande, Extra queso"></app-input-form>
+            <app-input-form label="Nombre visible" [control]="getOpcionControl(i, 'nombre')" placeholder="Ej. Grande, Extra queso"></app-input-form>
             <app-input-form [label]="'Precio adicional (' + currencySymbol + ')'" type="number" [control]="getOpcionControl(i, 'precio_extra')" placeholder="0.00"></app-input-form>
+            <label class="option-status"><input type="checkbox" [formControl]="getOpcionControl(i, 'maneja_stock')"><span>Controlar stock de esta opción</span></label>
+            <app-input-form *ngIf="getOpcionControl(i, 'maneja_stock').value" label="Stock actual" type="number" [control]="getOpcionControl(i, 'stock')" placeholder="0"></app-input-form>
+            <app-input-form *ngIf="getOpcionControl(i, 'maneja_stock').value" label="Stock mínimo" type="number" [control]="getOpcionControl(i, 'stock_minimo')" placeholder="0"></app-input-form>
             <label class="option-status"><input type="checkbox" [formControl]="getOpcionControl(i, 'activo')"><span>{{ getOpcionControl(i, 'activo').value ? 'Activa' : 'Inactiva' }}</span></label>
           </div>
         </div>

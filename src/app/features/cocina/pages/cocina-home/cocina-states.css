@@ -20,6 +20,9 @@
 
 /* Resumen calculado con la proyección ya cargada por el KDS. */
 .production-summary { position: sticky; top: 0; z-index: 1200; display: flex; align-items: center; gap: .75rem; min-height: 42px; padding: .5rem 1.35rem; border-bottom: 1px solid #cbd5e1; background: rgba(248, 250, 252, .97); color: #1e293b; box-shadow: 0 3px 12px rgba(15, 23, 42, .16); backdrop-filter: blur(8px); }
+
+.change--modified { background: #ede9fe; color: #6d28d9; }
+.change--modified::before { content: '•'; }
 .production-summary__title { flex: 0 0 auto; color: #475569; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
 .production-list { display: flex; align-items: center; gap: .45rem .85rem; min-width: 0; flex-wrap: wrap; }
 .production-item { display: inline-flex; align-items: baseline; gap: .45rem; line-height: 1.2; }

@@ -25,4 +25,12 @@ export class MesasModalComponent {
   close(): void {
     this.closed.emit();
   }
+
+  posicionPredeterminada(mesa: Mesa): { x: number; y: number } {
+    const numero = Number(mesa.numero);
+    if (numero >= 1 && numero <= 5) return { x: 58, y: 9 + (numero - 1) * 13 };
+    if (numero >= 6 && numero <= 11) return { x: 78, y: 9 + (numero - 6) * 13 };
+    const indice = Math.max(0, this.mesas().findIndex(item => item.id === mesa.id));
+    return { x: 5 + (indice % 6) * 14, y: 82 };
+  }
 }

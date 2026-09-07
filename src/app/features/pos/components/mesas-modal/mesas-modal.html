@@ -1,14 +1,19 @@
-<app-modal [open]="isOpen()" title="Seleccionar mesa" size="large" (closed)="close()">
-    <div class="mesas-grid">
+<app-modal [open]="isOpen()" title="Seleccionar mesa" size="full" (closed)="close()">
+  <div class="floor-help"><span class="entrance-dot"></span> Entrada principal <span>Selecciona una mesa</span></div>
+  <div class="restaurant-floor" aria-label="Plano del restaurante">
+    <div class="entrance"><span>ENTRADA</span><b>↓</b></div><div class="inner-wall" aria-hidden="true"></div><div class="cashier">CAJA</div>
       <button
         *ngFor="let mesa of mesas()"
         type="button"
         class="mesa-btn"
+        [class]="'mesa-btn estado-' + mesa.estado"
+        [style.left.%]="mesa.posicion_x ?? posicionPredeterminada(mesa).x"
+        [style.top.%]="mesa.posicion_y ?? posicionPredeterminada(mesa).y"
         (click)="selectMesa(mesa)"
         [title]="'Mesa ' + mesa.numero + ' - Cap: ' + mesa.capacidad"
       >
-        <div class="mesa-number">{{ mesa.numero }}</div>
-        <div class="mesa-capacity">Cap: {{ mesa.capacidad }}</div>
+        <div class="mesa-number">{{ mesa.numero }}</div><div class="mesa-capacity">{{ mesa.capacidad }} pers.</div>
       </button>
-    </div>
+  </div>
+  <div class="floor-legend"><span><i class="free"></i>Libre</span><span><i class="reserved"></i>Reservada</span><span><i class="busy"></i>Ocupada</span></div>
 </app-modal>

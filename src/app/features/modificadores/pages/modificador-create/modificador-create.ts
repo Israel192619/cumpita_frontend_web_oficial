@@ -56,7 +56,8 @@ export class ModificadorCreate {
     const opcionForm = this.fb.group({
       nombre: ['', Validators.required],
       precio_extra: [0, [Validators.required, Validators.min(0)]],
-      activo: [true]
+      activo: [true],
+      maneja_stock: [false], stock: [null], stock_minimo: [null]
     });
     this.opcionesForm.push(opcionForm);
   }
@@ -101,7 +102,7 @@ export class ModificadorCreate {
     this.error.set(null);
     this.loading.set(true);
 
-    const data: CreateModificador = { ...this.form.value, requerido: false };
+    const data: CreateModificador = this.form.value;
 
     this.modificadorService.crearModificador(data).subscribe({
       next: () => {

@@ -15,7 +15,9 @@ export interface AjusteStock {
   motivo: string;
   revertido_por_ajuste_id?: number | null;
   created_at: string;
-  producto: Pick<Producto, 'id' | 'nombre'>;
+  producto?: Pick<Producto, 'id' | 'nombre'> | null;
+  modificador_opcion?: { id: number; nombre: string } | null;
+  elemento_nombre?: string;
   usuario: { id: number; name: string; username?: string };
 }
 
@@ -73,7 +75,7 @@ export class ProductoService {
       .pipe(map(response => response.ajustes ?? []));
   }
 
-  crearAjusteStock(data: { producto_id: number; tipo: TipoAjusteStock; cantidad: number; motivo: string }): Observable<AjusteStock> {
+  crearAjusteStock(data: { producto_id?: number; modificador_opcion_id?: number; tipo: TipoAjusteStock; cantidad: number; motivo: string }): Observable<AjusteStock> {
     return this.http.post<{ ajuste: AjusteStock }>(`${this.apiUrl}/ajustes-stock`, data)
       .pipe(map(response => response.ajuste));
   }
@@ -83,8 +85,12 @@ export class ProductoService {
       .pipe(map(response => response.ajuste));
   }
 
-  sincronizarReservasStock(sesionId: string, items: Array<{ producto_id: number; cantidad: number }>) {
-    return this.http.post<{ expira_en: string }>(`${this.apiUrl}/reservas-stock/sincronizar`, { sesion_id: sesionId, items });
+  sincronizarReservasStock(
+    sesionId: string,
+    items: Array<{ producto_id: number; cantidad: number }>,
+    opciones: Array<{ modificador_opcion_id: number; cantidad: number }>,
+  ) {
+    return this.http.post<{ expira_en: string }>(`${this.apiUrl}/reservas-stock/sincronizar`, { sesion_id: sesionId, items, opciones });
   }
 
   liberarReservasStock(sesionId: string) {

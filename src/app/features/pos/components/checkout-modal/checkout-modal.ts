@@ -1,7 +1,7 @@
 import { Component, input, output, signal, computed, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { CartItem, PagoOrden } from '@app/features/pos/services/pos-service';
+import { CancelacionInfo, CartItem, PagoOrden } from '@app/features/pos/services/pos-service';
 import { Button } from '@app/shared/components/button/button';
 import { Icon, IconName } from '@app/shared/components/icon/icon';
 import { Modal } from '@app/shared/components/modal/modal';
@@ -29,6 +29,7 @@ export class CheckoutModalComponent implements OnChanges {
   orderType = input<'dine-in' | 'to-go' | 'delivery'>('dine-in');
   isRefundMode = input<boolean>(false);
   deletedItems = input<CartItem[]>([]);
+  cancelacionInfo = input<CancelacionInfo | null>(null);
 
   checkoutConfirmed = output<{
     metodoPago: PaymentMethodType;
@@ -105,12 +106,17 @@ export class CheckoutModalComponent implements OnChanges {
   }
 
   onSelectPaymentMethod(method: PaymentMethodType): void {
+    if (method === 'efectivo' && this.efectivoInsuficiente()) return;
     this.selectedPaymentMethod.set(method);
     this.form.patchValue({ metodoPago: method });
 
     if (this.montoRecibido() === 0) {
       this.montoRecibido.set(this.getTargetAmount());
     }
+  }
+
+  efectivoInsuficiente(): boolean {
+    return this.isRefundMode() && Number(this.cancelacionInfo()?.faltante_efectivo || 0) > 0;
   }
 
   onMontoChange(event: Event): void {

@@ -8,7 +8,7 @@
     }
   } @else if (type !== 'file') {
     @if (control) {
-      <input [id]="id" [type]="type" [formControl]="control" [placeholder]="placeholder" [required]="required" [readonly]="readonly" [attr.autocomplete]="autocomplete" [attr.min]="min" [attr.max]="max" [attr.step]="step" [attr.maxlength]="maxlength" [attr.inputmode]="inputmode" [attr.aria-invalid]="invalid" [attr.aria-describedby]="describedBy" (blur)="inputBlur.emit($event)">
+      <input [id]="id" [type]="type" [formControl]="control" (input)="onNativeInput($event)" [placeholder]="placeholder" [required]="required" [readonly]="readonly" [attr.autocomplete]="autocomplete" [attr.min]="min" [attr.max]="max" [attr.step]="step" [attr.maxlength]="maxlength" [attr.inputmode]="inputmode" [attr.aria-invalid]="invalid" [attr.aria-describedby]="describedBy" (blur)="inputBlur.emit($event)">
     } @else {
       <input [id]="id" [type]="type" [value]="value ?? ''" [placeholder]="placeholder" [required]="required" [disabled]="disabled" [readonly]="readonly" [attr.autocomplete]="autocomplete" [attr.min]="min" [attr.max]="max" [attr.step]="step" [attr.maxlength]="maxlength" [attr.inputmode]="inputmode" [attr.aria-invalid]="invalid" [attr.aria-describedby]="describedBy" (input)="onNativeInput($event)" (blur)="inputBlur.emit($event)">
     }

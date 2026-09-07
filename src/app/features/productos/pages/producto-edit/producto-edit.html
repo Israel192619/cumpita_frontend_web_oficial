@@ -35,7 +35,8 @@
 
     <!-- Imagen -->
     <app-input-form label="imagen" type="file" [control]="getControl('imagen')"
-      [initialPreview]="producto()?.imagen_url || null">
+      [initialPreview]="producto()?.imagen_url || null"
+      (imageCleared)="quitarImagen()" (imageSelected)="seleccionarImagen()">
     </app-input-form>
 
     <!-- Checkboxes Mejorados -->
@@ -72,9 +73,9 @@
 
     <!-- Selector de Modificadores -->
     <div class="modificador-selector">
-      <label>Agregar Modificador</label>
+      <label>Agregar grupo de modificadores</label>
       <select (change)="agregarModificador($any($event.target).value)" class="selector">
-        <option value="">-- Seleccionar modificador --</option>
+        <option value="">Selecciona un grupo para agregar</option>
         <option *ngFor="let mod of modificadores()" [value]="mod.id">
           {{ mod.nombre }}
         </option>
@@ -84,12 +85,13 @@
     <!-- Modificadores Seleccionados -->
     <div class="modificadores-list">
       <div *ngFor="let mod of modificadoresSeleccionados()" class="modificador-item">
-        <div class="modificador-header">
-          <h4>{{ mod.nombre }}</h4>
+      <div class="modificador-header">
+        <h4>{{ mod.nombre }}</h4>
           <button type="button" (click)="eliminarModificador(mod.modificador_id)" class="btn-remove">
-            ✕ Remover
+            ✕ Quitar
           </button>
         </div>
+        <label class="modifier-quantity">Cantidad exacta requerida para este producto (opcional)<input type="number" min="1" max="20" [value]="mod.cantidad_requerida ?? ''" (input)="actualizarCantidadRequerida(mod.modificador_id, $any($event.target).value)"></label>
 
         <!-- Opciones del Modificador -->
         <div class="opciones-list">
@@ -97,7 +99,7 @@
             No hay opciones disponibles
           </div>
 
-          <div *ngFor="let opcion of mod.opciones" class="opcion-item">
+          <div *ngFor="let opcion of mod.opciones" class="opcion-item" [class.selected]="opcion.predeterminado">
             <label class="opcion-checkbox-container">
               <input type="checkbox" [checked]="opcion.predeterminado"
                 (change)="toggleOpcion(mod.modificador_id, opcion.id)" class="custom-checkbox-opcion">
@@ -113,7 +115,7 @@
     </div>
 
     <div *ngIf="modificadoresSeleccionados().length === 0" class="empty-message">
-      No hay modificadores agregados
+      Aún no agregaste modificadores a este producto.
     </div>
 </app-form-card>
 <!-- Error message -->

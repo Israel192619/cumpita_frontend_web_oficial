@@ -2,7 +2,7 @@
 export { Button, type ButtonColor, type ButtonSize, type ButtonType } from './button/button';
 
 // Data Table Component
-export { DataTable } from './data-table/data-table';
+export { DataTable, type DataTableQuery } from './data-table/data-table';
 
 // Form Card Component
 export { FormCard } from './form-card/form-card';

@@ -1,10 +1,11 @@
 <app-form-card [form]="form" title="Registrar ajuste de stock" [loading]="loading()" (submit)="guardar()" (cancelar)="cancelar()">
-  <p class="adjustment-intro">Elige el producto, el tipo y la cantidad. El sistema guarda el usuario y el cambio de stock automáticamente.</p>
+  <p class="adjustment-intro">Elige un producto o una opción con stock, el tipo y la cantidad. El sistema guarda el cambio automáticamente.</p>
   <div class="adjustment-field">
-    <label for="producto">Producto</label>
-    <select id="producto" [formControl]="control('producto_id')" [disabled]="loadingProducts()">
-      <option [ngValue]="null">{{ loadingProducts() ? 'Cargando productos…' : 'Selecciona un producto' }}</option>
-      @for (producto of productos(); track producto.id) { <option [ngValue]="producto.id">{{ producto.nombre }} — Stock actual: {{ producto.stock }}</option> }
+    <label for="producto">Producto u opción de modificador</label>
+    <select id="producto" [formControl]="control('destino')" [disabled]="loadingProducts()">
+      <option [ngValue]="null">{{ loadingProducts() ? 'Cargando inventario…' : 'Selecciona un elemento' }}</option>
+      <optgroup label="Productos">@for (producto of productos(); track producto.id) { <option [value]="'producto:' + producto.id">{{ producto.nombre }} — Stock: {{ producto.stock }}</option> }</optgroup>
+      <optgroup label="Opciones de modificadores">@for (opcion of opciones(); track opcion.id) { <option [value]="'opcion:' + opcion.id">{{ opcion.grupo }} / {{ opcion.nombre }} — Stock: {{ opcion.stock }}</option> }</optgroup>
     </select>
   </div>
   <div class="adjustment-field">

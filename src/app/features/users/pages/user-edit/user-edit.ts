@@ -20,8 +20,10 @@ export class UserEdit {
   error = signal<string | null>(null);
   roles = signal<{ label: string, value: any }[]>([]);
   estaciones = signal<{ label: string; value: number | null }[]>([]);
+  private todasEstaciones: { id: number; nombre: string; codigo: string; activa: boolean }[] = [];
   user = signal<User | null>(null);
   loading = signal(false);
+  removeAvatar = signal(false);
 
   constructor(
     private fb: FormBuilder,
@@ -43,6 +45,7 @@ export class UserEdit {
       role_id: [null, Validators.required],
       estacion_id: [null]
     });
+    this.form.get('role_id')?.valueChanges.subscribe(() => this.ajustarEstacionesAlRol());
   }
 
   ngOnInit(): void {
@@ -52,15 +55,14 @@ export class UserEdit {
     this.userService.getRoles().subscribe({
       next: (roles) => {
         this.roles.set(roles.map(role => ({ label: role.nombre, value: role.id })));
+        this.ajustarEstacionesAlRol();
       }
     });
 
     this.estacionTrabajoService.listar().subscribe({
       next: (estaciones) => {
-        this.estaciones.set([
-          { label: 'Sin estación', value: null },
-          ...estaciones.filter(est => est.activa).map(est => ({ label: `${est.nombre} (${est.codigo})`, value: est.id }))
-        ]);
+        this.todasEstaciones = estaciones.filter(est => est.activa && est.codigo !== 'BEBIDAS');
+        this.ajustarEstacionesAlRol();
       }
     });
 
@@ -89,6 +91,28 @@ export class UserEdit {
   esRolMesero(): boolean {
     const roleId = Number(this.form.get('role_id')?.value);
     return this.roles().some(role => Number(role.value) === roleId && role.label.trim().toLowerCase() === 'mesero');
+  }
+  esRolCocinero(): boolean { return this.nombreRol() === 'cocinero'; }
+  estacionAutomatica(): string { return this.esRolMesero() ? 'Meseros' : ''; }
+  private nombreRol(): string {
+    const roleId = Number(this.form.get('role_id')?.value);
+    return this.roles().find(role => Number(role.value) === roleId)?.label.trim().toLowerCase() ?? '';
+  }
+  private ajustarEstacionesAlRol(): void {
+    const rol = this.nombreRol();
+    const control = this.form.get('estacion_id');
+    if (rol === 'mesero') {
+      const estacion = this.todasEstaciones.find(item => item.codigo === 'MESEROS');
+      this.estaciones.set(estacion ? [{ label: estacion.nombre, value: estacion.id }] : []);
+      control?.setValue(estacion?.id ?? null, { emitEvent: false });
+    } else if (rol === 'cocinero') {
+      const permitidas = this.todasEstaciones.filter(item => ['COCINA', 'PARRILLA'].includes(item.codigo));
+      this.estaciones.set(permitidas.map(item => ({ label: `${item.nombre} (${item.codigo})`, value: item.id })));
+      if (!permitidas.some(item => item.id === Number(control?.value))) control?.setValue(null, { emitEvent: false });
+    } else {
+      this.estaciones.set([]);
+      control?.setValue(null, { emitEvent: false });
+    }
   }
 
   editarUsuario() {
@@ -130,6 +154,9 @@ export class UserEdit {
     if (!this.form.value.pin) {
       formData.delete('pin');
     }
+    if (this.removeAvatar()) {
+      formData.append('remove_avatar', '1');
+    }
 
     //console.log([...formData]);
 
@@ -141,6 +168,8 @@ export class UserEdit {
       }
     });
   }
+  quitarAvatar(): void { this.removeAvatar.set(true); }
+  seleccionarAvatar(): void { this.removeAvatar.set(false); }
   cancelar() {
     this.router.navigate(['/app/users']);
   }

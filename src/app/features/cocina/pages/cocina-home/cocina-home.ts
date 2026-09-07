@@ -1,14 +1,15 @@
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { Component, Inject, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, Inject, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { ReverbService } from '@app/core/services/reverb-service';
 import { AuthService } from '@app/core/services/auth-service';
 import { User } from '@app/core/models/user';
 import { ToastrService } from 'ngx-toastr';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ActualizacionEstadoCocinaResponse, CocinaService, KdsCambioOrden, KdsDetalle, KdsEstacion, KdsOrden } from '../../services/cocina-service';
 import { formatCurrency } from '@app/core/config/currency.config';
 import { ThemeService } from '@app/core/services/theme-service';
+import { Icon } from '@app/shared/components/icon/icon';
 
 interface KdsDetalleEstadoAgrupado {
   clave: string;
@@ -23,6 +24,7 @@ interface KdsDetalleAgrupado {
   clave: string;
   cantidad: number;
   producto: KdsDetalle['producto'];
+  precioUnitario: number;
   nota?: string | null;
   opciones: string[];
   estados: KdsDetalleEstadoAgrupado[];
@@ -32,26 +34,46 @@ interface KdsDetalleAgrupado {
 
 @Component({
   selector: 'app-cocina-home',
-  imports: [CommonModule],
+  imports: [RouterLink, CommonModule, Icon],
   templateUrl: './cocina-home.html',
   styleUrls: ['./cocina-home.css', './cocina-states.css', './cocina-theme.css'],
 })
 export class CocinaHome implements OnInit, OnDestroy {
+  menuUsuarioAbierto = signal(false);
+  avatarFallido = signal(false);
+
+  @HostListener('document:click', ['$event'])
+  cerrarMenuUsuarioFuera(event: MouseEvent): void {
+    const menu = this.elementRef.nativeElement.querySelector('.kds-user-menu');
+    if (this.menuUsuarioAbierto() && menu && !menu.contains(event.target as Node)) this.menuUsuarioAbierto.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  cerrarMenuUsuarioEscape(): void {
+    if (!this.menuUsuarioAbierto()) return;
+    this.menuUsuarioAbierto.set(false);
+    this.elementRef.nativeElement.querySelector<HTMLButtonElement>('.kds-user-trigger')?.focus();
+  }
+
   ordenes = signal<KdsOrden[]>([]);
   preordenesProgramadas = signal<KdsOrden[]>([]);
   categoriaSeleccionada = signal<string>('todos');
   fechaSeleccionada = signal<string>(this.fechaDeHoy());
   busqueda = signal<string>('');
   isLoading = signal<boolean>(true);
-  detalleActualizando = signal<number | null>(null);
+  detallesActualizando = signal<Set<number>>(new Set());
+  operacionMasivaActualizando = signal<string | null>(null);
   usuario = signal<User | null>(null);
   private subscriptions: Subscription[] = [];
   private sesionHeartbeat?: ReturnType<typeof setInterval>;
   private actualizacionPreordenTimer?: ReturnType<typeof setInterval>;
+  private sincronizacionTableroTimer?: ReturnType<typeof setInterval>;
   private estacionSesionId: number | null = null;
   private readonly claveAlertasPreorden = 'tonito-kds-preordenes-alertadas';
   private preordenesAlertadas = new Set<string>();
   private ordenesAlertadas = new Set<number>();
+  private actualizacionesLocales = new Map<number, { cantidad: number; fecha: number }>();
+  private temporizadoresCambios = new Map<number, ReturnType<typeof setTimeout>>();
   private contextoAlertas?: AudioContext;
   private alertasSonorasHabilitadas = false;
   private readonly habilitarAlertasSonoras = (): void => {
@@ -158,7 +180,8 @@ export class CocinaHome implements OnInit, OnDestroy {
           return !this.esDetalleCompletado(detalle) && coincideCategoria && (!texto || contenido.includes(texto));
         });
         return coincideDetalleActivo || this.tieneCambiosRecientes(orden) || orden.estado === 'cancelado';
-      });
+      })
+      .sort((a, b) => this.compararPrioridad(a, b));
   });
 
   ordenesCompletadas = computed(() => {
@@ -176,9 +199,19 @@ export class CocinaHome implements OnInit, OnDestroy {
     });
   });
 
+  preordenesProgramadasVisibles = computed(() => {
+    const categoria = this.categoriaSeleccionada();
+    const texto = this.busqueda().trim().toLowerCase();
+    return this.preordenesProgramadas().filter(orden => orden.detalles.some(detalle => {
+      const categoriaDetalle = detalle.producto.categoria?.nombre || 'Sin categoría';
+      const contenido = `${orden.cliente?.nombre || ''} ${orden.numero_orden} ${detalle.producto.nombre}`.toLowerCase();
+      return (categoria === 'todos' || categoriaDetalle === categoria) && (!texto || contenido.includes(texto));
+    }));
+  });
+
   ordenesTablero = computed(() => this.verServidos()
     ? this.ordenesCompletadas()
-    : this.ordenesVisibles());
+    : [...this.ordenesVisibles(), ...this.preordenesProgramadasVisibles()]);
 
   ordenEnServicio = computed(() => {
     return this.ordenes().find((orden) =>
@@ -187,6 +220,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   });
 
   constructor(
+    private elementRef: ElementRef<HTMLElement>,
     private cocinaService: CocinaService,
     private reverb: ReverbService,
     private authService: AuthService,
@@ -208,6 +242,9 @@ export class CocinaHome implements OnInit, OnDestroy {
     // Solo consulta IDs de preórdenes cada minuto; el tablero completo se
     // recarga únicamente si alguna cruzó la ventana de preparación.
     this.actualizacionPreordenTimer = setInterval(() => this.revisarPreordenesProximas(), 60000);
+    // Respaldo del canal en tiempo real: si Reverb se corta, el tablero se
+    // reconcilia solo y el operador nunca necesita recargar el navegador.
+    this.sincronizacionTableroTimer = setInterval(() => this.cargarPedidos(false), 5000);
     this.authService.me().subscribe({
       next: (user: User) => {
         this.usuario.set(user);
@@ -230,6 +267,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   toggleControles(): void {
+    this.menuUsuarioAbierto.set(false);
     this.controlesOcultos.update(ocultos => !ocultos);
   }
 
@@ -240,6 +278,9 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.subscriptions.forEach((subscription) => subscription.unsubscribe());
     if (this.sesionHeartbeat) clearInterval(this.sesionHeartbeat);
     if (this.actualizacionPreordenTimer) clearInterval(this.actualizacionPreordenTimer);
+    if (this.sincronizacionTableroTimer) clearInterval(this.sincronizacionTableroTimer);
+    this.temporizadoresCambios.forEach(temporizador => clearTimeout(temporizador));
+    this.temporizadoresCambios.clear();
     void this.contextoAlertas?.close();
   }
 
@@ -253,6 +294,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   async salirDeCocina(): Promise<void> {
+    this.menuUsuarioAbierto.set(false);
     if (this.document.fullscreenElement) {
       try { await this.document.exitFullscreen(); } catch { /* Se continúa con la salida. */ }
     }
@@ -273,9 +315,16 @@ export class CocinaHome implements OnInit, OnDestroy {
           this.registrarActividadKds();
         }
       }),
-      this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((data: { tipo?: string; orden_id?: number }) => {
+      this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((data: { tipo?: string; orden_id?: number; origen?: string | null; cambios?: KdsCambioOrden[] }) => {
         if (data.orden_id) {
-          this.cargarPedidos(false, true);
+          const actualizacionLocal = this.actualizacionesLocales.get(data.orden_id);
+          if (data.origen === 'kds' && actualizacionLocal && Date.now() - actualizacionLocal.fecha < 10000) {
+            if (actualizacionLocal.cantidad <= 1) this.actualizacionesLocales.delete(data.orden_id);
+            else this.actualizacionesLocales.set(data.orden_id, { ...actualizacionLocal, cantidad: actualizacionLocal.cantidad - 1 });
+            return;
+          }
+          if (data.origen !== 'kds') this.actualizacionesLocales.delete(data.orden_id);
+          this.cargarPedidos(false, true, undefined, data.orden_id, data.cambios || []);
         }
       }),
       this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(() => {
@@ -286,18 +335,37 @@ export class CocinaHome implements OnInit, OnDestroy {
     );
   }
 
-  cargarPedidos(mostrarCarga = true, detectarDesbloqueos = false, alertarNuevaOrdenId?: number): void {
+  cargarPedidos(
+    mostrarCarga = true,
+    detectarDesbloqueos = false,
+    alertarNuevaOrdenId?: number,
+    ordenConCambiosId?: number,
+    cambiosNuevos: KdsCambioOrden[] = [],
+  ): void {
     if (mostrarCarga) this.isLoading.set(true);
     const bloqueadosAntes = new Set(this.ordenes().flatMap(orden =>
       orden.detalles.filter(detalle => detalle.bloqueado).map(detalle => detalle.id)
     ));
     this.cocinaService.obtenerPedidos(this.fechaSeleccionada(), this.estacionSolicitada()).subscribe({
       next: (res) => {
-        const ordenes = res.ordenes || [];
+        const cambiosVisibles = new Map(this.ordenes()
+          .filter(orden => this.tieneCambiosRecientes(orden))
+          .map(orden => [orden.id, orden.cambios_recientes || []]));
+        if (ordenConCambiosId && cambiosNuevos.length) {
+          cambiosVisibles.set(ordenConCambiosId, [
+            ...(cambiosVisibles.get(ordenConCambiosId) || []),
+            ...cambiosNuevos,
+          ]);
+        }
+        const ordenes = (res.ordenes || []).map(orden => ({
+          ...orden,
+          cambios_recientes: cambiosVisibles.get(orden.id) || orden.cambios_recientes || [],
+        }));
         this.estacionActual.set(res.estacion);
         this.estacionId.set(res.estacion.id);
         this.estacionesDisponibles.set(res.estaciones_disponibles || []);
         this.ordenes.set(ordenes);
+        if (ordenConCambiosId && cambiosNuevos.length) this.programarOcultarCambios(ordenConCambiosId);
         this.preordenesProgramadas.set(res.preordenes_programadas || []);
         if (res.estacion.codigo === 'PARRILLA') this.avisarPreordenesTempranas(ordenes);
         if (alertarNuevaOrdenId) this.avisarNuevaOrden(ordenes, alertarNuevaOrdenId, res.estacion);
@@ -529,6 +597,7 @@ export class CocinaHome implements OnInit, OnDestroy {
         clave,
         cantidad: 0,
         producto: detalle.producto,
+        precioUnitario: Number(detalle.precio_unitario ?? 0),
         nota: detalle.nota,
         opciones: opciones.map(opcion => opcion.nombre),
         estados: [],
@@ -551,6 +620,10 @@ export class CocinaHome implements OnInit, OnDestroy {
     }
 
     return [...grupos.values()];
+  }
+
+  formatearPrecio(precio: number | string): string {
+    return formatCurrency(Number(precio) || 0);
   }
 
   private estadoAgrupado(detalle: KdsDetalle): Omit<KdsDetalleEstadoAgrupado, 'cantidad' | 'detalles'> {
@@ -577,23 +650,137 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   marcarServido(detalle: KdsDetalle, servido: boolean): void {
-    if (detalle.bloqueado) return;
+    if (detalle.bloqueado || this.estaDetalleActualizando(detalle.id)) return;
     const estacionId = this.estacionActual()?.id;
     if (!estacionId) return;
-    this.detalleActualizando.set(detalle.id);
-    this.cocinaService.actualizarEstadoDetalle(detalle.id, estacionId, servido ? 'servido' : 'pendiente').subscribe({
+    const orden = this.ordenes().find(item => item.detalles.some(actual => actual.id === detalle.id));
+    if (!orden) return;
+
+    const estadoAnterior = detalle.estado_cocina;
+    const estadoNuevo = servido ? 'servido' : 'pendiente';
+    const actualizacionesOrden = this.actualizacionesLocales.get(orden.id)?.cantidad ?? 0;
+    this.actualizacionesLocales.set(orden.id, { cantidad: actualizacionesOrden + 1, fecha: Date.now() });
+    this.establecerEstadoDetalleLocal(orden.id, detalle.id, estadoNuevo);
+    this.marcarDetallesActualizando([detalle.id], true);
+    this.cocinaService.actualizarEstadoDetalle(detalle.id, estacionId, estadoNuevo).subscribe({
       next: (respuesta) => {
-        this.detalleActualizando.set(null);
-        this.cargarPedidos(false);
+        this.marcarDetallesActualizando([detalle.id], false);
+        this.establecerEstadoDetalleLocal(orden.id, detalle.id, estadoNuevo, respuesta.orden_estado);
       },
       error: (error) => {
-        this.detalleActualizando.set(null);
+        const actualizacionLocal = this.actualizacionesLocales.get(orden.id);
+        if (actualizacionLocal?.cantidad === 1) this.actualizacionesLocales.delete(orden.id);
+        else if (actualizacionLocal) this.actualizacionesLocales.set(orden.id, { ...actualizacionLocal, cantidad: actualizacionLocal.cantidad - 1 });
+        this.establecerEstadoDetalleLocal(orden.id, detalle.id, estadoAnterior);
+        this.marcarDetallesActualizando([detalle.id], false);
         this.toastr.warning(
           error?.error?.message || 'No se pudo cambiar el estado del producto.'
         );
-        this.cargarPedidos(false);
       },
     });
+  }
+
+  estaDetalleActualizando(detalleId: number): boolean {
+    return this.detallesActualizando().has(detalleId);
+  }
+
+  detallesDeCategoria(grupo: { grupos: KdsDetalleAgrupado[] }): KdsDetalle[] {
+    return grupo.grupos.flatMap(producto => this.detallesDelGrupo(producto)).filter(detalle => !detalle.bloqueado);
+  }
+
+  detallesMarcablesProducto(grupo: KdsDetalleAgrupado): KdsDetalle[] {
+    return this.detallesDelGrupo(grupo).filter(detalle => !detalle.bloqueado);
+  }
+
+  puedeMarcarCategoria(grupo: { grupos: KdsDetalleAgrupado[] }): boolean {
+    return grupo.grupos.length > 1 && this.detallesDeCategoria(grupo).length > 1;
+  }
+
+  todosServidos(detalles: KdsDetalle[]): boolean {
+    return detalles.length > 0 && detalles.every(detalle => detalle.estado_cocina === 'servido');
+  }
+
+  marcarCategoriaCompleta(orden: KdsOrden, grupo: { categoria: string; grupos: KdsDetalleAgrupado[] }, servido: boolean): void {
+    this.marcarServidosMasivo(orden, this.detallesDeCategoria(grupo), servido, `categoria:${orden.id}:${grupo.categoria}`);
+  }
+
+  marcarProductoCompleto(orden: KdsOrden, grupo: KdsDetalleAgrupado, servido: boolean): void {
+    this.marcarServidosMasivo(orden, this.detallesMarcablesProducto(grupo), servido, `producto:${orden.id}:${grupo.clave}`);
+  }
+
+  private marcarServidosMasivo(orden: KdsOrden, detalles: KdsDetalle[], servido: boolean, clave: string): void {
+    const estacionId = this.estacionActual()?.id;
+    const disponibles = detalles.filter(detalle => !this.estaDetalleActualizando(detalle.id));
+    if (!estacionId || disponibles.length < 2 || this.operacionMasivaActualizando()) return;
+
+    const ids = disponibles.map(detalle => detalle.id);
+    const estadosAnteriores = new Map(disponibles.map(detalle => [detalle.id, detalle.estado_cocina]));
+    const estadoNuevo: KdsDetalle['estado_cocina'] = servido ? 'servido' : 'pendiente';
+    const actualizacionesOrden = this.actualizacionesLocales.get(orden.id)?.cantidad ?? 0;
+    this.actualizacionesLocales.set(orden.id, { cantidad: actualizacionesOrden + 1, fecha: Date.now() });
+    this.operacionMasivaActualizando.set(clave);
+    this.marcarDetallesActualizando(ids, true);
+    this.establecerEstadosDetallesLocales(orden.id, ids, estadoNuevo);
+
+    this.cocinaService.actualizarEstadoDetalles(ids, estacionId, servido ? 'servido' : 'pendiente').subscribe({
+      next: respuesta => {
+        const estadoOrden = respuesta.ordenes.find(item => item.orden_id === orden.id)?.orden_estado;
+        this.establecerEstadosDetallesLocales(orden.id, ids, estadoNuevo, estadoOrden);
+        this.marcarDetallesActualizando(ids, false);
+        this.operacionMasivaActualizando.set(null);
+      },
+      error: error => {
+        const actualizacionLocal = this.actualizacionesLocales.get(orden.id);
+        if (actualizacionLocal?.cantidad === 1) this.actualizacionesLocales.delete(orden.id);
+        else if (actualizacionLocal) this.actualizacionesLocales.set(orden.id, { ...actualizacionLocal, cantidad: actualizacionLocal.cantidad - 1 });
+        this.ordenes.update(ordenes => ordenes.map(item => item.id !== orden.id ? item : {
+          ...item,
+          detalles: item.detalles.map(detalle => estadosAnteriores.has(detalle.id)
+            ? { ...detalle, estado_cocina: estadosAnteriores.get(detalle.id)! }
+            : detalle),
+        }));
+        this.marcarDetallesActualizando(ids, false);
+        this.operacionMasivaActualizando.set(null);
+        this.toastr.warning(error?.error?.message || 'No se pudieron actualizar todas las unidades.');
+      },
+    });
+  }
+
+  private marcarDetallesActualizando(ids: number[], activo: boolean): void {
+    this.detallesActualizando.update(actuales => {
+      const siguientes = new Set(actuales);
+      ids.forEach(id => activo ? siguientes.add(id) : siguientes.delete(id));
+      return siguientes;
+    });
+  }
+
+  private establecerEstadoDetalleLocal(
+    ordenId: number,
+    detalleId: number,
+    estado: KdsDetalle['estado_cocina'],
+    estadoOrden?: string,
+  ): void {
+    this.ordenes.update(ordenes => ordenes.map(orden => orden.id !== ordenId ? orden : {
+      ...orden,
+      estado: estadoOrden ?? orden.estado,
+      detalles: orden.detalles.map(detalle => detalle.id === detalleId
+        ? { ...detalle, estado_cocina: estado }
+        : detalle),
+    }));
+  }
+
+  private establecerEstadosDetallesLocales(
+    ordenId: number,
+    detalleIds: number[],
+    estado: KdsDetalle['estado_cocina'],
+    estadoOrden?: string,
+  ): void {
+    const ids = new Set(detalleIds);
+    this.ordenes.update(ordenes => ordenes.map(orden => orden.id !== ordenId ? orden : {
+      ...orden,
+      estado: estadoOrden ?? orden.estado,
+      detalles: orden.detalles.map(detalle => ids.has(detalle.id) ? { ...detalle, estado_cocina: estado } : detalle),
+    }));
   }
 
   private esDetalleCompletado(detalle: KdsDetalle): boolean {
@@ -620,10 +807,16 @@ export class CocinaHome implements OnInit, OnDestroy {
         cambios_recientes: cambios.length > 0 ? cambios : anterior?.cambios_recientes || [],
       };
 
-      return [...sinOrdenActual, ordenConCambios].sort((a, b) => {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      });
+      return [...sinOrdenActual, ordenConCambios].sort((a, b) => this.compararPrioridad(a, b));
     });
+  }
+
+  private compararPrioridad(a: KdsOrden, b: KdsOrden): number {
+    const prioridadA = a.tipo_flujo === 'preorden' && a.estado_preorden === 'activada' ? 0 : 1;
+    const prioridadB = b.tipo_flujo === 'preorden' && b.estado_preorden === 'activada' ? 0 : 1;
+    return prioridadA - prioridadB
+      || new Date(a.preorden_activada_en || a.created_at).getTime()
+        - new Date(b.preorden_activada_en || b.created_at).getTime();
   }
 
   /** Actualiza solo el detalle confirmado por la API, sin recargar la lista completa. */
@@ -675,9 +868,23 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   aceptarCambios(ordenId: number): void {
+    const temporizador = this.temporizadoresCambios.get(ordenId);
+    if (temporizador) clearTimeout(temporizador);
+    this.temporizadoresCambios.delete(ordenId);
     this.ordenes.update((ordenes) => ordenes.map((orden) => {
       return orden.id === ordenId ? { ...orden, cambios_recientes: [] } : orden;
     }));
+  }
+
+  private programarOcultarCambios(ordenId: number): void {
+    const anterior = this.temporizadoresCambios.get(ordenId);
+    if (anterior) clearTimeout(anterior);
+    this.temporizadoresCambios.set(ordenId, setTimeout(() => {
+      this.temporizadoresCambios.delete(ordenId);
+      this.ordenes.update(ordenes => ordenes.map(orden => orden.id === ordenId
+        ? { ...orden, cambios_recientes: [] }
+        : orden));
+    }, 7000));
   }
 
   aceptarCancelacion(ordenId: number): void {
@@ -704,6 +911,15 @@ export class CocinaHome implements OnInit, OnDestroy {
     if (cambio.tipo_cambio === 'detalle_eliminado') return `Producto eliminado: ${producto} × ${anterior}`;
     if (cambio.tipo_cambio === 'orden_cancelada') return 'La orden fue cancelada';
     if (cambio.tipo_cambio === 'estado_cambiado') return 'El estado de la orden fue actualizado';
+    if (cambio.tipo_cambio === 'detalle_modificado') {
+      const anteriores = cambio.datos_anterior?.modificadores || [];
+      const nuevos = cambio.datos_nuevo?.modificadores || [];
+      if (anteriores.join('|') !== nuevos.join('|')) {
+        return `${producto}: modificadores cambiados${nuevos.length ? ' · ' + nuevos.join(', ') : ' · sin modificadores'}`;
+      }
+      if ((cambio.datos_anterior?.nota || '') !== (cambio.datos_nuevo?.nota || '')) return `${producto}: nota modificada`;
+      return `${producto}: modificado`;
+    }
     if (nueva > anterior) return `${producto}: cantidad aumentó de ${anterior} a ${nueva}`;
     if (nueva < anterior) return `${producto}: cantidad disminuyó de ${anterior} a ${nueva}`;
     return `${producto}: detalle actualizado`;
@@ -712,6 +928,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   claseCambio(cambio: KdsCambioOrden): string {
     if (cambio.tipo_cambio === 'detalle_agregado') return 'change--added';
     if (cambio.tipo_cambio === 'detalle_eliminado' || cambio.tipo_cambio === 'orden_cancelada') return 'change--removed';
+    if (cambio.tipo_cambio === 'detalle_modificado') return 'change--modified';
     const anterior = cambio.cantidad_anterior ?? cambio.datos_anterior?.cantidad ?? 0;
     const nueva = cambio.cantidad_nueva ?? cambio.datos_nuevo?.cantidad ?? 0;
     return nueva > anterior ? 'change--increased' : 'change--reduced';
@@ -742,11 +959,14 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   private esDeFechaSeleccionada(orden: KdsOrden): boolean {
-    //return (orden.created_at || '').slice(0, 10) === this.fechaSeleccionada();
-    if (!orden.created_at) return false;
-    
-    // 1. Convertir el texto ISO/UTC a un objeto Date nativo (se adapta automáticamente a la hora local)
-    const fechaOrdenLocal = new Date(orden.created_at);
+    const fechaOperativa = orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada'
+      ? (orden.fecha_orden || orden.created_at)
+      : orden.created_at;
+    if (!fechaOperativa) return false;
+
+    // Una preorden pertenece al día en que fue activada, no al día en que
+    // se creó inicialmente como programada.
+    const fechaOrdenLocal = new Date(fechaOperativa);
     
     // 2. Formatear en estructura YYYY-MM-DD usando los métodos locales
     const anio = fechaOrdenLocal.getFullYear();
@@ -777,6 +997,15 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   etiquetaTipoOrden(orden: KdsOrden): string {
     return orden.tipo_orden === 'dine-in' ? `Mesa ${orden.mesa?.numero || '—'}` : orden.tipo_orden === 'delivery' ? 'Delivery' : 'Para llevar';
+  }
+
+  esPreordenProgramada(orden: KdsOrden): boolean {
+    return orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'programada';
+  }
+
+  etiquetaBloqueo(orden: KdsOrden): string {
+    if (this.esPreordenProgramada(orden)) return 'Aún no activa';
+    return 'Espera Parrilla';
   }
 
   private normalizar(valor: string): string {

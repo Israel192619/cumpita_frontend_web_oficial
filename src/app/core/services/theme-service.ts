@@ -5,7 +5,7 @@ export type AppTheme = 'light' | 'dark';
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private readonly storageKey = 'tonito_theme';
-  readonly theme = signal<AppTheme>('light');
+  readonly theme = signal<AppTheme>(this.themeFromDocument());
 
   initialize(): void {
     const saved = localStorage.getItem(this.storageKey) as AppTheme | null;
@@ -19,8 +19,16 @@ export class ThemeService {
     this.theme.set(theme);
     document.documentElement.dataset['theme'] = theme;
     document.documentElement.style.colorScheme = theme;
+    document.querySelector<HTMLMetaElement>('#theme-color')?.setAttribute(
+      'content',
+      theme === 'dark' ? '#111111' : '#f7f3ee'
+    );
     // Compatibilidad temporal con los controles compartidos que ya tenían variante oscura.
     document.body.dataset['pcTheme'] = theme;
     if (persist) localStorage.setItem(this.storageKey, theme);
+  }
+
+  private themeFromDocument(): AppTheme {
+    return document.documentElement.dataset['theme'] === 'dark' ? 'dark' : 'light';
   }
 }

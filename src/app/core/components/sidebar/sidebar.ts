@@ -1,4 +1,4 @@
-import { Component, computed, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
+import { Component, computed, effect, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
 import { homeForUser, isAdministrator, kdsStation, userCanAccess } from '../../auth/role-access';
@@ -27,8 +27,8 @@ export class Sidebar implements OnInit {
     if (userCanAccess(user, 'pos')) return [{ label: 'POS', route: '/pos' }];
     if (userCanAccess(user, 'kds')) return [{ label: `KDS ${kdsStation(user) === 'parrilla' ? 'Parrilla' : 'Cocina'}`, route: `/cocina/${kdsStation(user)}` }];
     if (userCanAccess(user, 'servicio')) {
-      const links = [{ label: 'Servicio', route: '/app/servicio' }];
-      if (userCanAccess(user, 'preorden')) links.push({ label: 'Nueva preorden', route: '/app/preordenes/nueva' });
+      const links = [{ label: 'Servicio', route: '/servicio' }];
+      if (userCanAccess(user, 'preorden')) links.push({ label: 'Nueva preorden', route: '/preordenes/nueva' });
       return links;
     }
     return [];
@@ -47,21 +47,24 @@ export class Sidebar implements OnInit {
   private readonly adminGroups: NavGroup[] = [
     { key: 'operacion', label: 'Operación', icon: 'restaurant', children: [
       { label: 'POS', route: '/pos' }, { label: 'Órdenes', route: '/app/pedidos' }, { label: 'Mesas', route: '/app/mesas' },
-      { label: 'KDS Cocina', route: '/cocina/cocina' }, { label: 'KDS Parrilla', route: '/cocina/parrilla' }, { label: 'Servicio / Despacho', route: '/app/servicio' }
+      { label: 'KDS Cocina', route: '/cocina/cocina' }, { label: 'KDS Parrilla', route: '/cocina/parrilla' }, { label: 'Servicio / Despacho', route: '/servicio' }
     ]},
     { key: 'productos', label: 'Productos', icon: 'package', children: [
       { label: 'Productos', route: '/app/productos' }, { label: 'Categorías', route: '/app/categorias' },
       { label: 'Modificadores', route: '/app/modificadores' }, { label: 'Ajustes de stock', route: '/app/ajustes-stock' }
     ]},
     { key: 'contactos', label: 'Contactos', icon: 'users', children: [{ label: 'Clientes', route: '/app/clientes' }] },
-    { key: 'usuarios', label: 'Administración', icon: 'settings', children: [{ label: 'Usuarios', route: '/app/users' }] },
+    { key: 'usuarios', label: 'Administración', icon: 'settings', children: [{ label: 'Usuarios', route: '/app/users' }, { label: 'Configuración', route: '/app/configuracion' }] },
     { key: 'reportes', label: 'Reportes', icon: 'report', children: [
       { label: 'Ventas', route: '/app/reportes/ventas' }, { label: 'Productos', route: '/app/reportes/productos' }, { label: 'Caja', route: '/app/reportes/caja' }
     ]},
     this.cashGroup,
   ];
 
-  constructor(private router: Router, private auth: AuthService) {}
+  constructor(private router: Router, private auth: AuthService) {
+    this.user.set(this.auth.usuarioGuardado());
+    effect(() => this.user.set(this.auth.usuarioActual()));
+  }
 
   ngOnInit(): void {
     this.auth.me().subscribe({ next: user => { this.user.set(user); this.loaded.set(true); }, error: () => this.loaded.set(true) });

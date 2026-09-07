@@ -1,7 +1,7 @@
 /* ==================== ORDER TYPE SELECTOR ==================== */
 .order-type-selector {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.3rem;
   padding: 0.25rem 0.55rem;
   border-bottom: 1px solid var(--border-color);
@@ -140,13 +140,14 @@
 /* Item Header Row: Image + Details + Qty + Price */
 .item-header-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.55rem;
   align-items: center;
 }
 
 .item-left {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 0.65rem;
 }
@@ -257,9 +258,13 @@
 }
 
 .item-total-price {
+  white-space: nowrap;
+  flex-shrink: 0;
   font-size: 0.84rem;
   font-weight: 700;
   color: var(--color-accent);
   min-width: 50px;
   text-align: right;
 }
+
+.cart-item-block--inactive .item-name{color:var(--color-danger,#b91c1c);text-decoration:line-through}.inactive-warning{color:var(--color-danger,#b91c1c);font-weight:700}.cart-item-block--inactive{border-color:var(--color-danger,#b91c1c)}

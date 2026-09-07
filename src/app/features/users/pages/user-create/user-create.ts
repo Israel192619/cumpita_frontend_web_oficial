@@ -20,6 +20,7 @@ export class UserCreate {
   error = signal<string | null>(null);
   roles = signal<{ label: string; value: any }[]>([]);
   estaciones = signal<{ label: string; value: number | null }[]>([]);
+  private todasEstaciones: { id: number; nombre: string; codigo: string; activa: boolean }[] = [];
   isloading = signal(false);
 
   constructor(
@@ -50,18 +51,18 @@ export class UserCreate {
         this.roles.set(
           roles.map(role => ({ label: role.nombre, value: role.id }))
         );
+        this.ajustarEstacionesAlRol();
       }
     });
+    this.form.get('role_id')?.valueChanges.subscribe(() => this.ajustarEstacionesAlRol());
     this.cargarEstaciones();
   }
 
   cargarEstaciones() {
     this.estacionTrabajoService.listar().subscribe({
       next: (estaciones) => {
-        this.estaciones.set([
-          { label: 'Sin estación', value: null },
-          ...estaciones.filter(est => est.activa).map(est => ({ label: `${est.nombre} (${est.codigo})`, value: est.id }))
-        ]);
+        this.todasEstaciones = estaciones.filter(est => est.activa && est.codigo !== 'BEBIDAS');
+        this.ajustarEstacionesAlRol();
       }
     });
   }
@@ -71,6 +72,28 @@ export class UserCreate {
   esRolMesero(): boolean {
     const roleId = Number(this.form.get('role_id')?.value);
     return this.roles().some(role => Number(role.value) === roleId && role.label.trim().toLowerCase() === 'mesero');
+  }
+  esRolCocinero(): boolean { return this.nombreRol() === 'cocinero'; }
+  estacionAutomatica(): string { return this.esRolMesero() ? 'Meseros' : ''; }
+  private nombreRol(): string {
+    const roleId = Number(this.form.get('role_id')?.value);
+    return this.roles().find(role => Number(role.value) === roleId)?.label.trim().toLowerCase() ?? '';
+  }
+  private ajustarEstacionesAlRol(): void {
+    const rol = this.nombreRol();
+    const control = this.form.get('estacion_id');
+    if (rol === 'mesero') {
+      const estacion = this.todasEstaciones.find(item => item.codigo === 'MESEROS');
+      this.estaciones.set(estacion ? [{ label: estacion.nombre, value: estacion.id }] : []);
+      control?.setValue(estacion?.id ?? null, { emitEvent: false });
+    } else if (rol === 'cocinero') {
+      const permitidas = this.todasEstaciones.filter(item => ['COCINA', 'PARRILLA'].includes(item.codigo));
+      this.estaciones.set(permitidas.map(item => ({ label: `${item.nombre} (${item.codigo})`, value: item.id })));
+      if (!permitidas.some(item => item.id === Number(control?.value))) control?.setValue(null, { emitEvent: false });
+    } else {
+      this.estaciones.set([]);
+      control?.setValue(null, { emitEvent: false });
+    }
   }
   private guardarUsuario(onSuccess: () => void) {
     if (this.form.invalid) {

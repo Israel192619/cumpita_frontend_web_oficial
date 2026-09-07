@@ -23,6 +23,7 @@ interface OpcionSeleccionada {
 interface ModificadorSeleccionado {
   modificador_id: number;
   nombre: string;
+  cantidad_requerida: number | null;
   opciones: OpcionSeleccionada[];
 }
 
@@ -32,7 +33,7 @@ interface ModificadorSeleccionado {
     FormCard, InputForm, Select, ErrorMessage, ReactiveFormsModule, CommonModule, AppCurrencyPipe
   ],
   templateUrl: './producto-create.html',
-  styleUrl: './producto-create.css',
+  styleUrls: ['./producto-create.css', '../producto-modifiers.css'],
 })
 export class ProductoCreate {
   readonly currencySymbol = CURRENCY_CONFIG.symbol;
@@ -145,7 +146,7 @@ export class ProductoCreate {
   cargarModificadores() {
     this.modificadorService.listarModificadores().subscribe({
       next: (modificadores) => {
-        this.modificadores.set(modificadores);
+        this.modificadores.set(modificadores.filter(modificador => modificador.activo));
       }
     });
   }
@@ -184,6 +185,7 @@ export class ProductoCreate {
       {
         modificador_id: id,
         nombre: modificador.nombre,
+        cantidad_requerida: null,
         opciones: opcionesDelModificador
       }
     ]);
@@ -195,6 +197,11 @@ export class ProductoCreate {
     this.modificadoresSeleccionados.update(mods =>
       mods.filter(m => m.modificador_id !== modificadorId)
     );
+  }
+
+  actualizarCantidadRequerida(modificadorId: number, valor: string) {
+    const cantidad = valor === '' ? null : Math.max(1, Number(valor));
+    this.modificadoresSeleccionados.update(mods => mods.map(mod => mod.modificador_id === modificadorId ? { ...mod, cantidad_requerida: cantidad } : mod));
   }
 
   toggleOpcion(modificadorId: number, opcionId: number) {
@@ -278,6 +285,10 @@ export class ProductoCreate {
         formData.append(`opciones[${index}][predeterminado]`, op.predeterminado ? '1' : '0');
       });
     }
+    this.modificadoresSeleccionados().forEach((mod, index) => {
+      formData.append(`modificadores[${index}][id]`, String(mod.modificador_id));
+      if (mod.cantidad_requerida != null) formData.append(`modificadores[${index}][cantidad_requerida]`, String(mod.cantidad_requerida));
+    });
 
     this.productoService.crearProducto(formData).subscribe({
       next: () => {

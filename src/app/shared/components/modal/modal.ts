@@ -13,6 +13,7 @@ export class Modal implements OnChanges, OnDestroy {
   @Input() open = false;
   @Input() title = '';
   @Input() size: ModalSize = 'medium';
+  @Input() panelClass = '';
   @Input() showClose = true;
   @Input() closeOnOverlay = true;
   @Input() closeOnEscape = true;

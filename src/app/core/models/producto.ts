@@ -7,6 +7,10 @@ export interface ModificadorOpcion {
   precio_extra: number;
   activo: boolean;
   predeterminado: boolean;
+  maneja_stock?: boolean;
+  stock?: number | null;
+  stock_minimo?: number | null;
+  stock_disponible?: number | null;
 }
 
 export interface ModificadorEstructurado {
@@ -14,6 +18,7 @@ export interface ModificadorEstructurado {
   nombre: string;
   tipo: 'unico' | 'multiple';
   requerido: boolean;
+  cantidad_requerida?: number | null;
   activo: boolean;
   opciones?: ModificadorOpcion[];
 }

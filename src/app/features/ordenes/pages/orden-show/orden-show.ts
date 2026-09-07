@@ -77,6 +77,7 @@ export class OrdenShow implements OnInit {
     return Number(detalle?.cantidad ?? 0) * (this.precioDetalle(detalle) + extras);
   }
   totalPagado(): number { return this.pagos().reduce((total, pago) => total + Number(pago?.monto_pagado ?? 0), 0); }
+  importeMovimiento(pago: any): number { return Math.abs(Number(pago?.monto_pagado ?? 0)); }
   saldoPendiente(): number {
     const orden = this.orden();
     return orden?.saldo_pendiente != null ? Number(orden.saldo_pendiente) : Math.max(0, Number(orden?.total ?? 0) - this.totalPagado());

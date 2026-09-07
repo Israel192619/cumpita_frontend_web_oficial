@@ -1,10 +1,10 @@
-import { Component, computed, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { timeout } from 'rxjs/internal/operators/timeout';
 import { ToastrService } from 'ngx-toastr';
 import { ConfirmDialogService } from '../../../../shared/services/confirm-dialog-service';
-import { Button, DataTable, DateRangePicker, DateRangeValue, FilterBar, isWithinDateRange, Modal } from '../../../../shared/components';
+import { DataTable, DataTableQuery, DateRangePicker, DateRangeValue, FilterBar, Modal } from '../../../../shared/components';
 import { Order, PosService } from '../../services';
 import { OrdenShow } from '../orden-show/orden-show';
 import { Subscription } from 'rxjs/internal/Subscription';
@@ -13,7 +13,7 @@ import { ReverbService } from '@app/core/services/reverb-service';
 @Component({
   selector: 'app-ordenes-list',
   standalone: true, // Asegúrate de tenerlo si es un componente independiente
-  imports: [CommonModule, DataTable, Modal, Button, OrdenShow, FilterBar, DateRangePicker],
+  imports: [CommonModule, DataTable, Modal, OrdenShow, FilterBar, DateRangePicker],
   templateUrl: './ordenes-list.html',
   styleUrl: './ordenes-list.css',
 })
@@ -26,17 +26,15 @@ export class OrdenesList implements OnInit, OnDestroy {
   private reverbSub = new Subscription();
   selectedOrder = signal<Order | null>(null);
   dateRange = signal<DateRangeValue>({ from: null, to: null, includeTime: false });
-  filteredOrders = computed(() => this.ordenes().filter(order => isWithinDateRange(
-    order.tipo_flujo === 'preorden' && order.estado_preorden === 'programada'
-      ? order.fecha_programada
-      : (order.fecha_orden || order.created_at),
-    this.dateRange(),
-  )));
+  currentPage = signal(1);
+  pageSize = signal(10);
+  totalOrders = signal(0);
+  private tableQuery: DataTableQuery = { search: '', filters: {}, sortKey: 'created_at', sortDirection: 'desc' };
   rowActions = [
-    { type: 'edit', label: 'Editar', icon: 'edit' },
-    { type: 'view', label: 'Ver', icon: 'eye' },
-    { type: 'activate', label: 'Activar', class: 'success', visible: (item: Order) => item.tipo_flujo === 'preorden' && item.estado_preorden === 'programada' },
-    { type: 'delete', label: 'Eliminar', icon: 'trash', class: 'delete' },
+    { type: 'edit', label: 'Editar', icon: 'edit', iconOnly: true },
+    { type: 'view', label: 'Ver', icon: 'eye', iconOnly: true },
+    { type: 'activate', label: 'Activar', icon: 'play', iconOnly: true, class: 'success', visible: (item: Order) => item.tipo_flujo === 'preorden' && item.estado_preorden === 'programada' },
+    { type: 'delete', label: 'Eliminar', icon: 'trash', iconOnly: true, class: 'delete' },
   ];
 
   constructor(
@@ -48,6 +46,8 @@ export class OrdenesList implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // El POS es el módulo más pesado; se descarga en segundo plano mientras se consulta la tabla.
+    void import('../../../pos/pages/pos-home/pos-home');
     this.obtenerOrdenes();
     this.escucharNuevasOrdenes();
   }
@@ -72,11 +72,20 @@ export class OrdenesList implements OnInit, OnDestroy {
     this.errorMessageLink.set(null);
     this.errorMessageText.set(null);
 
-    this.posService.obtenerOrdenes().pipe(timeout(10000)).subscribe({
-      next: (data: any) => {
+    const range = this.dateRange();
+    this.posService.obtenerOrdenesPaginadas({
+      page: this.currentPage(),
+      perPage: this.pageSize(),
+      search: this.tableQuery.search,
+      sortKey: this.tableQuery.sortKey,
+      sortDirection: this.tableQuery.sortDirection,
+      dateFrom: range.from,
+      dateTo: range.to,
+    }).pipe(timeout(10000)).subscribe({
+      next: (response) => {
         // 1. Extraemos el arreglo 'ordenes' que viene dentro del objeto de Laravel
         // const listaOriginal = data?.ordenes || [];
-        const listaOriginal = data || [];
+        const listaOriginal = response.data || [];
 
         // 2. Aplanamos las propiedades para que coincidan con las llaves de tu 'app-data-table'
         const ordenesFormateadas = listaOriginal.map((orden: any) => ({
@@ -96,6 +105,9 @@ export class OrdenesList implements OnInit, OnDestroy {
 
         // 3. Guardamos la lista lista para iterar en el Signal
         this.ordenes.set(ordenesFormateadas);
+        this.currentPage.set(response.current_page);
+        this.pageSize.set(response.per_page);
+        this.totalOrders.set(response.total);
         this.isLoading.set(false);
       },
       error: () => {
@@ -110,6 +122,7 @@ export class OrdenesList implements OnInit, OnDestroy {
 
     if (type === 'edit') {
       // Navega al POS pasando el ID de la orden para editarla
+      this.posService.prepararEdicion(item);
       this.router.navigate(['/pos'], { queryParams: { orderId: item.id, edit: true } });
     }
 
@@ -125,6 +138,8 @@ export class OrdenesList implements OnInit, OnDestroy {
       this.eliminarOrden(item.id);
     }
   }
+
+  verOrden(orden: Order): void { this.selectedOrder.set(orden); }
 
   private activarPreorden(orden: Order): void {
     this.confirmDialog.confirm({
@@ -148,7 +163,19 @@ export class OrdenesList implements OnInit, OnDestroy {
     this.selectedOrder.set(null);
   }
 
-  onDateRangeChange(range: DateRangeValue): void { this.dateRange.set(range); }
+  onDateRangeChange(range: DateRangeValue): void {
+    this.dateRange.set(range);
+    this.currentPage.set(1);
+    this.obtenerOrdenes();
+  }
+
+  onTableQuery(query: DataTableQuery): void { this.tableQuery = query; }
+
+  onPaginationChange(event: { page: number; pageSize: number }): void {
+    this.currentPage.set(event.page);
+    this.pageSize.set(event.pageSize);
+    this.obtenerOrdenes();
+  }
 
   eliminarOrden(id: number) {
     this.confirmDialog.confirm({
@@ -160,8 +187,9 @@ export class OrdenesList implements OnInit, OnDestroy {
       if (result) {
         this.posService.eliminarOrden(id).subscribe({
           next: () => {
-            this.ordenes.update(ordenes => ordenes.filter(o => o.id !== id));
             this.toastr.success('Orden eliminada correctamente');
+            if (this.ordenes().length === 1 && this.currentPage() > 1) this.currentPage.update(page => page - 1);
+            this.obtenerOrdenes();
           },
           error: () => {
             this.toastr.error('Error al eliminar la orden');

@@ -3,6 +3,8 @@ export interface Mesa {
   numero: string;
   capacidad: number;
   estado: 'libre' | 'ocupada' | 'reservada' | 'mantenimiento';
+  posicion_x?: number | null;
+  posicion_y?: number | null;
   created_at?: string;
   updated_at?: string;
 }

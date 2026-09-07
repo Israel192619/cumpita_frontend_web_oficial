@@ -3,6 +3,7 @@
 .modifier-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .modifier-chip { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.2rem 0.4rem; border-radius: 999px; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 11%, var(--color-surface)); font-size: 0.68rem; font-weight: 700; }
 .modifier-price { font-size: 0.7rem; opacity: 0.85; }
+.modifier-stock-warning { margin: .25rem 0 0 1.65rem; color: var(--color-danger); font-size: .72rem; font-weight: 750; }
 .modifier-empty { color: var(--color-text-muted); font-size: 0.75rem; }
 .modifier-edit-btn { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border)); border-radius: 50%; color: var(--color-primary); background: transparent; cursor: pointer; }
 .modifier-edit-btn:hover { background: var(--color-hover); }
@@ -22,15 +23,20 @@
 .modifier-section-label { color: var(--color-text-muted); font-size: 0.7rem; font-weight: 750; letter-spacing: 0.045em; text-transform: uppercase; }
 .modifier-section-divider { height: 1px; margin: 0.05rem 0; background: var(--color-border); }
 .modifier-options { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.modifier-option-btn { display: inline-flex; min-height: 40px; max-width: 100%; align-items: center; gap: 0.35rem; padding: 0.45rem 0.7rem; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text); background: var(--color-surface); font: inherit; font-size: 0.8rem; cursor: pointer; transition: border-color .15s ease, color .15s ease, background .15s ease; }
+.modifier-option-btn { display: inline-flex; min-width: 0; min-height: 40px; max-width: 100%; align-items: center; gap: 0.35rem; padding: 0.45rem 0.7rem; border: 1px solid var(--color-border); border-radius: 20px; color: var(--color-text); background: var(--color-surface); font: inherit; font-size: 0.8rem; cursor: pointer; transition: border-color .15s ease, color .15s ease, background .15s ease; }
 .modifier-option-btn:hover { border-color: var(--color-primary); background: var(--color-hover); }
 .modifier-option-btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 1px; }
 .modifier-option-btn.active { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); box-shadow: inset 0 0 0 1px var(--color-primary); }
 .modifier-option-btn.active::before { content: '✓'; font-size: 0.7rem; font-weight: 800; }
-.modifier-option-btn span { min-width: 0; overflow-wrap: anywhere; }
-.modifier-option-btn small { flex: 0 0 auto; font-weight: 700; }
+.modifier-option-btn span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modifier-option-btn small { flex: 0 0 auto; font-weight: 700; white-space: nowrap; }
+.modifier-option-btn .modifier-option-quantity { min-width: 1.35rem; padding: .08rem .32rem; border-radius: 999px; color: var(--color-surface); background: var(--color-primary); text-align: center; }
+.modifier-option-btn:disabled { opacity: .52; cursor: not-allowed; }
+.modifier-selection-error { flex: 1 1 100%; margin: 0; color: var(--color-danger); font-size: .78rem; font-weight: 700; }
+.modifier-progress-message { flex: 1 1 100%; margin: 0; padding: .45rem .65rem; border: 1px solid color-mix(in srgb, #22c55e 48%, var(--color-border)); border-radius: 8px; color: #22c55e; background: color-mix(in srgb, #22c55e 10%, var(--color-surface)); font-size: .78rem; font-weight: 750; animation: modifier-confirmation-in .16s ease-out; }
+@keyframes modifier-confirmation-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-.modifier-modal-actions { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 0.65rem; }
+.modifier-modal-actions { display: flex; width: 100%; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.65rem; }
 .modifier-modal-actions-right { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; }
 .modifier-batch-controls { display: flex; min-width: 0; align-items: center; gap: 0.5rem; padding: 0.3rem 0.45rem; border: 1px solid var(--color-border); border-radius: 9px; color: var(--color-text); background: var(--color-hover); }
 .modifier-batch-label { color: var(--color-text-muted); font-size: 0.68rem; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
@@ -58,6 +64,7 @@
   .modifier-group-header { align-items: stretch; flex-direction: column; gap: 0.4rem; }
   .modifier-group-header app-button { align-self: flex-start; }
   .modifier-option-btn { flex: 1 1 calc(50% - 0.4rem); justify-content: center; }
+  .modifier-option-btn.modifier-option-stock { flex-basis: 100%; }
   .modifier-modal-actions { align-items: stretch; flex-direction: column; }
   .modifier-batch-controls { justify-content: space-between; }
   .modifier-modal-actions-right, .modifier-modal-actions-right app-button { width: 100%; }
@@ -72,4 +79,25 @@
 
 @media (prefers-reduced-motion: reduce) {
   .modifier-option-btn, .order-note-input, .btn-delete { transition: none; }
+}
+
+/* Contraste específico para modificadores en tema oscuro. */
+:host-context(:root[data-theme='dark']) .modifier-chip{
+  color:#fff;
+  background:color-mix(in srgb,var(--color-primary) 10%,var(--color-surface));
+}
+:host-context(:root[data-theme='dark']) .modifier-option-btn{
+  color:#f7eee9;
+  background:color-mix(in srgb,var(--color-surface) 90%,#fff);
+}
+:host-context(:root[data-theme='dark']) .modifier-option-btn:hover:not(:disabled){
+  color:#fff;
+  background:color-mix(in srgb,var(--color-primary) 12%,var(--color-surface));
+}
+:host-context(:root[data-theme='dark']) .modifier-option-btn.active{
+  color:#fff;
+  background:color-mix(in srgb,var(--color-primary) 15%,var(--color-surface));
+}
+:host-context(:root[data-theme='dark']) .modifier-option-btn.active .modifier-option-quantity{
+  color:#fff;
 }

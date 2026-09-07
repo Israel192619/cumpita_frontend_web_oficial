@@ -1,11 +1,11 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Categoria } from '@app/core/models/categoria';
 import { Producto } from '@app/core/models/producto';
 import { environment } from '../../../../environments/environment';
 //import { Observable } from 'rxjs/internal/Observable';
 //import { map } from 'rxjs/internal/operators/map';
-import { Observable, map } from 'rxjs';
+import { Observable, concat, map, of } from 'rxjs';
 
 export interface CartItem {
   id: number;
@@ -17,6 +17,7 @@ export interface CartItem {
   modificadores?: CartItemModificador[];
   nota?: string;
   isModifierVariant?: boolean;
+  requiresModifierSelection?: boolean;
   parentItemId?: number;
 }
 
@@ -32,6 +33,8 @@ export interface Mesa {
   numero: string;
   capacidad: number;
   estado: 'libre' | 'ocupada' | 'reservada' | 'mantenimiento';
+  posicion_x?: number | null;
+  posicion_y?: number | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -123,6 +126,16 @@ export interface PagoOrden {
   updated_at?: string;
 }
 
+export interface CancelacionInfo {
+  monto_devolucion: number;
+  pago_origen_id: number | null;
+  caja_origen_id: number | null;
+  caja_origen_estado: string | null;
+  caja_actual_id: number | null;
+  efectivo_disponible: number;
+  faltante_efectivo: number;
+}
+
 export interface CajaResumen {
   monto_apertura: number;
   ingresos_efectivo: number;
@@ -152,6 +165,15 @@ export interface CajaUsuario {
   id: number;
   name: string;
   username?: string | null;
+  estado_invitacion?: 'pendiente' | 'aceptada' | 'rechazada' | 'revocada' | 'salida' | null;
+}
+
+export interface PaginatedOrders {
+  data: Order[];
+  current_page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
 }
 
 @Injectable({
@@ -159,6 +181,7 @@ export interface CajaUsuario {
 })
 export class PosService {
   private apiUrl = environment.apiUrl;
+  private editingOrderSnapshot: Order | null = null;
 
   constructor(private http: HttpClient) {}
 
@@ -175,8 +198,30 @@ export class PosService {
   }
 
   obtenerOrdenPorId(id: number): Observable<{ orden: Order }> {
-    return this.http.get<{ orden: Order }>(`${this.apiUrl}/ordenes/${id}`);
+    const request = this.http.get<{ orden: Order }>(`${this.apiUrl}/ordenes/${id}`);
+    const snapshot = this.editingOrderSnapshot?.id === id ? this.editingOrderSnapshot : null;
+    this.editingOrderSnapshot = null;
+    return snapshot ? concat(of({ orden: snapshot }), request) : request;
   }
+
+  obtenerOrdenesPaginadas(options: {
+    page: number; perPage: number; search?: string; sortKey?: string | null;
+    sortDirection?: 'asc' | 'desc'; dateFrom?: string | null; dateTo?: string | null;
+  }): Observable<PaginatedOrders> {
+    let params = new HttpParams()
+      .set('paginated', '1')
+      .set('page', options.page)
+      .set('per_page', options.perPage);
+    if (options.search?.trim()) params = params.set('search', options.search.trim());
+    if (options.sortKey) params = params.set('sort_key', options.sortKey);
+    if (options.sortDirection) params = params.set('sort_direction', options.sortDirection);
+    if (options.dateFrom) params = params.set('date_from', options.dateFrom);
+    if (options.dateTo) params = params.set('date_to', options.dateTo);
+    return this.http.get<{ ordenes: PaginatedOrders }>(`${this.apiUrl}/ordenes`, { params })
+      .pipe(map(response => response.ordenes));
+  }
+
+  prepararEdicion(orden: Order): void { this.editingOrderSnapshot = orden; }
 
   obtenerHistorialOrden(id: number): Observable<any[]> {
     return this.http.get<{ historial: any[] }>(`${this.apiUrl}/ordenes/${id}/historial`).pipe(
@@ -197,6 +242,10 @@ export class PosService {
       expected_version: expectedVersion,
       metodo_pago: metodoPago ?? null,
     });
+  }
+
+  obtenerInformacionCancelacion(id: number): Observable<CancelacionInfo> {
+    return this.http.get<CancelacionInfo>(`${this.apiUrl}/ordenes/${id}/cancelacion-info`);
   }
 
   obtenerMetodosPago(): Observable<PaymentMethodOption[]> {
@@ -269,8 +318,24 @@ export class PosService {
     return this.http.put<{ caja: Caja }>(`${this.apiUrl}/cajas/${id}/usuarios`, { usuarios });
   }
 
+  obtenerInvitacionCaja(): Observable<{ invitacion: Caja | null }> {
+    return this.http.get<{ invitacion: Caja | null }>(`${this.apiUrl}/cajas/invitacion-pendiente`);
+  }
+
+  responderInvitacionCaja(id: number, respuesta: 'aceptar' | 'rechazar'): Observable<{ message: string; caja?: Caja }> {
+    return this.http.post<{ message: string; caja?: Caja }>(`${this.apiUrl}/cajas/${id}/invitacion/${respuesta}`, {});
+  }
+
+  salirCajaCompartida(id: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/cajas/${id}/salir`);
+  }
+
   registrarGastoCaja(data: { categoria: string; concepto?: string | null; monto: number }): Observable<unknown> {
     return this.http.post(`${this.apiUrl}/gastos-caja`, data);
+  }
+
+  registrarMovimientoCaja(data: { tipo: 'INGRESO' | 'RETIRO'; monto: number; motivo?: string | null }): Observable<unknown> {
+    return this.http.post(`${this.apiUrl}/movimientos-caja`, data);
   }
 
   /**

@@ -1,0 +1,13 @@
+<section class="profile-page">
+  <div class="profile-intro"><span>CUENTA PERSONAL</span><h1>Mi perfil</h1><p>Actualiza tus datos personales y tu fotografía.</p></div>
+  <app-form-card [form]="form" title="Información del perfil" [esEdicion]="true" [loading]="loading()" (submit)="guardar()" (cancelar)="cancelar()">
+    <app-input-form label="Nombre" [control]="getControl('name')" placeholder="Tu nombre" />
+    <app-input-form label="Nombre de usuario" [control]="getControl('username')" placeholder="Ej. juan.perez" />
+    <app-input-form label="Correo" type="email" [control]="getControl('email')" placeholder="correo@ejemplo.com" />
+    <app-input-form label="Dirección" [control]="getControl('direccion')" placeholder="Tu dirección" />
+    <app-input-form label="Número de celular" [control]="getControl('numero_celular')" placeholder="Tu teléfono" />
+    <app-input-form label="Fotografía" type="file" [control]="getControl('avatar')" [initialPreview]="avatarActual()" />
+    <app-input-form label="Nueva contraseña" type="password" autocomplete="new-password" [control]="getControl('password')" placeholder="Déjala vacía para conservarla" />
+  </app-form-card>
+  <app-error-message [message]="error()" />
+</section>

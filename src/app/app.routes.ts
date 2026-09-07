@@ -36,6 +36,7 @@ export const routes: Routes = [
     ]
   },
 
+  { path: 'perfil', canActivate: [authGuard], loadComponent: () => import('./features/profile/profile').then(m => m.Profile) },
   // Rutas protegidas (sistema)
   {
     path: 'app',
@@ -47,6 +48,16 @@ export const routes: Routes = [
         canActivate: [landingGuard],
         loadComponent: () =>
           import('./features/dashboard/pages/dashboard/dashboard').then(m => m.Dashboard)
+      },
+      {
+        path: 'configuracion',
+        canActivate: [moduleAccessGuard], data: { access: 'admin' },
+        loadComponent: () => import('./features/configuracion/configuracion').then(m => m.Configuracion)
+      },
+      {
+        path: 'perfil',
+        loadComponent: () =>
+          import('./features/profile/profile').then(m => m.Profile)
       },
       {
         path: 'users',
@@ -222,9 +233,8 @@ export const routes: Routes = [
       { path: 'kds/:estacion', redirectTo: route => `/cocina/${route.params['estacion']}` },
       {
         path: 'servicio',
-        canActivate: [moduleAccessGuard], data: { access: 'servicio' },
-        loadComponent: () =>
-          import('./features/servicio/pages/servicio-home/servicio-home').then(m => m.ServicioHome)
+        pathMatch: 'full',
+        redirectTo: '/servicio'
       },
       {
         path: 'ajustes-stock',
@@ -246,11 +256,19 @@ export const routes: Routes = [
       },
       {
         path: 'preordenes/nueva',
-        canActivate: [moduleAccessGuard], canDeactivate: [pendingPosOrderGuard], data: { access: 'preorden', mode: 'preorden' },
-        loadComponent: () =>
-          import('./features/pos/pages/pos-home/pos-home').then(m => m.PosHome)
+        redirectTo: '/preordenes/nueva'
       }
     ]
+  },
+  {
+    path: 'preordenes',
+    loadComponent: () => import('./layout/pos-layout/pos-layout').then(m => m.PosLayout),
+    canActivate: [authGuard, moduleAccessGuard], data: { access: 'preorden' },
+    children: [{
+      path: 'nueva',
+      canDeactivate: [pendingPosOrderGuard], data: { mode: 'preorden' },
+      loadComponent: () => import('./features/pos/pages/pos-home/pos-home').then(m => m.PosHome)
+    }]
   },
   {
     path: 'pos',
@@ -264,6 +282,15 @@ export const routes: Routes = [
           import('./features/pos/pages/pos-home/pos-home').then(m => m.PosHome)
       }
     ]
+  },
+  {
+    path: 'servicio',
+    loadComponent: () => import('./layout/servicio-layout/servicio-layout').then(m => m.ServicioLayout),
+    canActivate: [authGuard, moduleAccessGuard], data: { access: 'servicio' },
+    children: [{
+      path: '',
+      loadComponent: () => import('./features/servicio/pages/servicio-home/servicio-home').then(m => m.ServicioHome)
+    }]
   },
   {
     path: 'cocina',

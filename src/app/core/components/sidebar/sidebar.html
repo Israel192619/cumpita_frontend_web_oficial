@@ -1,8 +1,6 @@
 <div class="sidebar-shell" [class.is-collapsed]="collapsed">
   <a class="brand" [routerLink]="homeRoute()" (click)="selectLink()" [attr.aria-label]="'Inicio de ' + nombreApp">
-    <span class="brand-mark">
-      <img src="images/logoSvgWhite2.svg" [alt]="'Logo de ' + nombreApp" />
-    </span>
+    <img class="brand-logo" src="images/logoSvgWhite2.svg" [alt]="'Logo de ' + nombreApp" />
     <span class="brand-copy">
       <b>{{ nombreApp }}</b>
     </span>
@@ -36,5 +34,4 @@
       }
     }
   </nav>
-  <div class="sidebar-version"><span><app-icon name="restaurant" [size]="15" /></span><small>Toñito v1</small></div>
 </div>

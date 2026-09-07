@@ -1,8 +1,8 @@
 <section class="dashboard-page">
   <header class="dashboard-header">
-    <div><p class="eyebrow">Resumen del restaurante</p><h1>Dashboard</h1></div>
+    <div><h1>Dashboard</h1></div>
     <div class="period-filter">
-      <app-select label="Período" [options]="periodOptions" [value]="periodo()" (valueChange)="cambiarPeriodo($event)" />
+      <app-select label="" [options]="periodOptions" [value]="periodo()" (valueChange)="cambiarPeriodo($event)" />
       @if (periodo() === 'personalizado') {
         <app-input-form label="Desde" type="date" [value]="desde()" [max]="hasta()" (valueChange)="actualizarDesde($event)" />
         <app-input-form label="Hasta" type="date" [value]="hasta()" [min]="desde()" (valueChange)="actualizarHasta($event)" />
@@ -21,30 +21,30 @@
     </div>
   } @else if (datos(); as dashboard) {
     <div class="kpi-grid">
-      <article class="kpi-card primary"><span class="kpi-icon"><app-icon name="wallet" size="21" /></span><div><p>Venta total</p><strong>{{ dashboard.kpis.venta_total | appCurrency }}</strong></div></article>
-      <article class="kpi-card info"><span class="kpi-icon"><app-icon name="qrcode" size="21" /></span><div><p>QR / Yape</p><strong>{{ dashboard.kpis.qr | appCurrency }}</strong></div></article>
-      <article class="kpi-card success"><span class="kpi-icon"><app-icon name="coin" size="21" /></span><div><p>Efectivo</p><strong>{{ dashboard.kpis.efectivo | appCurrency }}</strong></div></article>
+      <article class="kpi-card primary"><span class="kpi-icon"><app-icon name="wallet" size="21" /></span><div><p>Venta total</p><strong>{{ dashboard.kpis.venta_total | appCurrency }}</strong><small class="kpi-context">Efectivo {{ dashboard.kpis.cobros_efectivo | appCurrency }} + QR {{ dashboard.kpis.cobros_qr | appCurrency }} − devoluciones {{ dashboard.kpis.devoluciones_total | appCurrency }}</small></div></article>
+      <article class="kpi-card info"><span class="kpi-icon"><app-icon name="coin" size="21" /></span><div><p>Efectivo esperado</p><strong>{{ dashboard.kpis.efectivo_esperado | appCurrency }}</strong><small class="kpi-context">Apertura {{ dashboard.kpis.monto_apertura | appCurrency }} + cobros {{ dashboard.kpis.cobros_efectivo | appCurrency }} − devoluciones {{ dashboard.kpis.devoluciones_efectivo | appCurrency }} + ingresos {{ dashboard.kpis.ingresos_caja | appCurrency }} − retiros {{ dashboard.kpis.retiros_caja | appCurrency }} − gastos {{ dashboard.kpis.gastos_caja | appCurrency }}</small></div></article>
+      <article class="kpi-card success"><span class="kpi-icon"><app-icon name="qrcode" size="21" /></span><div><p>QR / Yape</p><strong>{{ dashboard.kpis.qr | appCurrency }}</strong><small class="kpi-context">Cobros {{ dashboard.kpis.cobros_qr | appCurrency }} − devoluciones {{ dashboard.kpis.devoluciones_qr | appCurrency }}</small></div></article>
       <article class="kpi-card neutral"><span class="kpi-icon"><app-icon name="shopping-cart" size="21" /></span><div><p>Cantidad de órdenes</p><strong>{{ dashboard.kpis.cantidad_ordenes }}</strong></div></article>
       <article class="kpi-card warning"><span class="kpi-icon"><app-icon name="credit-card" size="21" /></span><div><p>Ticket promedio</p><strong>{{ dashboard.kpis.ticket_promedio | appCurrency }}</strong></div></article>
     </div>
 
     <div class="dashboard-grid">
       <article class="dashboard-panel">
-        <div class="panel-heading"><div><p class="eyebrow">Inventario actual</p><h2>Productos por agotar</h2></div><span class="panel-count">{{ dashboard.productos_por_agotar.length }}</span></div>
+        <div class="panel-heading"><div><h2>Productos por agotar</h2></div><span class="panel-count">{{ dashboard.productos_por_agotar.length }}</span></div>
         @if (dashboard.productos_por_agotar.length) {
-          <ul class="clean-list">@for (producto of dashboard.productos_por_agotar; track producto.id) { <li><span>{{ producto.nombre }}</span><strong>{{ unidades(producto.stock) }}</strong></li> }</ul>
+          <ul class="clean-list">@for (producto of dashboard.productos_por_agotar; track producto.id) { <li><img class="low-stock-image" [src]="producto.imagen_url || '/images/no-image.png'" [alt]="producto.nombre"><span>{{ producto.nombre }}</span><strong>{{ unidades(producto.stock) }}</strong></li> }</ul>
         } @else { <div class="empty-panel">No hay productos por debajo de su stock mínimo.</div> }
       </article>
 
       <article class="dashboard-panel">
-        <div class="panel-heading"><div><p class="eyebrow">Período seleccionado</p><h2>Productos más vendidos</h2></div></div>
+        <div class="panel-heading"><div><h2>Productos más vendidos</h2></div></div>
         @if (dashboard.productos_mas_vendidos.length) {
           <ol class="ranking-list">@for (producto of dashboard.productos_mas_vendidos; track producto.id; let posicion = $index) { <li><span class="rank">{{ posicion + 1 }}</span><span class="product-name">{{ producto.nombre }}</span><strong>{{ producto.cantidad }}</strong></li> }</ol>
         } @else { <div class="empty-panel">No hay productos vendidos en este período.</div> }
       </article>
 
       <article class="dashboard-panel operation-panel">
-        <div class="panel-heading"><div><p class="eyebrow">En tiempo real</p><h2>Operación actual</h2></div><span class="live-badge">Actual</span></div>
+        <div class="panel-heading"><div><h2>Operación del período</h2></div><span class="live-badge">{{ periodo() === 'hoy' ? 'Hoy' : 'Filtrado' }}</span></div>
         <div class="operation-grid">
           <div><span>Órdenes pendientes</span><strong>{{ dashboard.operacion.ordenes_pendientes }}</strong></div>
           <div><span>Cocina</span><strong>{{ dashboard.operacion.cocina_pendientes }}</strong><small>pendientes</small></div>

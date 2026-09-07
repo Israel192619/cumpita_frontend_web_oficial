@@ -1,18 +1,83 @@
 <app-data-table
   title="Productos"
-  [data]="productos()"
+  [data]="productos().map(p => ({ ...p, estado_activo: p.activo ? 'Activo' : 'Inactivo' }))"
   [columns]="[
     { key: 'imagen_url', label: 'Imagen', type: 'image' },
     { key: 'nombre', label: 'Nombre' },
     { key: 'categoria.nombre', label: 'Categoría' },
     { key: 'precio', label: 'Precio', type: 'currency' },
-    { key: 'activo', label: 'Activo', type: 'boolean' },
+    { key: 'inventario_actual', label: 'Stock disponible' },
+    { key: 'estado_activo', label: 'Estado', type: 'status' },
     { key: 'maneja_stock', label: 'Gestión Stock', type: 'boolean' }
   ]"
   [loading]="isloading()"
   [error]="error()"
+  imageFallbackIcon="package"
   createLink="/app/productos/create"
   (refresh)="obtenerProductos()"
   (action)="handleAction($event)"
 >
 </app-data-table>
+
+<app-modal
+  [open]="!!selectedProduct()"
+  [title]="selectedProduct()?.nombre || 'Detalle del producto'"
+  size="full"
+  panelClass="order-detail-modal"
+  (closed)="cerrarDetalle()"
+>
+  @if (selectedProduct(); as product) {
+    <div class="product-detail">
+      <section class="product-overview">
+        <div class="product-identity">
+          <img [src]="product.imagen_url || '/images/no-image.png'" [alt]="product.nombre">
+          <div><span>Producto #{{ product.id }}</span><h3>{{ product.nombre }}</h3><p>{{ product.descripcion || 'Sin descripción registrada.' }}</p></div>
+          <span class="status" [class.inactive]="!product.activo">{{ product.activo ? 'Activo' : 'Inactivo' }}</span>
+        </div>
+        <div class="facts">
+          <div><span>Categoría</span><strong>{{ product.categoria?.nombre || 'Sin categoría' }}</strong></div>
+          <div><span>Estación</span><strong>{{ product.estacion?.nombre || 'Sin estación' }}</strong></div>
+          <div><span>Precio</span><strong>{{ product.precio | appCurrency }}</strong></div>
+          <div><span>Control de inventario</span><strong>{{ product.maneja_stock ? 'Por producto' : (stockOptions(product) ? 'Por opciones' : 'Sin control') }}</strong></div>
+        </div>
+      </section>
+
+      <section class="inventory-section">
+        <div class="section-heading"><div><span class="live-dot"></span><h3>Inventario actual</h3></div><small>Actualización en tiempo real</small></div>
+        @if (product.maneja_stock) {
+          <div class="direct-stock">
+            <div><span>Disponible</span><strong>{{ product.stock_disponible ?? product.stock ?? 0 }}</strong><small>unidades</small></div>
+            <div><span>Stock mínimo</span><strong>{{ product.stock_minimo ?? 0 }}</strong><small>unidades</small></div>
+          </div>
+        }
+
+        @if (product.modificadores?.length) {
+          <div class="modifier-groups">
+            @for (group of product.modificadores; track group.id) {
+              <article class="modifier-group">
+                <header><div><h4>{{ group.nombre }}</h4><span>{{ group.cantidad_requerida ? 'Elige ' + group.cantidad_requerida : (group.requerido ? 'Obligatorio' : 'Opcional') }}</span></div><small>{{ group.tipo === 'multiple' ? 'Selección múltiple' : 'Selección única' }}</small></header>
+                <div class="option-table">
+                  <div class="option-row option-head"><span>Opción</span><span>Tipo</span><span>Precio extra</span><span>Disponibilidad</span></div>
+                  @for (option of group.opciones || []; track option.id) {
+                    <div class="option-row">
+                      <strong>{{ option.nombre }}</strong>
+                      <span>{{ option.predeterminado ? 'Predeterminada' : 'Alternativa' }}</span>
+                      <span>{{ option.precio_extra | appCurrency }}</span>
+                      @if (option.maneja_stock) {
+                        <strong class="stock-value" [class.low]="(option.stock_disponible ?? option.stock ?? 0) <= (option.stock_minimo ?? 0)">{{ option.stock_disponible ?? option.stock ?? 0 }} disponibles</strong>
+                      } @else {
+                        <span class="unlimited">Sin límite</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </article>
+            }
+          </div>
+        } @else if (!product.maneja_stock) {
+          <div class="no-inventory">Este producto no tiene control de stock directo ni mediante opciones.</div>
+        }
+      </section>
+    </div>
+  }
+</app-modal>

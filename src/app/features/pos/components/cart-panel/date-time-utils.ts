@@ -8,6 +8,13 @@ export function normalizeOrderDateValue(value: string | null | undefined): strin
     return null;
   }
 
+  // Si el servidor incluye UTC u otro desplazamiento, primero hay que llevarlo
+  // a la zona horaria del dispositivo antes de decidir a qué día pertenece.
+  if (/Z$|[+-]\d{2}:?\d{2}$/.test(normalized)) {
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : formatDateOnly(parsed);
+  }
+
   const dateMatch = normalized.match(/^(\d{4}-\d{2}-\d{2})/);
   if (dateMatch) {
     return dateMatch[1];

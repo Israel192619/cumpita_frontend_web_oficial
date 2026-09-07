@@ -1,8 +1,10 @@
-import { Component, signal, computed, effect, OnInit, OnDestroy } from '@angular/core';
+import { CambioProducto, sincronizarProductoCarrito } from '../../services/cart-catalog';
+import { availableProductUnits } from '../../components/product-grid/product-availability';
+import { Component, signal, computed, effect, OnInit, OnDestroy, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { CartItem, CartItemModificador, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen, CajaUsuario } from '../../services';
+import { CancelacionInfo, CartItem, CartItemModificador, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen, CajaUsuario } from '../../services';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
 import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, PosToolbarComponent, ProductGridComponent } from '../../components';
@@ -17,6 +19,7 @@ import { ReverbService } from '../../../../core/services/reverb-service';
 import { AuthService } from '../../../../core/services/auth-service';
 import { normalizeAccessName } from '../../../../core/auth/role-access';
 import { ThemeService } from '../../../../core/services/theme-service';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-pos-home',
@@ -30,11 +33,13 @@ import { ThemeService } from '../../../../core/services/theme-service';
     PosToolbarComponent,
     Button,
     Modal,
+    Icon,
   ],
   templateUrl: './pos-home.html',
   styleUrls: ['./pos-home.css', './pos-home-modals.css'],
 })
 export class PosHome implements OnInit, OnDestroy {
+  @ViewChild(CartPanelComponent) private cartPanel?: CartPanelComponent;
   readonly operationMode: 'pos' | 'preorden';
   private routeSubscription?: Subscription;
   private orderUpdatesSubscription?: Subscription;
@@ -42,12 +47,22 @@ export class PosHome implements OnInit, OnDestroy {
   private reservationUpdatesSubscription?: Subscription;
   private cajaUpdatesSubscription?: Subscription;
   private reservationTimer?: ReturnType<typeof setTimeout>;
+  private reservationKeepAliveTimer?: ReturnType<typeof setInterval>;
   private reservationSyncing = false;
   private reservationDirty = false;
+  private reservationHadDemand = false;
+  private readonly reservationDemand = computed(() => this.reservationItems(), {
+    equal: (anterior, actual) => JSON.stringify(anterior) === JSON.stringify(actual),
+  });
   private reservationSessionId = this.createReservationSessionId();
+  private reservationIdentityReady = signal(false);
+  private reservationIdentityChannel?: BroadcastChannel;
+  private reservationIdentityTimer?: ReturnType<typeof setTimeout>;
+  private readonly reservationInstanceId = this.createClientUuid();
   categorias = signal<Categoria[]>([]);
   productos = signal<Producto[]>([]);
   allProductos = signal<Producto[]>([]);
+  private catalogUpdatesSubscription?: Subscription;
   carrito = signal<CartItem[]>([]);
   baseStockByProductId = signal<Record<number, number>>({});
   productSearchQuery = signal<string>('');
@@ -67,12 +82,29 @@ export class PosHome implements OnInit, OnDestroy {
   isProcessingCheckout = signal<boolean>(false);
   isRefundMode = signal<boolean>(false);
   deletedItems = signal<any[]>([]);
+  cancelacionInfo = signal<CancelacionInfo | null>(null);
   originalCarrito = signal<CartItem[]>([]);
+  modifierDraftReservation = signal<{
+    original: CartItemModificador[];
+    draft: CartItemModificador[];
+    quantity: number;
+  } | null>(null);
+  originalModifierStockCredits = computed<Record<number, number>>(() => {
+    if (!this.isEditingOrder()) return {};
+    return this.originalCarrito().reduce((credits, item) => {
+      (item.modificadores || []).forEach(mod => {
+        credits[mod.opcion_id] = (credits[mod.opcion_id] || 0) + item.cantidad;
+      });
+      return credits;
+    }, {} as Record<number, number>);
+  });
   error = signal<string | null>(null);
   cajaActual = signal<Caja | null>(null);
   resumenCaja = signal<CajaResumen | null>(null);
   isCajaModalOpen = signal<boolean>(false);
-  cajaModalMode = signal<'abrir' | 'cerrar' | 'gestionar'>('abrir');
+  cajaModalMode = signal<'abrir' | 'cerrar' | 'gestionar' | 'salir'>('abrir');
+  invitacionCaja = signal<Caja | null>(null);
+  procesandoInvitacionCaja = signal(false);
   isProcessingCaja = signal<boolean>(false);
   montoCaja = signal<string>('');
   observacionCaja = signal<string>('');
@@ -109,6 +141,7 @@ export class PosHome implements OnInit, OnDestroy {
   });
   isEditingOrder = signal<boolean>(false);
   editingOrderId = signal<number | null>(null);
+  cartPanelResetVersion = signal(0);
   editingOrderSource = signal<'url' | 'pending' | 'internal' | null>(null);
   pendingOrderAction = signal<'edit' | 'pay' | null>(null);
 
@@ -131,12 +164,18 @@ export class PosHome implements OnInit, OnDestroy {
   isPendingOrdersModalOpen = signal<boolean>(false);
   isTodayOrdersModalOpen = signal<boolean>(false);
   todayOrderDetail = signal<Order | null>(null);
+  todayOrderDetailLoading = signal(false);
   todayOrderRemovedItems = signal<Array<{ key: string; nombre: string; cantidad: number; subtotal: number }>>([]);
   isGastoModalOpen = signal(false);
   isProcessingGasto = signal(false);
   gastoCategoria = signal('INSUMOS');
   gastoConcepto = signal('');
   gastoMonto = signal('');
+  isMovimientoModalOpen = signal(false);
+  isProcessingMovimiento = signal(false);
+  movimientoTipo = signal<'INGRESO' | 'RETIRO'>('INGRESO');
+  movimientoMonto = signal('');
+  movimientoMotivo = signal('');
   readonly categoriasGasto = ['INSUMOS', 'LIMPIEZA', 'GAS', 'CARBON', 'TRANSPORTE', 'MANTENIMIENTO', 'SERVICIOS', 'PERSONAL', 'OTROS'];
   isPreordersModalOpen = signal<boolean>(false);
   isHistoryModalOpen = signal<boolean>(false);
@@ -145,7 +184,11 @@ export class PosHome implements OnInit, OnDestroy {
   isCajero = signal(false);
 
   pendingOrdersCount = computed(() => this.pendingOrders().length);
-  preordersCount = computed(() => this.preorders().length);
+  todayPreorders = computed(() => {
+    const today = this.getTodayDateString();
+    return this.preorders().filter(orden => this.normalizeOrderDate(orden.fecha_programada)?.slice(0, 10) === today);
+  });
+  preordersCount = computed(() => this.todayPreorders().length);
   hasUnsavedChanges = computed(() => {
     const hasStartedOrder =
       this.carrito().length > 0 ||
@@ -254,7 +297,7 @@ export class PosHome implements OnInit, OnDestroy {
     const query = this.todayOrdersSearch().trim().toLowerCase();
     const today = this.getTodayDateString();
     return this.orders().filter(orden => {
-      if (orden.fecha_orden?.slice(0, 10) !== today) return false;
+      if (this.getOrderLocalDateString(orden) !== today) return false;
       const searchable = [orden.numero_orden ?? orden.id, orden.cliente_nombre ?? '', orden.mesa?.numero ?? '', orden.estado_pago ?? '', orden.estado ?? '']
         .join(' ').toLowerCase();
       return !query || searchable.includes(query);
@@ -263,7 +306,7 @@ export class PosHome implements OnInit, OnDestroy {
 
   filteredPreorders = computed(() => {
     const query = this.preordersSearch().trim().toLowerCase();
-    return this.preorders().filter((orden) => {
+    return this.todayPreorders().filter((orden) => {
       const haystack = [
         orden.numero_orden?.toString() || orden.id.toString(),
         orden.cliente_nombre || '',
@@ -280,12 +323,29 @@ export class PosHome implements OnInit, OnDestroy {
   });
   globalSearchResults = computed(() => this.productSearchQuery().trim() ? this.visibleProductos() : []);
 
+  availableUnits(producto: Producto): number | null {
+    return availableProductUnits(producto, this.modifierUsageByOption());
+  }
+
+  cartQuantityByProduct = computed(() => this.carrito().reduce((counts, item) => {
+    counts[item.producto.id] = (counts[item.producto.id] || 0) + item.cantidad;
+    return counts;
+  }, {} as Record<number, number>));
+
   cartItemCount = computed(() => {
     return this.carrito().reduce((sum, item) => sum + item.cantidad, 0);
   });
 
   productStockById = computed<Record<number, number>>(() => {
     return this.baseStockByProductId();
+  });
+  modifierUsageByOption = computed<Record<number, number>>(() => {
+    return this.carrito().reduce((usage, item) => {
+      (item.modificadores || []).forEach(mod => {
+        usage[mod.opcion_id] = (usage[mod.opcion_id] || 0) + item.cantidad;
+      });
+      return usage;
+    }, {} as Record<number, number>);
   });
 
   constructor(
@@ -302,8 +362,12 @@ export class PosHome implements OnInit, OnDestroy {
   ) {
     this.operationMode = this.route.snapshot.data['mode'] === 'preorden' ? 'preorden' : 'pos';
     effect(() => {
-      const items = this.reservationItems();
-      if (this.operationMode === 'pos' && !this.isEditingOrder()) this.scheduleReservationSync(items);
+      const reservation = this.reservationDemand();
+      const hasDemand = reservation.items.length > 0 || reservation.opciones.length > 0;
+      if (this.reservationIdentityReady() && !this.isEditingOrder() && (hasDemand || this.reservationHadDemand)) {
+        this.scheduleReservationSync(reservation);
+      }
+      this.reservationHadDemand = hasDemand;
     });
   }
 
@@ -319,8 +383,26 @@ export class PosHome implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.themeService.initialize();
     window.addEventListener('beforeunload', this.beforeUnloadHandler);
+    this.initializeReservationTabIdentity();
+    this.reservationKeepAliveTimer = setInterval(() => {
+      if (!this.reservationIdentityReady() || this.isEditingOrder()) return;
+      const reservation = this.reservationItems();
+      if (reservation.items.length || reservation.opciones.length) this.scheduleReservationSync(reservation);
+    }, 2 * 60 * 1000);
+    this.catalogUpdatesSubscription = this.reverb.escucharCanal('canal-inventario', '.ProductoActualizado').subscribe((evento: { producto?: CambioProducto }) => {
+      if (evento.producto) this.aplicarCambioProducto(evento.producto);
+    });
+    this.stockUpdatesSubscription = this.reverb.escucharCanal('canal-inventario', '.StockActualizado').subscribe((event: { producto_id?: number | null; modificador_opcion_id?: number | null; stock?: number }) => {
+      if (event.stock == null) return;
+      if (event.producto_id != null) this.applyRemoteStock(event.producto_id, event.stock);
+      if (event.modificador_opcion_id != null) this.applyRemoteModifierStock(event.modificador_opcion_id, event.stock);
+    });
+    this.reservationUpdatesSubscription = this.reverb.escucharCanal('canal-inventario', '.ReservaStockActualizada').subscribe(() => {
+      const categoryId = this.selectedSubcategoryId() ?? this.selectedCategoryId() ?? undefined;
+      this.cargarProductos(categoryId, true);
+      if (this.globalProductsLoaded && categoryId !== undefined) this.cargarCatalogoGlobal(true);
+    });
     this.cargarCategorias();
-    this.cargarProductos();
     this.auth.me().subscribe({
       next: user => this.isCajero.set(['cajero', 'caja'].includes(normalizeAccessName(user.role?.nombre))),
     });
@@ -332,17 +414,16 @@ export class PosHome implements OnInit, OnDestroy {
       this.orderUpdatesSubscription = this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe(() => {
         this.refreshOrderLists();
       });
-      this.stockUpdatesSubscription = this.reverb.escucharCanal('canal-inventario', '.StockActualizado').subscribe((event: { producto_id?: number; stock?: number }) => {
-        if (event.producto_id == null || event.stock == null) return;
-        this.applyRemoteStock(event.producto_id, event.stock);
-      });
-      this.reservationUpdatesSubscription = this.reverb.escucharCanal('canal-inventario', '.ReservaStockActualizada').subscribe(() => {
-        this.cargarProductos(this.selectedSubcategoryId() ?? this.selectedCategoryId() ?? undefined, true);
-        if (this.globalProductsLoaded) this.cargarCatalogoGlobal(true);
-      });
-      this.cajaUpdatesSubscription = this.reverb.escucharCanal('canal-caja', '.CajaActualizada').subscribe(() => {
+      this.cajaUpdatesSubscription = this.reverb.escucharCanal('canal-caja', '.CajaActualizada').subscribe((evento: { caja_id?: number; accion?: string }) => {
+        const cajaAntes = this.cajaActual();
         this.cargarCajaActual();
+        this.cargarInvitacionCaja();
+        if (this.cajaModalMode() === 'gestionar' && this.isCajaModalOpen()) this.cargarUsuariosGestionCaja();
+        if (cajaAntes?.puede_cerrar && cajaAntes.id === evento.caja_id && evento.accion === 'invitacion_aceptada') this.toastr.info('La solicitud de caja compartida fue aceptada.');
+        if (cajaAntes?.puede_cerrar && cajaAntes.id === evento.caja_id && evento.accion === 'invitacion_rechazada') this.toastr.info('La solicitud de caja compartida fue rechazada.');
+        if (cajaAntes?.puede_cerrar && cajaAntes.id === evento.caja_id && evento.accion === 'cajero_salio') this.toastr.info('Un cajero dejó la caja compartida.');
       });
+      this.cargarInvitacionCaja();
     }
     
     // Verificar si viene un ID de orden para editar
@@ -362,10 +443,14 @@ export class PosHome implements OnInit, OnDestroy {
     window.removeEventListener('beforeunload', this.beforeUnloadHandler);
     this.routeSubscription?.unsubscribe();
     this.orderUpdatesSubscription?.unsubscribe();
+    this.catalogUpdatesSubscription?.unsubscribe();
     this.stockUpdatesSubscription?.unsubscribe();
     this.reservationUpdatesSubscription?.unsubscribe();
     this.cajaUpdatesSubscription?.unsubscribe();
     if (this.reservationTimer) clearTimeout(this.reservationTimer);
+    if (this.reservationKeepAliveTimer) clearInterval(this.reservationKeepAliveTimer);
+    if (this.reservationIdentityTimer) clearTimeout(this.reservationIdentityTimer);
+    this.reservationIdentityChannel?.close();
     this.liberarReservas();
     if (this.productSearchTimer) clearTimeout(this.productSearchTimer);
     if (this.productAddFrame !== undefined) cancelAnimationFrame(this.productAddFrame);
@@ -384,7 +469,7 @@ export class PosHome implements OnInit, OnDestroy {
     });
   }
 
-  abrirModalCaja(mode: 'abrir' | 'cerrar'): void {
+  abrirModalCaja(mode: 'abrir' | 'cerrar' | 'salir'): void {
     this.cajaModalMode.set(mode);
     this.montoCaja.set(mode === 'cerrar' ? this.resumenCaja()?.monto_esperado?.toString() ?? '' : '');
     this.observacionCaja.set('');
@@ -397,11 +482,17 @@ export class PosHome implements OnInit, OnDestroy {
 
     this.cajaModalMode.set('gestionar');
     this.isCajaModalOpen.set(true);
+    this.cargarUsuariosGestionCaja();
+  }
+
+  private cargarUsuariosGestionCaja(): void {
+    const caja = this.cajaActual();
+    if (!caja?.puede_cerrar) return;
     this.isProcessingCaja.set(true);
-    this.usuariosSeleccionadosCaja.set((caja.usuarios ?? []).map(usuario => usuario.id));
     this.posService.obtenerUsuariosDisponiblesCaja(caja.id).subscribe({
       next: ({ usuarios }) => {
         this.usuariosDisponiblesCaja.set(usuarios);
+        this.usuariosSeleccionadosCaja.set(usuarios.filter(usuario => ['pendiente', 'aceptada'].includes(usuario.estado_invitacion ?? '')).map(usuario => usuario.id));
         this.isProcessingCaja.set(false);
       },
       error: (err) => {
@@ -434,12 +525,28 @@ export class PosHome implements OnInit, OnDestroy {
           this.cajaActual.set({ ...this.cajaActual()!, ...cajaActualizada });
           this.isProcessingCaja.set(false);
           this.isCajaModalOpen.set(false);
-          this.toastr.success('Cajeros autorizados actualizados.');
+          this.toastr.success('Solicitudes de caja compartida enviadas.');
         },
         error: (err) => {
           this.isProcessingCaja.set(false);
           this.toastr.error(err?.error?.message || 'No se pudieron actualizar los cajeros.');
         },
+      });
+      return;
+    }
+
+    if (this.cajaModalMode() === 'salir') {
+      const caja = this.cajaActual();
+      if (!caja) return;
+      this.isProcessingCaja.set(true);
+      this.posService.salirCajaCompartida(caja.id).subscribe({
+        next: () => {
+          this.isProcessingCaja.set(false);
+          this.isCajaModalOpen.set(false);
+          this.cargarCajaActual();
+          this.toastr.success('Dejaste la caja compartida.');
+        },
+        error: err => { this.isProcessingCaja.set(false); this.toastr.error(err?.error?.message || 'No se pudo abandonar la caja compartida.'); },
       });
       return;
     }
@@ -509,6 +616,28 @@ export class PosHome implements OnInit, OnDestroy {
     });
   }
 
+  private cargarInvitacionCaja(): void {
+    this.posService.obtenerInvitacionCaja().subscribe({ next: ({ invitacion }) => this.invitacionCaja.set(invitacion), error: () => undefined });
+  }
+
+  responderInvitacionCaja(respuesta: 'aceptar' | 'rechazar'): void {
+    const invitacion = this.invitacionCaja();
+    if (!invitacion) return;
+    this.procesandoInvitacionCaja.set(true);
+    this.posService.responderInvitacionCaja(invitacion.id, respuesta).subscribe({
+      next: ({ message }) => {
+        this.procesandoInvitacionCaja.set(false);
+        this.invitacionCaja.set(null);
+        if (respuesta === 'aceptar') {
+          this.isCajaModalOpen.set(false);
+          this.cargarCajaActual();
+          this.toastr.success(message || 'Ahora trabajas con la caja compartida.');
+        } else this.toastr.info(message || 'Solicitud rechazada.');
+      },
+      error: err => { this.procesandoInvitacionCaja.set(false); this.toastr.error(err?.error?.message || 'No se pudo responder la solicitud.'); },
+    });
+  }
+
   private leavePos(): void {
     if (this.isCajero()) {
       this.liberarReservas();
@@ -535,13 +664,14 @@ export class PosHome implements OnInit, OnDestroy {
     // decisión ya aprobada para no mostrar el mismo diálogo una segunda vez.
     this.leaveAlreadyConfirmed = true;
     this.liberarReservas();
-    this.router.navigate([this.operationMode === 'preorden' ? '/app/servicio' : '/app/pedidos'])
+    this.router.navigate([this.operationMode === 'preorden' ? '/servicio' : '/app/pedidos'])
       .then(navigated => {
         if (!navigated) this.leaveAlreadyConfirmed = false;
       });
   }
 
   onSaveOrderEditsRequested(): void {
+    if (this.stopIfInactiveProducts()) return;
     const orderId = this.editingOrderId();
     if (!this.isEditingOrder() || !orderId) {
       return;
@@ -592,7 +722,9 @@ export class PosHome implements OnInit, OnDestroy {
       },
       error: (err) => {
         if (this.handleOrderVersionConflict(err, orderId)) return;
-        this.toastr.error('No se pudo guardar los cambios de la orden');
+        const message = err?.error?.message || err?.error?.error || 'No se pudo guardar los cambios de la orden';
+        this.error.set(message);
+        this.toastr.error(message);
         this.isProcessingCheckout.set(false);
       },
       complete: () => {
@@ -615,6 +747,7 @@ export class PosHome implements OnInit, OnDestroy {
       }
 
       this.editingOrder.set(orden);
+      this.cartPanelResetVersion.update(version => version + 1);
       this.editingOrderId.set(orderId);
       this.isEditingOrder.set(true);
       this.orderType.set((orden.tipo_orden as any) || 'dine-in');
@@ -726,8 +859,9 @@ export class PosHome implements OnInit, OnDestroy {
   
   private cargarProductos(categoriaId?: number, silenciosa = false): void {
     if (!silenciosa) this.isLoadingProductos.set(true);
-    this.productoService.listarProductos(categoriaId, this.operationMode === 'pos' ? this.reservationSessionId : undefined).subscribe({
+    this.productoService.listarProductos(categoriaId, this.reservationSessionId).subscribe({
       next: (productos) => {
+        this.refreshCartProductCatalog(productos);
         const baseStocks = productos.reduce<Record<number, number>>((acc, producto) => {
           acc[producto.id] = producto.maneja_stock ? Math.max(0, producto.stock_disponible ?? producto.stock ?? 0) : Number.MAX_SAFE_INTEGER;
           return acc;
@@ -771,12 +905,12 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onProductAdded(producto: Producto): void {
+    if (!producto.activo) { this.toastr.warning(producto.nombre + ' está desactivado.'); return; }
     const cantidadEnCarrito = this.carrito()
       .filter(item => item.producto.id === producto.id)
       .reduce((total, item) => total + item.cantidad, 0);
     const pendiente = this.pendingProductAdds.get(producto.id)?.cantidad ?? 0;
     const stockBase = this.baseStockByProductId()[producto.id] ?? producto.stock ?? 0;
-
     // Reservamos el stock antes del siguiente cuadro para que una ráfaga de clics
     // no pueda agregar más unidades de las disponibles.
     if (producto.maneja_stock && cantidadEnCarrito + pendiente >= stockBase) return;
@@ -795,9 +929,14 @@ export class PosHome implements OnInit, OnDestroy {
 
     const carrito = [...this.carrito()];
     const stockDeltas = new Map<number, number>();
+    let itemPendingModifierSelection: CartItem | null = null;
 
-    additions.forEach(({ producto, cantidad }) => {
-      const existingItem = carrito.find(item => item.producto.id === producto.id && !item.isModifierVariant);
+    for (const { producto, cantidad } of additions) {
+      if (!producto.activo) continue;
+      const modifierProblem = this.getDefaultModifierStockProblem(producto, cantidad);
+      const existingItem = !modifierProblem
+        ? carrito.find(item => item.producto.id === producto.id && !item.isModifierVariant && !item.orden_detalle_id)
+        : undefined;
       if (existingItem) {
         existingItem.cantidad += cantidad;
         const extras = (existingItem.modificadores || []).reduce(
@@ -805,26 +944,40 @@ export class PosHome implements OnInit, OnDestroy {
         );
         existingItem.subtotal = existingItem.cantidad * (existingItem.precio_unitario + extras);
       } else {
-        const modificadores = this.getDefaultModifiers(producto);
+        const modificadores = modifierProblem
+          ? this.getAvailableDefaultModifiers(producto, cantidad)
+          : this.getDefaultModifiers(producto);
         const precio = parseFloat(producto.precio.toString());
         const extras = modificadores.reduce((sum, mod) => sum + parseFloat(mod.precio_extra.toString()), 0);
-        carrito.push({
+        const newItem: CartItem = {
           id: Date.now() + Math.floor(Math.random() * 100000),
           producto,
           cantidad,
           precio_unitario: precio,
           subtotal: (precio + extras) * cantidad,
           modificadores,
-        });
+          isModifierVariant: !!modifierProblem,
+          requiresModifierSelection: !!modifierProblem,
+        };
+        carrito.push(newItem);
+        if (modifierProblem && !itemPendingModifierSelection) itemPendingModifierSelection = newItem;
       }
 
       if (producto.maneja_stock) {
         stockDeltas.set(producto.id, (stockDeltas.get(producto.id) ?? 0) - cantidad);
       }
-    });
+    }
 
     this.carrito.set(this.mergeDuplicateCartItems(carrito));
     this.updateProductStocks(stockDeltas);
+    if (itemPendingModifierSelection) {
+      const pendingId = itemPendingModifierSelection.id;
+      this.toastr.info('La presa predeterminada no tiene stock. Elige otra opción disponible.');
+      requestAnimationFrame(() => {
+        const item = this.carrito().find(cartItem => cartItem.id === pendingId);
+        if (item) this.cartPanel?.openModifierModal(item);
+      });
+    }
   }
 
   private getDefaultModifiers(producto: Producto): CartItemModificador[] {
@@ -844,12 +997,110 @@ export class PosHome implements OnInit, OnDestroy {
     return modificadores;
   }
 
+  private getAvailableDefaultModifiers(producto: Producto, quantity: number): CartItemModificador[] {
+    return this.getDefaultModifiers(producto).filter(mod => {
+      const option = this.modifierOption(producto, mod.opcion_id);
+      if (!option || option.stock_disponible == null) return true;
+      const capacity = this.effectiveModifierStock(mod.opcion_id, Number(option.stock_disponible));
+      return this.cartModifierUsage(mod.opcion_id) + quantity <= capacity;
+    });
+  }
+
+  private modifierOption(producto: Producto, opcionId: number): any | undefined {
+    return (producto.modificadores || []).flatMap(group => group.opciones || []).find(option => option.id === opcionId);
+  }
+
+  private cartModifierUsage(opcionId: number): number {
+    return this.carrito().reduce((total, item) => total + (item.modificadores || []).filter(mod => mod.opcion_id === opcionId).length * item.cantidad, 0);
+  }
+
+  private effectiveModifierStock(opcionId: number, available: number): number {
+    return available + (this.originalModifierStockCredits()[opcionId] || 0);
+  }
+
+  private getDefaultModifierStockProblem(producto: Producto, pendingQuantity: number): string | null {
+    const counts = new Map<number, number>();
+    this.getDefaultModifiers(producto).forEach(mod => counts.set(mod.opcion_id, (counts.get(mod.opcion_id) || 0) + 1));
+    for (const [opcionId, count] of counts) {
+      const option = this.modifierOption(producto, opcionId);
+      if (!option || option.stock_disponible == null) continue;
+      const projected = this.cartModifierUsage(opcionId) + count * pendingQuantity;
+      const effectiveStock = this.effectiveModifierStock(opcionId, Number(option.stock_disponible));
+      if (projected > effectiveStock) return `No puedes agregar más ${producto.nombre}: esta orden puede usar hasta ${effectiveStock} unidades de ${option.nombre} y el carrito usaría ${projected}.`;
+    }
+    return null;
+  }
+
+  private getItemModifierStockProblem(item: CartItem, nextQuantity: number): string | null {
+    const counts = new Map<number, number>();
+    (item.modificadores || []).forEach(mod => counts.set(mod.opcion_id, (counts.get(mod.opcion_id) || 0) + 1));
+    for (const [opcionId, count] of counts) {
+      const option = this.modifierOption(item.producto, opcionId);
+      if (!option || option.stock_disponible == null) continue;
+      const projected = this.cartModifierUsage(opcionId) - count * item.cantidad + count * nextQuantity;
+      const effectiveStock = this.effectiveModifierStock(opcionId, Number(option.stock_disponible));
+      if (projected > effectiveStock) return `Esta orden puede usar hasta ${effectiveStock} unidades de ${option.nombre}; el carrito usaría ${projected}.`;
+    }
+    return null;
+  }
+
+  private getCartModifierStockProblem(items: CartItem[] = this.carrito()): string | null {
+    const usage = new Map<number, { name: string; available: number; required: number }>();
+
+    items.forEach(item => {
+      (item.modificadores || []).forEach(modifier => {
+        const option = this.modifierOption(item.producto, modifier.opcion_id);
+        if (!option || option.stock_disponible == null) return;
+
+        const current = usage.get(modifier.opcion_id) || {
+          name: option.nombre,
+          available: this.effectiveModifierStock(modifier.opcion_id, Number(option.stock_disponible)),
+          required: 0,
+        };
+        current.required += item.cantidad;
+        usage.set(modifier.opcion_id, current);
+      });
+    });
+
+    for (const stock of usage.values()) {
+      if (stock.required > stock.available) {
+        return `Stock insuficiente de ${stock.name}: hay ${stock.available} disponibles y el carrito necesita ${stock.required}.`;
+      }
+    }
+
+    return null;
+  }
+
+  private stopIfModifierStockIsInsufficient(): boolean {
+    if (this.stopIfInactiveProducts()) return true;
+    const problem = this.getCartModifierStockProblem();
+    if (!problem) return false;
+
+    this.error.set(problem);
+    this.toastr.error(problem, 'Revisa las presas seleccionadas');
+    return true;
+  }
+
   onQuantityChanged(data: { itemId: number; cantidad: number }): void {
     const carrito = this.carrito();
     const item = carrito.find((i) => i.id === data.itemId);
     if (item) {
+      if (item.orden_detalle_id && data.cantidad > item.cantidad) {
+        const problema = this.getItemModifierStockProblem(item, data.cantidad);
+        if (problema) { this.toastr.warning(problema); return; }
+        if (!item.producto.activo) { this.toastr.warning(item.producto.nombre + ' está desactivado.'); return; }
+        const cantidad = data.cantidad - item.cantidad;
+        const nuevo = { ...item, id: Date.now(), orden_detalle_id: undefined, cantidad, precio_unitario: Number(item.producto.precio) };
+        this.carrito.set(this.mergeDuplicateCartItems([...carrito, ...sincronizarProductoCarrito([nuevo], item.producto)]));
+        if (item.producto.maneja_stock) this.updateProductStock(item.producto.id, -cantidad);
+        return;
+      }
       const previousQuantity = item.cantidad;
       const nextQuantity = data.cantidad;
+      if (nextQuantity > previousQuantity) {
+        const problem = this.getItemModifierStockProblem(item, nextQuantity);
+        if (problem) { this.toastr.warning(problem); return; }
+      }
       const delta = previousQuantity - nextQuantity;
       item.cantidad = nextQuantity;
 
@@ -976,7 +1227,10 @@ export class PosHome implements OnInit, OnDestroy {
     this.carrito.set(this.mergeDuplicateCartItems(nextCarrito));
   }
 
-  onModifierModalClosed(): void {
+  onModifierModalClosed(event?: { itemId: number; completed: boolean }): void {
+    if (event && !event.completed) {
+      this.carrito.update(items => items.filter(item => item.id !== event.itemId || !item.requiresModifierSelection));
+    }
     this.carrito.set(this.mergeDuplicateCartItems(this.carrito()));
   }
 
@@ -986,6 +1240,7 @@ export class PosHome implements OnInit, OnDestroy {
 
     items.forEach((item) => {
       const key = [
+        item.orden_detalle_id ?? 'nuevo',
         item.producto?.id,
         Number(item.precio_unitario ?? 0).toFixed(2),
         item.nota?.trim() || '',
@@ -1028,6 +1283,9 @@ export class PosHome implements OnInit, OnDestroy {
 
   onOrderTypeChanged(tipoOrden: 'dine-in' | 'to-go' | 'delivery'): void {
     this.orderType.set(tipoOrden);
+    if (tipoOrden !== 'dine-in') {
+      this.selectedMesa.set(null);
+    }
   }
 
   private resetCurrentOrderState(): void {
@@ -1102,6 +1360,8 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onCheckoutRequested(): void {
+    if (this.stopIfModifierStockIsInsufficient()) return;
+
     if (this.operationMode === 'preorden') {
       this.saveProgrammedPreorder();
       return;
@@ -1115,6 +1375,8 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onPayLaterRequested(): void {
+    if (this.stopIfModifierStockIsInsufficient()) return;
+
     if (!this.selectedCliente()) {
       this.error.set('Selecciona un cliente para continuar con la orden.');
       this.toastr.error('Selecciona un cliente para continuar con la orden.');
@@ -1149,6 +1411,7 @@ export class PosHome implements OnInit, OnDestroy {
           this.mostrarExito('Orden adeudada actualizada exitosamente');
         },
         error: (err) => {
+          if (this.handleCatalogConflict(err)) return;
           if (this.handleOrderVersionConflict(err, orderId)) return;
           this.error.set('Error al actualizar la orden adeudada');
           this.toastr.error('Error al actualizar la orden adeudada');
@@ -1162,7 +1425,8 @@ export class PosHome implements OnInit, OnDestroy {
           this.isProcessingCheckout.set(false);
           this.mostrarExito('Orden adeudada creada exitosamente');
         },
-        error: () => {
+        error: (err) => {
+          if (this.handleCatalogConflict(err)) return;
           this.error.set('Error al procesar la orden adeudada');
           this.toastr.error('Error al procesar la orden adeudada');
           this.isProcessingCheckout.set(false);
@@ -1198,11 +1462,17 @@ export class PosHome implements OnInit, OnDestroy {
   }): void {
     this.isProcessingCheckout.set(true);
 
+    if (this.stopIfModifierStockIsInsufficient()) {
+      this.isProcessingCheckout.set(false);
+      return;
+    }
+
     if (data.metodoPago === 'efectivo' && !this.cajaActual()) {
       const mensaje = 'Abre una caja antes de registrar pagos o devoluciones en efectivo.';
       this.error.set(mensaje);
-      this.toastr.error(mensaje);
+      this.toastr.info('Abre la caja para continuar con el pago en efectivo.');
       this.isProcessingCheckout.set(false);
+      this.abrirModalCaja('abrir');
       return;
     }
 
@@ -1316,6 +1586,7 @@ export class PosHome implements OnInit, OnDestroy {
               );
             },
             error: (err) => {
+          if (this.handleCatalogConflict(err)) return;
               console.error('Error al registrar la devolución:', err);
               this.error.set('Error al registrar la devolución');
               this.toastr.error('Error al registrar la devolución');
@@ -1324,6 +1595,7 @@ export class PosHome implements OnInit, OnDestroy {
           });
         },
         error: (err) => {
+          if (this.handleCatalogConflict(err)) return;
           if (this.handleOrderVersionConflict(err, orderId)) return;
           console.error('Error al actualizar la orden:', err);
           this.error.set('Error al actualizar la orden');
@@ -1371,6 +1643,7 @@ export class PosHome implements OnInit, OnDestroy {
           this.mostrarExito('Pago registrado exitosamente');
         },
         error: (err) => {
+          if (this.handleCatalogConflict(err)) return;
           const message = err?.error?.error || err?.error?.message || 'Error al registrar el pago';
           this.error.set(message);
           this.toastr.error(message);
@@ -1419,6 +1692,7 @@ export class PosHome implements OnInit, OnDestroy {
                 this.mostrarExito('Venta completada exitosamente');
               },
               error: (err) => {
+          if (this.handleCatalogConflict(err)) return;
                 console.error('crearPagoOrden error:', err);
                 this.error.set('Error al registrar el pago');
                 this.toastr.error('Error al registrar el pago');
@@ -1435,6 +1709,7 @@ export class PosHome implements OnInit, OnDestroy {
           }
         },
         error: (err) => {
+          if (this.handleCatalogConflict(err)) return;
           console.error('crearOrden error:', err);
           this.error.set('Error al procesar la venta');
           this.toastr.error('Error al procesar la venta');
@@ -1447,6 +1722,7 @@ export class PosHome implements OnInit, OnDestroy {
   onCheckoutCancelled(): void {
     this.isCheckoutModalOpen.set(false);
     this.isRefundMode.set(false);
+    this.cancelacionInfo.set(null);
   }
 
   onUndoChanges(): void {
@@ -1457,6 +1733,7 @@ export class PosHome implements OnInit, OnDestroy {
     
     // Restaurar el carrito al estado original
     this.carrito.set(JSON.parse(JSON.stringify(this.originalCarrito())));
+    this.refreshCartProductCatalog([...this.allProductos(), ...this.productos()]);
     this.deletedItems.set([]);
     this.isRefundMode.set(false);
     this.toastr.success('Cambios deshhechos');
@@ -1496,7 +1773,16 @@ export class PosHome implements OnInit, OnDestroy {
 
           if (this.paidAmount() > 0) {
             this.isRefundMode.set(true);
-            this.isCheckoutModalOpen.set(true);
+            this.posService.obtenerInformacionCancelacion(orderId).subscribe({
+              next: info => {
+                this.cancelacionInfo.set(info);
+                this.isCheckoutModalOpen.set(true);
+              },
+              error: err => {
+                const mensaje = err?.error?.message || 'No se pudo comprobar la caja para la devolución.';
+                this.toastr.error(mensaje);
+              },
+            });
             return;
           }
 
@@ -1516,6 +1802,7 @@ export class PosHome implements OnInit, OnDestroy {
         this.finalizarVenta();
         this.isCheckoutModalOpen.set(false);
         this.isProcessingCheckout.set(false);
+        this.cancelacionInfo.set(null);
         this.mostrarExito('Orden cancelada correctamente.');
       },
       error: err => {
@@ -1538,11 +1825,38 @@ export class PosHome implements OnInit, OnDestroy {
     this.allProductos.set(this.syncProductosConCarrito(actualizar(this.allProductos()), baseStocks));
   }
 
+  private applyRemoteModifierStock(optionId: number, stock: number): void {
+    const nextStock = Math.max(0, stock);
+    const actualizarProducto = (producto: Producto): Producto => ({
+      ...producto,
+      modificadores: (producto.modificadores || []).map(group => ({
+        ...group,
+        opciones: (group.opciones || []).map(option => option.id === optionId
+          ? { ...option, stock: nextStock, stock_disponible: nextStock }
+          : option),
+      })),
+    });
+
+    this.productos.set(this.productos().map(actualizarProducto));
+    this.allProductos.set(this.allProductos().map(actualizarProducto));
+    this.carrito.set(this.carrito().map(item => ({ ...item, producto: actualizarProducto(item.producto) })));
+  }
+
   private expectedOrderVersion(): number {
     return this.editingOrder()?.version ?? 1;
   }
 
+  private handleCatalogConflict(error: any): boolean {
+    const mensaje = error?.error?.message ?? '';
+    if (error?.status !== 422 || !/desactivado|precio.*cambió/i.test(mensaje)) return false;
+    this.isProcessingCheckout.set(false);
+    this.toastr.warning(mensaje);
+    this.cargarProductos(undefined, true);
+    return true;
+  }
+
   private handleOrderVersionConflict(error: any, orderId: number): boolean {
+    if (this.handleCatalogConflict(error)) return true;
     if (error?.status !== 409) return false;
     this.isProcessingCheckout.set(false);
     this.confirmDialog.confirm({
@@ -1559,36 +1873,139 @@ export class PosHome implements OnInit, OnDestroy {
   private createReservationSessionId(reset = false): string {
     const key = 'pos-reservation-session-id';
     const existing = !reset ? sessionStorage.getItem(key) : null;
-    if (existing && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(existing)) return existing;
-    const id = crypto.randomUUID?.() ?? 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
-      const value = Math.floor(Math.random() * 16);
-      return (character === 'x' ? value : (value & 0x3) | 0x8).toString(16);
-    });
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    // Una pestaña duplicada hereda sessionStorage. Sólo reutilizamos la sesión
+    // durante una recarga real; una ventana nueva debe competir como otro POS.
+    const canReuse = navigation?.type === 'reload';
+    if (canReuse && existing && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(existing)) return existing;
+    const id = this.createClientUuid();
     sessionStorage.setItem(key, id);
     return id;
   }
 
-  private reservationItems(): Array<{ producto_id: number; cantidad: number }> {
-    const quantities = new Map<number, number>();
-    this.carrito().forEach(item => {
-      if (!item.producto?.maneja_stock) return;
-      quantities.set(item.producto.id, (quantities.get(item.producto.id) ?? 0) + item.cantidad);
+  private createClientUuid(): string {
+    const nativeUuid = globalThis.crypto?.randomUUID?.();
+    if (nativeUuid) return nativeUuid;
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
+      const value = Math.floor(Math.random() * 16);
+      return (character === 'x' ? value : (value & 0x3) | 0x8).toString(16);
     });
-    return [...quantities].map(([producto_id, cantidad]) => ({ producto_id, cantidad }));
   }
 
-  private scheduleReservationSync(items: Array<{ producto_id: number; cantidad: number }>): void {
+  private initializeReservationTabIdentity(): void {
+    const finish = () => {
+      if (this.reservationIdentityReady()) return;
+      this.reservationIdentityReady.set(true);
+      this.cargarProductos();
+    };
+
+    if (typeof BroadcastChannel === 'undefined' || this.operationMode !== 'pos') {
+      finish();
+      return;
+    }
+
+    this.reservationIdentityChannel = new BroadcastChannel('tonito-pos-reservation-sessions');
+    this.reservationIdentityChannel.onmessage = ({ data }) => {
+      if (!data || data.instanceId === this.reservationInstanceId) return;
+      if (data.type === 'claim' && data.sessionId === this.reservationSessionId) {
+        this.reservationIdentityChannel?.postMessage({
+          type: 'conflict',
+          target: data.instanceId,
+          instanceId: this.reservationInstanceId,
+        });
+        return;
+      }
+      if (data.type !== 'conflict' || data.target !== this.reservationInstanceId) return;
+
+      this.reservationSessionId = this.createReservationSessionId(true);
+      this.reservationIdentityChannel?.postMessage({
+        type: 'claim',
+        sessionId: this.reservationSessionId,
+        instanceId: this.reservationInstanceId,
+      });
+      if (this.reservationIdentityReady()) {
+        this.scheduleReservationSync(this.reservationItems());
+        this.cargarProductos(this.selectedSubcategoryId() ?? this.selectedCategoryId() ?? undefined, true);
+      }
+    };
+    this.reservationIdentityChannel.postMessage({
+      type: 'claim',
+      sessionId: this.reservationSessionId,
+      instanceId: this.reservationInstanceId,
+    });
+    this.reservationIdentityTimer = setTimeout(finish, 120);
+  }
+
+  private reservationItems(draftOverride = this.modifierDraftReservation()): {
+    items: Array<{ producto_id: number; cantidad: number }>;
+    opciones: Array<{ modificador_opcion_id: number; cantidad: number }>;
+  } {
+    const quantities = new Map<number, number>();
+    const optionQuantities = new Map<number, number>();
+    this.carrito().forEach(item => {
+      if (item.producto?.maneja_stock) {
+        quantities.set(item.producto.id, (quantities.get(item.producto.id) ?? 0) + item.cantidad);
+      }
+      (item.modificadores || []).forEach(mod => {
+        const option = this.modifierOption(item.producto, mod.opcion_id);
+        if (!option?.maneja_stock) return;
+        optionQuantities.set(mod.opcion_id, (optionQuantities.get(mod.opcion_id) ?? 0) + item.cantidad);
+      });
+    });
+    const draftReservation = draftOverride;
+    if (draftReservation) {
+      draftReservation.original.forEach(mod => {
+        optionQuantities.set(mod.opcion_id, Math.max(0, (optionQuantities.get(mod.opcion_id) ?? 0) - draftReservation.quantity));
+      });
+      draftReservation.draft.forEach(mod => {
+        optionQuantities.set(mod.opcion_id, (optionQuantities.get(mod.opcion_id) ?? 0) + draftReservation.quantity);
+      });
+    }
+    return {
+      items: [...quantities].sort(([a], [b]) => a - b).map(([producto_id, cantidad]) => ({ producto_id, cantidad })),
+      opciones: [...optionQuantities]
+        .sort(([a], [b]) => a - b)
+        .filter(([, cantidad]) => cantidad > 0)
+        .map(([modificador_opcion_id, cantidad]) => ({ modificador_opcion_id, cantidad })),
+    };
+  }
+
+  onModifierDraftReservationChanged(reservation: {
+    original: CartItemModificador[];
+    draft: CartItemModificador[];
+    quantity: number;
+  } | null): void {
+    this.modifierDraftReservation.set(reservation);
+  }
+
+  onModifierReservationRequested(event: {
+    reservation: { original: CartItemModificador[]; draft: CartItemModificador[]; quantity: number };
+    accept: () => void;
+    reject: (message: string) => void;
+  }): void {
+    const reservation = this.reservationItems(event.reservation);
+    this.productoService.sincronizarReservasStock(this.reservationSessionId, reservation.items, reservation.opciones).subscribe({
+      next: () => event.accept(),
+      error: error => {
+        const message = error?.error?.message || 'Otra caja reservó esta opción. Elige una diferente.';
+        event.reject(message);
+        this.cargarProductos(this.selectedSubcategoryId() ?? this.selectedCategoryId() ?? undefined, true);
+      },
+    });
+  }
+
+  private scheduleReservationSync(reservation: ReturnType<PosHome['reservationItems']>): void {
     this.reservationDirty = true;
     if (this.reservationTimer) clearTimeout(this.reservationTimer);
-    this.reservationTimer = setTimeout(() => this.syncReservations(items), 180);
+    this.reservationTimer = setTimeout(() => this.syncReservations(reservation), 40);
   }
 
-  private syncReservations(items: Array<{ producto_id: number; cantidad: number }>): void {
+  private syncReservations(reservation: ReturnType<PosHome['reservationItems']>): void {
     if (this.isEditingOrder()) return;
     if (this.reservationSyncing) return;
     this.reservationSyncing = true;
     this.reservationDirty = false;
-    this.productoService.sincronizarReservasStock(this.reservationSessionId, items).subscribe({
+    this.productoService.sincronizarReservasStock(this.reservationSessionId, reservation.items, reservation.opciones).subscribe({
       next: () => {
         this.reservationSyncing = false;
         if (this.reservationDirty) this.scheduleReservationSync(this.reservationItems());
@@ -1596,8 +2013,10 @@ export class PosHome implements OnInit, OnDestroy {
       error: err => {
         this.reservationSyncing = false;
         const productId = Number(err?.error?.producto_id);
+        const optionId = Number(err?.error?.modificador_opcion_id);
         if (productId) this.capReservedProduct(productId, Number(err?.error?.cantidad_reservada ?? 0));
-        if (productId) this.toastr.warning(err?.error?.message || 'No se pudo reservar el stock seleccionado.');
+        if (optionId) this.capReservedModifier(optionId, Number(err?.error?.cantidad_reservada ?? 0));
+        if (productId || optionId) this.toastr.warning(err?.error?.message || 'No se pudo reservar el stock seleccionado.');
         this.cargarProductos(this.selectedSubcategoryId() ?? this.selectedCategoryId() ?? undefined);
         if (this.reservationDirty) this.scheduleReservationSync(this.reservationItems());
       },
@@ -1616,15 +2035,29 @@ export class PosHome implements OnInit, OnDestroy {
     this.carrito.set(this.mergeDuplicateCartItems(items));
   }
 
+  private capReservedModifier(optionId: number, permitted: number): void {
+    let usage = this.cartModifierUsage(optionId);
+    if (usage <= permitted) return;
+    const items = [...this.carrito()];
+    for (let index = items.length - 1; index >= 0 && usage > permitted; index--) {
+      const item = items[index];
+      if (!(item.modificadores || []).some(mod => mod.opcion_id === optionId)) continue;
+      const modificadores = (item.modificadores || []).filter(mod => mod.opcion_id !== optionId);
+      const extras = modificadores.reduce((sum, mod) => sum + Number(mod.precio_extra), 0);
+      items[index] = { ...item, modificadores, subtotal: item.cantidad * (Number(item.precio_unitario) + extras) };
+      usage -= item.cantidad;
+    }
+    this.carrito.set(this.mergeDuplicateCartItems(items));
+  }
+
   private liberarReservas(): void {
-    if (this.operationMode !== 'pos') return;
     const sessionId = this.reservationSessionId;
     this.reservationSessionId = this.createReservationSessionId(true);
     this.productoService.liberarReservasStock(sessionId).subscribe({ error: () => undefined });
   }
 
   private orderReservationSession(): string | undefined {
-    return this.operationMode === 'pos' ? this.reservationSessionId : undefined;
+    return this.reservationSessionId;
   }
 
   private finalizarVenta(): void {
@@ -1649,6 +2082,8 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   private saveProgrammedPreorder(): void {
+    if (this.stopIfModifierStockIsInsufficient()) return;
+
     if (!this.selectedCliente()) {
       this.toastr.error('Selecciona un cliente para guardar la preorden.');
       return;
@@ -1688,9 +2123,10 @@ export class PosHome implements OnInit, OnDestroy {
         this.selectedMesa.set(null);
         this.preorderDate.set(this.defaultPreorderDate());
         this.toastr.success('Preorden programada correctamente.');
-        this.router.navigate(['/app/servicio']);
+        this.router.navigate(['/servicio']);
       },
       error: error => {
+        if (this.handleCatalogConflict(error)) return;
         this.isProcessingCheckout.set(false);
         this.toastr.error(error?.error?.message || 'No se pudo guardar la preorden.');
       },
@@ -1753,6 +2189,18 @@ export class PosHome implements OnInit, OnDestroy {
     this.isMobileActionsOpen.update(open => !open);
   }
 
+  @HostListener('document:pointerdown', ['$event'])
+  closeMobileActionsOutside(event: PointerEvent): void {
+    if (this.isMobileActionsOpen() && event.target instanceof Element && !event.target.closest('.mobile-pos-menu, .mobile-pos-more')) {
+      this.isMobileActionsOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  closeMobileActionsOnEscape(): void {
+    this.isMobileActionsOpen.set(false);
+  }
+
   openMobilePendingOrders(): void {
     this.isMobileActionsOpen.set(false);
     this.onPendingOrdersRequested();
@@ -1810,7 +2258,13 @@ export class PosHome implements OnInit, OnDestroy {
 
   openTodayOrderDetail(orden: Order): void {
     this.todayOrderDetail.set(orden);
+    this.todayOrderDetailLoading.set(true);
     this.todayOrderRemovedItems.set([]);
+    this.posService.obtenerOrdenPorId(orden.id).subscribe({
+      next: response => this.todayOrderDetail.set(response.orden),
+      complete: () => this.todayOrderDetailLoading.set(false),
+      error: () => this.todayOrderDetailLoading.set(false),
+    });
     this.posService.obtenerHistorialOrden(orden.id).subscribe({
       next: historial => {
         const agrupados = new Map<string, { key: string; nombre: string; cantidad: number; subtotal: number }>();
@@ -1831,6 +2285,7 @@ export class PosHome implements OnInit, OnDestroy {
 
   closeTodayOrderDetail(): void {
     this.todayOrderDetail.set(null);
+    this.todayOrderDetailLoading.set(false);
     this.todayOrderRemovedItems.set([]);
   }
 
@@ -1864,6 +2319,49 @@ export class PosHome implements OnInit, OnDestroy {
       error: (err) => {
         this.isProcessingGasto.set(false);
         this.toastr.error(err?.error?.message || Object.values(err?.error?.errors ?? {}).flat().join(' ') || 'No se pudo registrar el gasto.');
+      },
+    });
+  }
+
+  abrirModalMovimiento(): void {
+    if (!this.cajaActual()) {
+      this.toastr.info('Abre una caja para registrar el movimiento.');
+      return;
+    }
+    this.isCajaModalOpen.set(false);
+    this.movimientoTipo.set('INGRESO');
+    this.movimientoMonto.set('');
+    this.movimientoMotivo.set('');
+    this.isMovimientoModalOpen.set(true);
+  }
+
+  cerrarModalMovimiento(): void {
+    if (!this.isProcessingMovimiento()) this.isMovimientoModalOpen.set(false);
+  }
+
+  confirmarMovimiento(): void {
+    const monto = Number(this.movimientoMonto());
+    if (!Number.isFinite(monto) || monto <= 0) {
+      this.toastr.error('Ingresa un monto válido.');
+      return;
+    }
+
+    this.isProcessingMovimiento.set(true);
+    this.posService.registrarMovimientoCaja({
+      tipo: this.movimientoTipo(),
+      monto,
+      motivo: this.movimientoMotivo().trim() || null,
+    }).subscribe({
+      next: () => {
+        const tipo = this.movimientoTipo() === 'INGRESO' ? 'Ingreso' : 'Retiro';
+        this.isProcessingMovimiento.set(false);
+        this.isMovimientoModalOpen.set(false);
+        this.cargarCajaActual();
+        this.toastr.success(`${tipo} registrado correctamente.`);
+      },
+      error: err => {
+        this.isProcessingMovimiento.set(false);
+        this.toastr.error(err?.error?.message || Object.values(err?.error?.errors ?? {}).flat().join(' ') || 'No se pudo registrar el movimiento.');
       },
     });
   }
@@ -1986,6 +2484,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.orderDate.set(null);
     this.preorderDate.set(this.operationMode === 'preorden' ? this.defaultPreorderDate() : null);
     this.deletedItems.set([]);
+    this.cancelacionInfo.set(null);
     this.isRefundMode.set(false);
   }
 
@@ -1998,7 +2497,10 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   private isPendingOrder(orden: Order): boolean {
-    if (orden.fecha_orden?.slice(0, 10) !== this.getTodayDateString()) {
+    if (orden.estado === 'cancelado') {
+      return false;
+    }
+    if (this.getOrderLocalDateString(orden) !== this.getTodayDateString()) {
       return false;
     }
     if (orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'programada') {
@@ -2023,6 +2525,10 @@ export class PosHome implements OnInit, OnDestroy {
 
   formatPrice(amount: number): string {
     return formatCurrency(amount);
+  }
+
+  formatAbsolutePrice(amount: number | string): string {
+    return formatCurrency(Math.abs(Number(amount) || 0));
   }
 
   private loadPreorders(): void {
@@ -2084,8 +2590,9 @@ export class PosHome implements OnInit, OnDestroy {
     if (onLoaded) this.globalProductLoadCallbacks.push(onLoaded);
     if (this.isLoadingGlobalProducts()) return;
     this.isLoadingGlobalProducts.set(true);
-    this.productoService.listarProductos(undefined, this.operationMode === 'pos' ? this.reservationSessionId : undefined).subscribe({
+    this.productoService.listarProductos(undefined, this.reservationSessionId).subscribe({
       next: productos => {
+        this.refreshCartProductCatalog(productos);
         const stocks = productos.reduce<Record<number, number>>((acc, producto) => {
           acc[producto.id] = producto.maneja_stock ? Math.max(0, producto.stock_disponible ?? producto.stock ?? 0) : Number.MAX_SAFE_INTEGER;
           return acc;
@@ -2139,12 +2646,77 @@ export class PosHome implements OnInit, OnDestroy {
     });
   }
 
+  private stopIfInactiveProducts(): boolean {
+    const item = this.carrito().find(item => !item.orden_detalle_id && !item.producto.activo);
+    if (!item) return false;
+    this.toastr.error(item.producto.nombre + ' está desactivado. Retíralo del carrito para continuar.');
+    return true;
+  }
+
+  private aplicarCambioProducto(producto: CambioProducto): void {
+    const pendientes = this.carrito().filter(item => item.producto.id === producto.id && !item.orden_detalle_id);
+    if (pendientes.some(item => Number(item.precio_unitario) !== Number(producto.precio))) {
+      this.toastr.info(producto.nombre + ': el precio cambió a ' + formatCurrency(producto.precio) + '. Carrito actualizado.');
+    }
+    if (pendientes.some(item => item.producto.activo !== producto.activo)) {
+      this.toastr.warning(producto.nombre + (producto.activo ? ' volvió a estar activo.' : ' fue desactivado. Retíralo del carrito.'));
+    }
+    this.carrito.update(items => sincronizarProductoCarrito(items, producto));
+    const actualizar = (items: Producto[]) => items.map(item => item.id === producto.id ? { ...item, ...producto } : item);
+    this.productos.update(actualizar);
+    this.allProductos.update(actualizar);
+    const pendiente = this.pendingProductAdds.get(producto.id);
+    if (pendiente) this.pendingProductAdds.set(producto.id, { ...pendiente, producto: { ...pendiente.producto, ...producto } });
+  }
+
+  private refreshCartProductCatalog(products: Producto[]): void {
+    products.forEach(product => this.aplicarCambioProducto(product));
+    const byId = new Map(products.map(product => [product.id, product]));
+    const current = this.carrito();
+    let changed = false;
+    const refreshed = current.map(item => {
+      const catalogProduct = byId.get(item.producto?.id);
+      if (!catalogProduct) return item;
+      if (this.productInventoryFingerprint(item.producto) === this.productInventoryFingerprint(catalogProduct)) return item;
+      changed = true;
+      return { ...item, producto: { ...item.producto, ...catalogProduct } };
+    });
+    if (changed) this.carrito.set(refreshed);
+  }
+
+  private productInventoryFingerprint(product: Producto): string {
+    return JSON.stringify({
+      stock: product.stock_disponible ?? product.stock ?? null,
+      options: (product.modificadores || []).flatMap(group => (group.opciones || []).map(option => [
+        option.id,
+        option.stock_disponible ?? option.stock ?? null,
+      ])),
+    });
+  }
+
   private getTodayDateString(): string {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private getOrderLocalDateString(orden: Order): string | null {
+    const value = orden.fecha_orden || orden.created_at;
+    if (!value) return null;
+
+    // Las fechas con zona horaria deben convertirse primero a la hora local.
+    if (/Z$|[+-]\d{2}:?\d{2}$/.test(value)) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return null;
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    return value.slice(0, 10);
   }
 
   private normalizeOrderDate(value?: string | null): string | null {

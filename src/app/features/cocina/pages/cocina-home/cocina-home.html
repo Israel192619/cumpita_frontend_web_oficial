@@ -1,4 +1,24 @@
 <main class="kds">
+  <ng-template #menuUsuario>
+    @if (usuario() && !esAdministrador()) {
+      <div class="kds-user-menu">
+        <button type="button" class="kds-user-trigger" [attr.aria-expanded]="menuUsuarioAbierto()" aria-controls="kds-user-dropdown" (click)="menuUsuarioAbierto.update(abierto => !abierto)">
+          <span class="kds-user-avatar">
+            @if (usuario()?.perfil_usuarios?.avatar_url && !avatarFallido()) {
+              <img [src]="usuario()!.perfil_usuarios!.avatar_url" alt="" (error)="avatarFallido.set(true)">
+            } @else { <app-icon name="user" [size]="23" /> }
+          </span>
+          <span class="kds-user-copy"><b>{{ usuario()?.name }}</b><small>{{ usuario()?.role?.nombre }}</small></span>
+          <app-icon [name]="menuUsuarioAbierto() ? 'chevron-up' : 'chevron-down'" [size]="16" />
+        </button>
+        @if (menuUsuarioAbierto()) {
+          <div class="kds-user-dropdown" id="kds-user-dropdown"><button type="button" class="profile-link" routerLink="/perfil" (click)="menuUsuarioAbierto.set(false)"><app-icon name="user" [size]="20" /><span>Mi perfil</span></button>
+            <button type="button" (click)="salirDeCocina()"><app-icon name="log-out" [size]="20" /><span>Cerrar sesión</span></button>
+          </div>
+        }
+      </div>
+    }
+  </ng-template>
   <header *ngIf="!controlesOcultos()" class="kds-header">
     <div class="kds-header__primary">
       <div class="kds-title">
@@ -9,10 +29,7 @@
         </div>
         <div class="kds-quick-actions">
           <button type="button" class="kds-quick-action" (click)="toggleFullscreen()" [attr.aria-label]="isFullscreen() ? 'Reducir pantalla' : 'Ampliar pantalla'" [attr.aria-pressed]="isFullscreen()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-              <path *ngIf="!isFullscreen()" d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>
-              <path *ngIf="isFullscreen()" d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v-5"/>
-            </svg>
+            <app-icon [name]="isFullscreen() ? 'minimize' : 'maximize'" [size]="17" />
           </button>
           <button type="button" class="kds-quick-action" (click)="themeService.toggle()" [attr.aria-label]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'" [attr.aria-pressed]="themeService.theme() === 'dark'">
             <svg *ngIf="themeService.theme() === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -28,9 +45,7 @@
             aria-label="Volver a órdenes" title="Volver a órdenes">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
           </button>
-          <button *ngIf="!esAdministrador()" type="button" class="kds-logout-button" (click)="salirDeCocina()" title="Cerrar sesión">
-            Cerrar sesión
-          </button>
+          <ng-container *ngTemplateOutlet="menuUsuario" />
         </div>
       </div>
 
@@ -58,17 +73,6 @@
     </div>
 
   </header>
-
-  <section *ngIf="preordenesProgramadas().length" class="programmed-preorders" aria-label="Preórdenes programadas">
-    <div class="programmed-preorders__heading"><strong>Próximas preórdenes</strong><span>{{ preordenesProgramadas().length }} programadas</span></div>
-    <div class="programmed-preorders__list">
-      <article *ngFor="let orden of preordenesProgramadas()" class="programmed-preorder">
-        <div class="programmed-preorder__meta"><time>{{ orden.fecha_programada | date:'HH:mm' }}</time><small>#{{ orden.numero_orden || orden.id }}</small></div>
-        <strong>{{ orden.cliente?.nombre || 'Cliente pendiente' }}</strong>
-        <p>{{ resumenPreorden(orden) }}</p>
-      </article>
-    </div>
-  </section>
 
   <section class="production-summary" aria-label="Producción pendiente">
     <strong class="production-summary__title">Producción pendiente</strong>
@@ -124,6 +128,11 @@
     </div>
 
     <article *ngFor="let orden of ordenesTablero()" class="kds-ticket" [class.kds-ticket--cancelled]="orden.estado === 'cancelado'"
+      [class.kds-ticket--mesa]="orden.tipo_orden === 'dine-in'"
+      [class.kds-ticket--llevar]="orden.tipo_orden === 'to-go'"
+      [class.kds-ticket--delivery]="orden.tipo_orden === 'delivery'"
+      [class.kds-ticket--preorden]="orden.tipo_flujo === 'preorden'"
+      [class.kds-ticket--programada]="esPreordenProgramada(orden)"
       [class.kds-ticket--asignada-amarillo]="orden.asignacion?.color === 'amarillo'"
       [class.kds-ticket--asignada-indigo]="orden.asignacion?.color === 'indigo'"
       [class.kds-ticket--asignada-salmon]="orden.asignacion?.color === 'salmon'"
@@ -132,28 +141,29 @@
       <div *ngIf="orden.estado === 'cancelado'" class="cancelled-stamp">CANCELADO</div>
       <header class="ticket-header">
         <div class="ticket-client">
-          <p class="ticket-label">Cliente</p>
           <h2>{{ orden.cliente?.nombre || 'Cliente sin nombre' }}</h2>
         </div>
-        <span class="ticket-time" [class.ticket-time--urgent]="esUrgente(orden)">{{ tiempoTranscurrido(orden) }}</span>
+        <span class="ticket-time" [class.ticket-time--urgent]="!esPreordenProgramada(orden) && esUrgente(orden)">
+          {{ esPreordenProgramada(orden) ? (orden.fecha_programada | date:'HH:mm') : tiempoTranscurrido(orden) }}
+        </span>
         <span *ngIf="orden.asignacion" class="ticket-assignment">Para {{ orden.asignacion.nombre }}</span>
       </header>
 
-      <div class="ticket-meta">
+      <div class="ticket-meta" [class.ticket-meta--inactive]="esPreordenProgramada(orden)">
         <strong>#{{ orden.numero_orden || orden.id }}</strong>
         <span>{{ etiquetaTipoOrden(orden) }}</span>
-        <span *ngIf="orden.preorden_temprana" class="ticket-preorder-early">Preorden · {{ orden.fecha_programada | date:'HH:mm' }}</span>
-        <span class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
+        <span *ngIf="orden.tipo_flujo === 'preorden'" class="ticket-preorder-badge">Preorden</span>
+        <span *ngIf="orden.preorden_temprana && estacionActual()?.codigo === 'PARRILLA'" class="ticket-preorder-start">Comenzar a preparar</span>
+        <span *ngIf="orden.estado !== 'preparando' && orden.estado !== 'pendiente'" class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
       </div>
 
       <section *ngIf="tieneCambiosRecientes(orden)" class="ticket-changes">
-        <div class="ticket-changes__heading">
-          <strong>Cambios recientes</strong>
-          <button type="button" (click)="aceptarCambios(orden.id)">Aceptar cambios</button>
-        </div>
-        <div *ngFor="let cambio of orden.cambios_recientes" class="change-row" [ngClass]="claseCambio(cambio)">
-          {{ etiquetaCambio(cambio) }}
-        </div>
+        <strong>Cambio en POS</strong>
+        <span class="change-summary" [ngClass]="claseCambio(orden.cambios_recientes![0])">
+          {{ etiquetaCambio(orden.cambios_recientes![0]) }}
+        </span>
+        <small *ngIf="orden.cambios_recientes!.length > 1">+{{ orden.cambios_recientes!.length - 1 }}</small>
+        <button type="button" aria-label="Cerrar aviso" (click)="aceptarCambios(orden.id)">×</button>
       </section>
 
       <section *ngIf="!verServidos() && detallesCompletados(orden).length" class="ticket-completed">
@@ -165,10 +175,10 @@
         </button>
         <div *ngIf="detallesCompletadosAbiertosPara(orden.id)" class="ticket-completed__details">
           <div *ngFor="let grupo of gruposCompletados(orden)" class="ticket-completed__product">
-            <div><strong>{{ grupo.cantidad }}× {{ grupo.producto.nombre }}</strong><small *ngIf="grupo.opciones.length">{{ grupo.opciones.join(' · ') }}</small></div>
+            <div><strong>{{ grupo.cantidad }} {{ grupo.producto.nombre }}</strong><small *ngIf="grupo.opciones.length">{{ grupo.opciones.join(' · ') }}</small></div>
             <label *ngFor="let detalle of detallesDelGrupo(grupo)" class="serve-switch">
               <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'"
-                [disabled]="detalleActualizando() === detalle.id" (change)="marcarServido(detalle, $any($event.target).checked)">
+                [disabled]="estaDetalleActualizando(detalle.id)" (change)="marcarServido(detalle, $any($event.target).checked)">
               <span></span><b>Servido</b>
             </label>
           </div>
@@ -176,29 +186,48 @@
       </section>
 
       <section *ngFor="let grupo of gruposPorCategoria(orden)" class="ticket-category">
-        <h3>{{ grupo.categoria }}</h3>
+        <div class="ticket-category__header">
+          <h3>{{ grupo.categoria }}</h3>
+          <label *ngIf="puedeMarcarCategoria(grupo)" class="bulk-serve-check">
+            <input type="checkbox" [checked]="todosServidos(detallesDeCategoria(grupo))"
+              [disabled]="!!operacionMasivaActualizando()"
+              (change)="marcarCategoriaCompleta(orden, grupo, $any($event.target).checked)">
+            <span>✓</span><b>{{ operacionMasivaActualizando() === 'categoria:' + orden.id + ':' + grupo.categoria ? 'Guardando…' : 'Todo ' + grupo.categoria }}</b>
+          </label>
+        </div>
         <div *ngFor="let detalleGrupo of grupo.grupos" class="ticket-item ticket-item--group"
           [class.ticket-item--locked]="detalleGrupo.todosBloqueados"
           [class.ticket-item--ready-attention]="detalleGrupo.tieneListos">
           <div class="ticket-item__product">
-            <strong><span>{{ detalleGrupo.cantidad }}×</span> {{ detalleGrupo.producto.nombre }}</strong>
-            <small *ngIf="detalleGrupo.nota">Nota: {{ detalleGrupo.nota }}</small>
-            <span *ngIf="detalleGrupo.opciones.length" class="ticket-options-inline">
-              <ng-container *ngFor="let opcion of detalleGrupo.opciones; let ultimo = last">
-                {{ opcion }}<span *ngIf="!ultimo"> · </span>
-              </ng-container>
+            <strong>
+              <span>{{ detalleGrupo.cantidad }}</span>
+              {{ detalleGrupo.producto.nombre }}
+              <em *ngIf="detalleGrupo.precioUnitario > 0" class="ticket-item__price">{{ formatearPrecio(detalleGrupo.precioUnitario) }}</em>
+            </strong>
+            <label *ngIf="detallesMarcablesProducto(detalleGrupo).length > 1" class="bulk-serve-check bulk-serve-check--product">
+              <input type="checkbox" [checked]="todosServidos(detallesMarcablesProducto(detalleGrupo))"
+                [disabled]="!!operacionMasivaActualizando()"
+                (change)="marcarProductoCompleto(orden, detalleGrupo, $any($event.target).checked)">
+              <span>✓</span><b>{{ operacionMasivaActualizando() === 'producto:' + orden.id + ':' + detalleGrupo.clave ? 'Guardando…' : 'Marcar todas' }}</b>
+            </label>
+            <small *ngIf="detalleGrupo.nota" class="product-comment">
+              {{ detalleGrupo.nota }}
+            </small>
+            <span *ngIf="detalleGrupo.opciones.length" class="ticket-options-inline"
+              [class.ticket-options-inline--kitchen]="estacionActual()?.codigo === 'COCINA'">
+              <span *ngFor="let opcion of detalleGrupo.opciones" class="ticket-option-chip">{{ opcion }}</span>
             </span>
           </div>
           <div class="ticket-item__states">
             <div *ngFor="let estado of detalleGrupo.estados" class="ticket-item__state"
               [class.ticket-item__state--locked]="estado.bloqueado"
               [class.ticket-item__state--ready]="estado.listoParaAtender">
-              <span class="ticket-item__state-label"><b>{{ estado.cantidad }}{{ estado.cantidad === 1 ? ' unidad' : ' unidades' }}</b>{{ estado.etiqueta }}</span>
+              <span *ngIf="estado.bloqueado" class="waiting-station-indicator">{{ etiquetaBloqueo(orden) }}</span>
               <div *ngIf="!estado.bloqueado" class="ticket-item__state-controls">
-                <label *ngFor="let detalle of estado.detalles" class="serve-switch" [class.serve-switch--loading]="detalleActualizando() === detalle.id">
-                  <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="detalleActualizando() === detalle.id || detalle.bloqueado" (change)="marcarServido(detalle, $any($event.target).checked)">
+                <label *ngFor="let detalle of estado.detalles" class="serve-switch" [class.serve-switch--loading]="estaDetalleActualizando(detalle.id)">
+                  <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="estaDetalleActualizando(detalle.id) || detalle.bloqueado" (change)="marcarServido(detalle, $any($event.target).checked)">
                   <span></span>
-                  <b>{{ detalle.bloqueado ? 'Bloqueado' : detalleActualizando() === detalle.id ? 'Guardando' : 'Servido' }}</b>
+                  <b>{{ detalle.bloqueado ? 'Bloqueado' : estaDetalleActualizando(detalle.id) ? 'Guardando' : 'Servido' }}</b>
                 </label>
               </div>
             </div>

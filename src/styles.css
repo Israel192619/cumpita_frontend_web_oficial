@@ -1,10 +1,20 @@
 :root {
-  /* POS Toñito — paleta editable. Cambia estos cinco colores para reidentificar el POS. */
-  --pos-orange: #ff4500;
-  --pos-black: #171411;
-  --pos-white: #ffffff;
-  --pos-mustard: #c99000;
-  --pos-red: #c92a22;
+  /*
+   * PALETA MAESTRA DEL RESTAURANTE.
+   * Edita únicamente estos cinco valores para cambiar la identidad de toda la aplicación.
+   */
+  --brand-orange: #ff4500;
+  --brand-black: #171411;
+  --brand-mustard: #a66f00;
+  --brand-white: #ffffff;
+  --brand-red: #c62828;
+
+  /* Alias históricos del POS, derivados de la paleta maestra. */
+  --pos-orange: var(--brand-orange);
+  --pos-black: var(--brand-black);
+  --pos-white: var(--brand-white);
+  --pos-mustard: var(--brand-mustard);
+  --pos-red: var(--brand-red);
   --pos-page: #f6f1e9;
   --pos-surface: #ffffff;
   --pos-border: #e6ddd2;
@@ -85,6 +95,29 @@
   /* Puente de compatibilidad para POS: conserva sus nombres sin mantener otra paleta. */
   --bg-main: var(--color-bg); --bg-surface: var(--color-surface); --color-accent: var(--color-primary);
   --text-primary: var(--color-text); --text-secondary: var(--color-text-secondary); --border-color: var(--color-border);
+
+  /* Tema claro oficial: naranja + negro + mostaza + blanco + rojo. */
+  --color-primary: var(--brand-orange); --color-primary-hover: color-mix(in srgb,var(--brand-orange) 82%,var(--brand-black));
+  --color-secondary: var(--brand-black); --color-secondary-hover: color-mix(in srgb,var(--brand-black) 84%,var(--brand-white));
+  --color-success: #8a5b00; --color-warning: var(--brand-mustard); --color-danger: var(--brand-red); --color-info: var(--brand-orange);
+  --color-on-success: var(--brand-white); --color-on-warning: var(--brand-white);
+  --color-on-primary: var(--brand-black); --color-on-secondary: var(--brand-white); --color-on-danger: var(--brand-white); --color-on-info: var(--brand-black);
+  --color-bg: #f7f3ee; --color-surface: var(--brand-white); --color-sidebar: var(--brand-black); --color-header: var(--brand-white);
+  --color-border: #ddd4ca; --color-text: var(--brand-black); --color-text-secondary: #625850; --color-text-muted: #80746a;
+  --color-text-disabled: #9c9289; --color-hover: #f3e8df; --color-focus: color-mix(in srgb,var(--brand-orange) 28%,transparent);
+  --color-on-brand: var(--brand-white); --color-neutral: var(--brand-black); --color-neutral-hover: #302923;
+  --color-disabled: #e7e0d9; --color-disabled-text: #8c8279;
+  --nav-sidebar-bg: var(--brand-orange); --nav-header-bg: var(--brand-white); --nav-text: color-mix(in srgb,var(--brand-white) 84%,transparent); --nav-text-strong: var(--brand-white);
+  --nav-text-muted: color-mix(in srgb,var(--brand-white) 72%,transparent); --nav-icon: color-mix(in srgb,var(--brand-white) 88%,transparent); --nav-border: color-mix(in srgb,var(--brand-black) 18%,transparent); --nav-submenu-line: color-mix(in srgb,var(--brand-white) 38%,transparent);
+  --nav-hover-bg: color-mix(in srgb,var(--brand-white) 12%,transparent); --nav-active-bg: color-mix(in srgb,var(--brand-white) 23%,transparent); --nav-active-text: var(--brand-white);
+  --nav-control-bg: color-mix(in srgb,var(--brand-black) 14%,transparent); --nav-control-hover-bg: color-mix(in srgb,var(--brand-black) 22%,transparent); --nav-control-text: var(--brand-white);
+  --nav-avatar-from: var(--brand-orange); --nav-avatar-to: var(--brand-mustard); --nav-dropdown-bg: var(--brand-white); --nav-dropdown-shadow: rgb(23 20 17 / .22);
+  --dashboard-page-bg: var(--color-bg); --dashboard-card-bg: var(--color-surface); --dashboard-card-border: var(--color-border);
+  --dashboard-primary-from: var(--brand-orange); --dashboard-primary-to: var(--brand-mustard); --dashboard-info-from: var(--brand-black); --dashboard-info-to: #3a2d25;
+  --dashboard-accent: var(--brand-orange); --dashboard-accent-soft: color-mix(in srgb,var(--brand-orange) 10%,var(--brand-white));
+  --table-card-bg: var(--color-surface); --table-card-border: var(--color-border); --table-header-bg: var(--color-surface); --table-tools-bg: var(--color-surface);
+  --table-head-bg: #f3e8df; --table-row-hover: #fff0e9; --table-footer-bg: #f3e8df; --table-text: var(--color-text); --table-muted: var(--color-text-secondary);
+  --table-accent: var(--brand-orange); --table-accent-hover: var(--color-primary-hover); --table-accent-soft: color-mix(in srgb,var(--brand-orange) 10%,var(--brand-white));
 }
 
 :root[data-theme='dark'] {
@@ -166,11 +199,36 @@
   --primary: var(--color-primary); --primary-strong: var(--color-primary-hover); --primary-soft: color-mix(in srgb, var(--color-primary) 14%, transparent);
   --danger: var(--color-danger); --danger-soft: color-mix(in srgb, var(--color-danger) 14%, transparent); --success: var(--color-success); --warning: var(--color-warning);
   --shadow-sm: 0 2px 8px rgb(0 0 0 / .18); --shadow-lg: 0 18px 45px rgb(0 0 0 / .32);
+
+  /* Tema oscuro oficial, manteniendo contraste AA para textos y controles. */
+  --pos-orange: var(--brand-orange); --pos-black: #0e0c0b; --pos-white: var(--brand-white); --pos-mustard: #d49a12; --pos-red: #ef5350;
+  --color-primary: var(--brand-orange); --color-primary-hover: #ff6a33;
+  --color-secondary: #d7cec6; --color-secondary-hover: var(--brand-white);
+  --color-success: #d49a12; --color-warning: #e0a51b; --color-danger: #ef5350; --color-info: #ff7545;
+  --color-on-success: var(--brand-black); --color-on-warning: var(--brand-black);
+  --color-on-primary: var(--brand-black); --color-on-secondary: var(--brand-black); --color-on-danger: var(--brand-black); --color-on-info: var(--brand-black);
+  --color-bg: #0e0c0b; --color-surface: #191614; --color-sidebar: #12100f; --color-header: #191614;
+  --color-border: #3b322c; --color-text: #fffaf6; --color-text-secondary: #d0c6be; --color-text-muted: #a89b91;
+  --color-text-disabled: #83786f; --color-hover: #28211e; --color-focus: color-mix(in srgb,var(--brand-orange) 38%,transparent);
+  --color-on-brand: var(--brand-white); --color-neutral: #2b241f; --color-neutral-hover: #3a302a;
+  --color-disabled: #302925; --color-disabled-text: #8f837a;
+  --nav-sidebar-bg: var(--brand-orange); --nav-header-bg: #191614; --nav-text: color-mix(in srgb,var(--brand-white) 84%,transparent); --nav-text-strong: var(--brand-white);
+  --nav-text-muted: color-mix(in srgb,var(--brand-white) 72%,transparent); --nav-icon: color-mix(in srgb,var(--brand-white) 88%,transparent); --nav-border: color-mix(in srgb,var(--brand-black) 24%,transparent); --nav-submenu-line: color-mix(in srgb,var(--brand-white) 38%,transparent);
+  --nav-hover-bg: color-mix(in srgb,var(--brand-white) 12%,transparent); --nav-active-bg: color-mix(in srgb,var(--brand-white) 23%,transparent); --nav-active-text: var(--brand-white);
+  --nav-control-bg: color-mix(in srgb,var(--brand-black) 15%,transparent); --nav-control-hover-bg: color-mix(in srgb,var(--brand-black) 24%,transparent); --nav-control-text: var(--brand-white);
+  --nav-avatar-from: var(--brand-orange); --nav-avatar-to: #d49a12; --nav-dropdown-bg: #211c19; --nav-dropdown-shadow: rgb(0 0 0 / .48);
+  --dashboard-page-bg: var(--color-bg); --dashboard-card-bg: var(--color-surface); --dashboard-card-border: var(--color-border);
+  --dashboard-primary-from: var(--brand-orange); --dashboard-primary-to: #9b6800; --dashboard-info-from: #28211e; --dashboard-info-to: #4a3428;
+  --dashboard-accent: #ff7545; --dashboard-accent-soft: color-mix(in srgb,var(--brand-orange) 18%,transparent);
+  --table-card-bg: var(--color-surface); --table-card-border: var(--color-border); --table-header-bg: var(--color-surface); --table-tools-bg: var(--color-surface);
+  --table-head-bg: #241e1b; --table-row-hover: #2b231f; --table-footer-bg: #241e1b; --table-text: var(--color-text); --table-muted: var(--color-text-secondary);
+  --table-accent: #ff7545; --table-accent-hover: #ff9a76; --table-accent-soft: color-mix(in srgb,var(--brand-orange) 18%,transparent);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { min-width: 320px; min-height: 100%; background: var(--app-bg); }
-body { min-height: 100vh; margin: 0; color: var(--text); background: var(--app-bg); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+html { width: 100%; min-width: 320px; min-height: 100%; background: var(--app-bg); }
+body { width: 100%; min-width: 0; min-height: 100vh; margin: 0; overflow-x: hidden; color: var(--text); background: var(--app-bg); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+app-root { display: block; width: 100%; min-width: 0; min-height: 100vh; }
 button, input, select, textarea { font: inherit; } button, a { -webkit-tap-highlight-color: transparent; } img { max-width: 100%; } a { color: var(--primary); }
 
 /* POS: traduce la paleta oficial a los colores semánticos usados por sus componentes. */
@@ -192,7 +250,7 @@ h1, h2, h3, h4, h5, h6, p { margin-top: 0; } ::selection { color: white; backgro
 .text-center { text-align: center !important; }.text-end { text-align: right !important; }.text-muted { color: var(--text-muted) !important; }.text-body { color: var(--text) !important; }.text-white { color: white !important; }.text-danger { color: var(--danger) !important; }.small, small { font-size: .8em; }.text-sm { font-size: .82rem !important; }.f-w-600 { font-weight: 600 !important; }.float-end { float: right !important; }.opacity-50 { opacity: .5; }.opacity-75 { opacity: .75; }
 .rounded { border-radius: var(--radius-sm) !important; }.rounded-pill { border-radius: 999px !important; }
 .card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }.card-body { padding: 1.25rem; }.card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
-.btn { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: .45rem; padding: .5rem .9rem; border: 1px solid transparent; border-radius: 8px; color: var(--color-on-brand); background: var(--color-primary); font-weight: 600; text-decoration: none; cursor: pointer; }.btn:hover { background: var(--color-primary-hover); }.btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }.btn:disabled { color: var(--color-disabled-text); background: var(--color-disabled); opacity: 1; cursor: not-allowed; }.btn-secondary { background: var(--color-secondary); }.btn-secondary:hover { background: var(--color-secondary-hover); }.btn-danger { background: var(--color-danger); }.btn-success { background: var(--color-success); }.btn-warning { background: var(--color-warning); }.btn-info { background: var(--color-info); }.btn-dark { background: var(--color-neutral); }.btn-light, .btn-light-secondary { color: var(--color-text); border-color: var(--color-border); background: var(--color-hover); }.btn-sm { min-height: 32px; padding: .35rem .65rem; font-size: .8rem; }
+.btn { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: .45rem; padding: .5rem .9rem; border: 1px solid transparent; border-radius: 8px; color: var(--color-on-primary); background: var(--color-primary); font-weight: 600; text-decoration: none; cursor: pointer; }.btn:hover { background: var(--color-primary-hover); }.btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }.btn:disabled { color: var(--color-disabled-text); background: var(--color-disabled); opacity: 1; cursor: not-allowed; }.btn-secondary { color:var(--color-on-secondary);background: var(--color-secondary); }.btn-secondary:hover { background: var(--color-secondary-hover); }.btn-danger { color:var(--color-on-danger);background: var(--color-danger); }.btn-success { color:var(--color-on-success);background: var(--color-success); }.btn-warning { color:var(--color-on-warning);background: var(--color-warning); }.btn-info { color:var(--color-on-info);background: var(--color-info); }.btn-dark { color:var(--color-on-brand);background: var(--color-neutral); }.btn-light, .btn-light-secondary { color: var(--color-text); border-color: var(--color-border); background: var(--color-hover); }.btn-sm { min-height: 32px; padding: .35rem .65rem; font-size: .8rem; }
 .badge { display: inline-flex; align-items: center; padding: .25rem .55rem; border-radius: 6px; font-size: .72rem; font-weight: 700; }.bg-light { background: var(--surface-muted) !important; }.bg-light-danger { color: var(--danger); background: var(--danger-soft); }.bg-light-success { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }.bg-light-warning { color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, transparent); }
 .form-control, .form-select { display: block; width: 100%; min-height: 40px; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: 8px; outline: none; color: var(--text); background: var(--surface); }.form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent); }.border-0 { border: 0 !important; }.shadow-none { box-shadow: none !important; }
 .list-unstyled { margin: 0; padding: 0; list-style: none; }.list-group { display: grid; padding: 0; list-style: none; }.list-group-item { padding: .85rem 1rem; border-bottom: 1px solid var(--border); background: var(--surface); }.list-group-flush .list-group-item:last-child { border-bottom: 0; }
@@ -216,7 +274,7 @@ app-data-table .empty-state button { margin-top: 12px; border: 0; color: var(--t
 @keyframes table-shimmer { to { background-position: -220% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @media print {
-  @page { size: A4 landscape; margin: 12mm; }
+  @page { size: Letter portrait; margin: 12mm; }
   body:has(.report-page) { color: #000; background: #fff; }
   body:has(.report-page) .app-sidebar, body:has(.report-page) .app-header, body:has(.report-page) .app-footer,
   body:has(.report-page) app-sidebar, body:has(.report-page) app-header, body:has(.report-page) app-footer,

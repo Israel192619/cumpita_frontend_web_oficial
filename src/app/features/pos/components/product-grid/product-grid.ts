@@ -1,16 +1,18 @@
+import { availableProductUnits } from './product-availability';
 import { Component, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Producto } from '@app/core/models/producto';
 import { ProductoService } from '@app/features/productos/services/producto-service';
 import { ToastrService } from 'ngx-toastr';
 import { formatCurrency } from '@app/core/config/currency.config';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-product-grid',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './product-grid.html',
-  styleUrls: ['./product-grid.css', './product-grid-restock.css'],
+  styleUrls: ['./product-grid.css', './product-grid-restock.css', './product-grid-restock-options.css'],
 })
 export class ProductGridComponent {
   productos = input<Producto[]>([]);
@@ -18,6 +20,8 @@ export class ProductGridComponent {
   compact = input<boolean>(false);
   allowStockAdjustment = input<boolean>(true);
   showPrices = input<boolean>(true);
+  modifierUsageByOption = input<Record<number, number>>({});
+  cartQuantityByProduct = input<Record<number, number>>({});
 
   productAdded = output<Producto>();
   stockAdjusted = output<void>();
@@ -25,6 +29,7 @@ export class ProductGridComponent {
   restockingProductId = signal<number | null>(null);
   restockProduct = signal<Producto | null>(null);
   restockQuantity = signal('1');
+  restockOptionId = signal<number | null>(null);
 
   constructor(
     private productoService: ProductoService,
@@ -32,7 +37,7 @@ export class ProductGridComponent {
   ) {}
 
   onAddProduct(producto: Producto): void {
-    if (producto.activo && (!producto.maneja_stock || (producto.stock || 0) > 0)) {
+    if (this.isProductAvailable(producto)) {
       this.productAdded.emit(producto);
     }
   }
@@ -46,20 +51,18 @@ export class ProductGridComponent {
   }
 
   isProductAvailable(producto: Producto): boolean {
-    return producto.activo && (!producto.maneja_stock || (producto.stock || 0) > 0);
+    const available = this.getAvailableUnits(producto);
+    return producto.activo && (available === null || available > 0);
   }
 
   isOutOfStock(producto: Producto): boolean {
-    return !!producto.maneja_stock && (producto.stock || 0) <= 0;
+    return this.getAvailableUnits(producto) === 0;
   }
 
   getStockState(producto: Producto): 'warning' | 'empty' | 'ok' | 'none' {
-    if (!producto.maneja_stock) {
-      return 'none';
-    }
-
-    const stock = producto.stock || 0;
-    const minimo = producto.stock_minimo || 0;
+    const stock = this.getAvailableUnits(producto);
+    if (stock === null) return 'none';
+    const minimo = producto.maneja_stock ? producto.stock_minimo || 0 : 1;
 
     if (stock <= 0) {
       return 'empty';
@@ -72,10 +75,15 @@ export class ProductGridComponent {
     return 'ok';
   }
 
+  getAvailableUnits(producto: Producto): number | null {
+    return availableProductUnits(producto, this.modifierUsageByOption());
+  }
+
   openRestockDialog(producto: Producto): void {
     if (this.restockingProductId() !== null) return;
     this.restockProduct.set(producto);
     this.restockQuantity.set('1');
+    this.restockOptionId.set(producto.maneja_stock ? null : this.stockOptions(producto)[0]?.id ?? null);
   }
 
   closeRestockDialog(): void {
@@ -86,6 +94,13 @@ export class ProductGridComponent {
     this.restockQuantity.set(value.replace(/\D/g, '') || '1');
   }
 
+  setRestockOption(value: string): void { this.restockOptionId.set(Number(value) || null); }
+
+  stockOptions(producto: Producto) {
+    return (producto.modificadores || []).flatMap(group => group.opciones || [])
+      .filter(option => option.activo !== false && option.maneja_stock);
+  }
+
   confirmRestock(): void {
     const producto = this.restockProduct();
     const quantity = Number.parseInt(this.restockQuantity(), 10);
@@ -94,8 +109,16 @@ export class ProductGridComponent {
       return;
     }
 
+    const optionId = this.restockOptionId();
+    if (!producto.maneja_stock && !optionId) {
+      this.toastr.warning('Selecciona la presa u opción que deseas reabastecer.');
+      return;
+    }
     this.restockingProductId.set(producto.id);
-    this.productoService.ajustarStock(producto.id, quantity).subscribe({
+    const request: Observable<unknown> = producto.maneja_stock
+      ? this.productoService.ajustarStock(producto.id, quantity)
+      : this.productoService.crearAjusteStock({ modificador_opcion_id: optionId!, tipo: 'ENTRADA', cantidad: quantity, motivo: `Reabastecimiento desde POS: ${producto.nombre}` });
+    request.subscribe({
       next: () => {
         this.restockingProductId.set(null);
         this.restockProduct.set(null);

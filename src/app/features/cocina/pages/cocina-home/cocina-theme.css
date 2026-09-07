@@ -65,6 +65,241 @@
   .kds-header__actions, .kds-filters { width: 100%; }
 }
 
+/* Acabado visual compartido con Dashboard. */
+.kds { background: var(--color-bg); color: var(--color-text); }
+.kds-header { border: 0; background: var(--color-surface); box-shadow: none; }
+.kds-title__eyebrow,
+.programmed-preorder time,
+.production-item__product b,
+.production-token b { color: var(--color-primary); }
+
+.kds-quick-action,
+.kds-controls-toggle,
+.kds-mobile-filter-toggle {
+  border: 0;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 11%, var(--color-surface));
+  box-shadow: none;
+}
+.kds-quick-action:hover,
+.kds-controls-toggle:hover,
+.kds-mobile-filter-toggle:hover {
+  border: 0;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+}
+.kds-quick-action--exit,
+.kds-logout-button {
+  border: 0;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
+}
+.kds-quick-action--exit:hover,
+.kds-logout-button:hover { color: var(--color-on-brand); background: var(--color-danger); }
+
+.kds-stations {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+}
+.kds-stations button { border: 0; color: var(--color-text-secondary); background: transparent; }
+.kds-stations button:hover { background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
+.kds-stations .kds-station--active {
+  border: 0;
+  color: var(--color-on-brand);
+  background: var(--color-primary);
+  box-shadow: none;
+}
+.kds-served-toggle {
+  border: 0;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+}
+.kds-served-toggle--active {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+}
+
+.kds-filters input,
+.kds-filters select {
+  border: 0;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+  box-shadow: none;
+}
+.kds-filters input:focus,
+.kds-filters select:focus {
+  outline: 0;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+}
+
+.programmed-preorders {
+  border: 0;
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
+  box-shadow: none;
+}
+.programmed-preorder {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+  box-shadow: none;
+}
+.production-summary {
+  border: 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.production-summary__title,
+.production-summary__empty,
+.production-item__terms { color: var(--color-text-secondary); }
+.production-token i { color: color-mix(in srgb, var(--color-text-secondary) 35%, transparent); }
+
+.kds-board { background: var(--color-bg); }
+.kds-ticket,
+.service-panel__card {
+  border: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+.ticket-client .ticket-label,
+.ticket-options,
+.ticket-options-inline { color: var(--color-text-secondary); }
+.ticket-client h2,
+.ticket-header h2 { color: var(--color-text); }
+.ticket-meta {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+}
+.ticket-preorder-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: .22rem .55rem;
+  border: 0;
+  border-radius: 999px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .045em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.ticket-preorder-early {
+  border: 0;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+}
+.ticket-category h3::after { display: none; }
+.ticket-item {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+  box-shadow: none;
+}
+.ticket-item__states,
+.ticket-completed__details { border: 0; }
+.ticket-item__state,
+.serve-switch,
+.bulk-serve-check {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+}
+.bulk-serve-check span { border: 0; }
+.ticket-completed {
+  border: 0;
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface));
+}
+.ticket-changes { border: 0; box-shadow: none; }
+.kds-ticket--ready-attention {
+  border: 0;
+  background: color-mix(in srgb, var(--color-success) 7%, var(--color-surface));
+  box-shadow: none;
+}
+.ticket-item--ready-attention {
+  border: 0;
+  background: color-mix(in srgb, var(--color-success) 9%, var(--color-surface));
+  box-shadow: none;
+}
+.kds-ticket--cancelled {
+  border: 0;
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+  box-shadow: none;
+}
+.cancelled-stamp {
+  border: 0;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+}
+
+@media (max-width: 800px) {
+  .kds-header { padding: .8rem; }
+  .programmed-preorders { margin: .5rem .6rem; }
+  .kds-ticket { border-radius: 12px; }
+}
+
+/* Lectura compacta de producción: producto y acciones en una sola fila. */
+.ticket-item--group {
+  grid-template-columns: minmax(220px, 1fr) auto;
+  column-gap: 1rem;
+}
+.ticket-item__product { grid-column: 1; min-width: 0; }
+.ticket-item__states {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  margin: 0;
+  padding: 0;
+}
+.ticket-item__state {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+.ticket-item__state--locked { display: none; }
+.ticket-item__state-label { display: none; }
+.ticket-item__state-controls {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: .45rem;
+}
+.serve-switch {
+  min-height: 38px;
+  padding: .35rem .5rem;
+}
+.ticket-options-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-top: .45rem;
+}
+.ticket-option-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: .22rem .5rem;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+  line-height: 1.2;
+}
+.ticket-options-inline--kitchen .ticket-option-chip {
+  min-height: 32px;
+  padding: .32rem .65rem;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  font-size: .9rem;
+  font-weight: 750;
+}
+
+@media (max-width: 760px) {
+  .ticket-item--group { grid-template-columns: minmax(0, 1fr) auto; }
+  .ticket-item__state { flex-direction: row !important; min-height: 0; padding: 0; }
+  .ticket-item__state-controls {
+    width: auto !important;
+    grid-template-columns: max-content;
+  }
+}
+
 @media (max-width: 900px) {
   .kds-header { gap: .85rem; padding: .85rem .75rem; }
   .kds-header__primary { align-items: flex-start; flex-direction: column; gap: .65rem; }
@@ -88,6 +323,15 @@
 .ticket-category:last-child { padding-bottom: 1rem; }
 .ticket-category h3 { display: flex; align-items: center; gap: .5rem; margin: 0 0 .55rem; color: var(--color-text-secondary); font-size: .65rem; letter-spacing: .1em; }
 .ticket-category h3::after { content: ''; height: 1px; flex: 1; background: var(--color-border); }
+.ticket-category__header { display: flex; align-items: center; gap: .55rem; margin-bottom: .45rem; }
+.ticket-category__header h3 { min-width: 0; flex: 1; margin: 0; }
+.bulk-serve-check { display: inline-flex; flex: 0 0 auto; align-items: center; gap: .35rem; min-height: 28px; padding: .25rem .48rem; border: 1px solid color-mix(in srgb,var(--color-success) 42%,var(--color-border)); border-radius: 7px; color: var(--color-text-secondary); background: color-mix(in srgb,var(--color-success) 7%,var(--color-surface)); cursor: pointer; user-select: none; }
+.bulk-serve-check input { position: absolute; opacity: 0; pointer-events: none; }
+.bulk-serve-check span { display: grid; width: 17px; height: 17px; place-items: center; border: 1px solid var(--color-border); border-radius: 4px; color: transparent; background: var(--color-bg); font-size: .68rem; font-weight: 900; }
+.bulk-serve-check input:checked + span { border-color: var(--color-success); color: var(--color-on-brand); background: var(--color-success); }
+.bulk-serve-check input:disabled ~ * { opacity: .58; }
+.bulk-serve-check b { font-size: .66rem; white-space: nowrap; }
+.bulk-serve-check--product { align-self: flex-start; margin-top: .12rem; }
 .ticket-item { align-items: center; gap: .75rem; margin-top: .5rem; padding: .75rem; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
 .ticket-item:first-of-type { margin-top: 0; }
 .ticket-item__product { gap: .28rem; }
@@ -113,6 +357,226 @@
   .ticket-item__product strong span { min-width: 27px; height: 25px; font-size: .72rem; }
   .serve-switch { padding: .3rem; }
   .serve-switch b { display: none; }
+}
+
+/* Acabado visual compartido con Dashboard: superficies planas, contraste claro
+   y color de marca reservado para acciones y estados importantes. */
+.kds {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.kds-header {
+  border: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.kds-title__eyebrow,
+.programmed-preorder time,
+.production-item__product b,
+.production-token b {
+  color: var(--color-primary);
+}
+
+.kds-quick-action,
+.kds-controls-toggle,
+.kds-mobile-filter-toggle {
+  border: 0;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 11%, var(--color-surface));
+  box-shadow: none;
+}
+
+.kds-quick-action:hover,
+.kds-controls-toggle:hover,
+.kds-mobile-filter-toggle:hover {
+  border: 0;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+}
+
+.kds-quick-action--exit,
+.kds-logout-button {
+  border: 0;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
+}
+
+.kds-quick-action--exit:hover,
+.kds-logout-button:hover {
+  color: var(--color-on-brand);
+  background: var(--color-danger);
+}
+
+.kds-stations {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+}
+
+.kds-stations button {
+  border: 0;
+  color: var(--color-text-secondary);
+  background: transparent;
+}
+
+.kds-stations button:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.kds-stations .kds-station--active {
+  border: 0;
+  color: var(--color-on-brand);
+  background: var(--color-primary);
+  box-shadow: none;
+}
+
+.kds-served-toggle {
+  border: 0;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+}
+
+.kds-served-toggle--active {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+}
+
+.kds-filters input,
+.kds-filters select {
+  border: 0;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+  box-shadow: none;
+}
+
+.kds-filters input:focus,
+.kds-filters select:focus {
+  outline: 0;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+}
+
+.programmed-preorders {
+  border: 0;
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
+  box-shadow: none;
+}
+
+.programmed-preorder {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+  box-shadow: none;
+}
+
+.production-summary {
+  border: 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.production-summary__title,
+.production-summary__empty,
+.production-item__terms {
+  color: var(--color-text-secondary);
+}
+
+.production-token i {
+  color: color-mix(in srgb, var(--color-text-secondary) 35%, transparent);
+}
+
+.kds-board {
+  background: var(--color-bg);
+}
+
+.kds-ticket,
+.service-panel__card {
+  border: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.ticket-client .ticket-label,
+.ticket-options,
+.ticket-options-inline {
+  color: var(--color-text-secondary);
+}
+
+.ticket-client h2,
+.ticket-header h2 {
+  color: var(--color-text);
+}
+
+.ticket-meta {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+}
+
+.ticket-category h3::after {
+  display: none;
+}
+
+.ticket-item {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+  box-shadow: none;
+}
+
+.ticket-item__states,
+.ticket-completed__details {
+  border: 0;
+}
+
+.ticket-item__state,
+.serve-switch,
+.bulk-serve-check {
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+}
+
+.bulk-serve-check span {
+  border: 0;
+}
+
+.ticket-completed {
+  border: 0;
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface));
+}
+
+.ticket-changes {
+  border: 0;
+  box-shadow: none;
+}
+
+.kds-ticket--ready-attention {
+  border: 0;
+  background: color-mix(in srgb, var(--color-success) 7%, var(--color-surface));
+  box-shadow: none;
+}
+
+.ticket-item--ready-attention {
+  border: 0;
+  background: color-mix(in srgb, var(--color-success) 9%, var(--color-surface));
+  box-shadow: none;
+}
+
+.kds-ticket--cancelled {
+  border: 0;
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+  box-shadow: none;
+}
+
+.cancelled-stamp {
+  border: 0;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+}
+
+@media (max-width: 800px) {
+  .kds-header { padding: .8rem; }
+  .programmed-preorders { margin: .5rem .6rem; }
+  .kds-ticket { border-radius: 12px; }
 }
 
 /* En teléfono un estado es una sola línea: información a la izquierda y
@@ -160,3 +624,246 @@
     flex: 0 0 auto;
   }
 }
+
+/* Ajuste final compacto; debe prevalecer sobre las reglas responsivas heredadas. */
+.ticket-item--group { grid-template-columns: minmax(220px, 1fr) auto; column-gap: 1rem; }
+.ticket-item__product { grid-column: 1; min-width: 0; }
+.ticket-item__states { grid-column: 2; grid-row: 1; align-self: center; margin: 0; padding: 0; border: 0; }
+.ticket-item__state { min-height: 0; padding: 0; background: transparent; }
+.ticket-item__state--locked { display: none; }
+.ticket-item__state-label { display: none; }
+.ticket-item__state-controls { display: grid; width: auto; grid-template-columns: repeat(2, max-content); gap: .45rem; }
+.ticket-options-inline { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .45rem; }
+.ticket-option-chip { display: inline-flex; align-items: center; min-height: 26px; padding: .22rem .5rem; border-radius: 999px; color: var(--color-text-secondary); background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface)); line-height: 1.2; }
+.ticket-options-inline--kitchen .ticket-option-chip { min-height: 32px; padding: .32rem .65rem; color: var(--color-text); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); font-size: .9rem; font-weight: 750; }
+
+@media (max-width: 760px) {
+  .ticket-item--group { grid-template-columns: minmax(0, 1fr) auto; }
+  .ticket-item__state { flex-direction: row !important; min-height: 0; padding: 0; }
+  .ticket-item__state-controls { width: auto !important; grid-template-columns: max-content; }
+}
+
+/* Switches compactos: siempre contenidos dentro de la ficha. */
+.ticket-item--group {
+  grid-template-columns: minmax(0, 1fr) minmax(84px, auto);
+  overflow: hidden;
+}
+.ticket-item__states {
+  min-width: 0;
+  max-width: 96px;
+}
+.ticket-item__state-controls {
+  display: grid;
+  width: 100%;
+  max-width: 96px;
+  grid-template-columns: repeat(2, 40px);
+  justify-content: end;
+  gap: .4rem;
+}
+.ticket-item__state-controls .serve-switch {
+  box-sizing: border-box;
+  width: 40px;
+  min-width: 40px;
+  min-height: 36px;
+  justify-content: center;
+  padding: .3rem;
+  overflow: visible;
+}
+.ticket-item__state-controls .serve-switch b { display: none; }
+
+@media (max-width: 380px) {
+  .ticket-item--group { grid-template-columns: minmax(0, 1fr) 40px; }
+  .ticket-item__states,
+  .ticket-item__state-controls { max-width: 40px; }
+  .ticket-item__state-controls { grid-template-columns: 40px; }
+}
+
+/* La asignación por puesto debe prevalecer sobre el acabado plano del tablero. */
+.kds-ticket.kds-ticket--asignada-amarillo {
+  border: 3px solid #e5b400;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #e5b400 24%, transparent);
+}
+.kds-ticket.kds-ticket--asignada-indigo {
+  border: 3px solid #6366f1;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #6366f1 24%, transparent);
+}
+.kds-ticket.kds-ticket--asignada-salmon {
+  border: 3px solid #ef8354;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #ef8354 24%, transparent);
+}
+.kds-ticket.kds-ticket--asignada-verde {
+  border: 3px solid #2fbf71;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #2fbf71 24%, transparent);
+}
+
+/* Aviso efímero y compacto de cambios realizados desde el POS. */
+.ticket-changes {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: .4rem;
+  margin: .5rem .75rem 0;
+  padding: .42rem .5rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface));
+}
+.ticket-changes > strong {
+  color: var(--color-warning);
+  font-size: .66rem;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ticket-changes .change-summary {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  color: var(--color-text);
+  background: transparent;
+  font-size: .75rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ticket-changes > small {
+  color: var(--color-text-secondary);
+  font-size: .68rem;
+  font-weight: 800;
+}
+.ticket-changes > button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.ticket-changes > button:hover { background: var(--color-hover); }
+
+/* Un producto dependiente no debe parecer que perdió su acción por error. */
+.ticket-item__state.ticket-item__state--locked {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0;
+  background: transparent;
+}
+.waiting-station-indicator {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: .2rem .42rem;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface));
+  font-size: .6rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Identificación inmediata del tipo de pedido desde la cabecera. */
+.kds-ticket {
+  border: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
+}
+.kds-ticket--cancelled { border-color: var(--color-danger); }
+.kds-ticket--mesa .ticket-header { background: #ff4500; }
+.kds-ticket--llevar .ticket-header,
+.kds-ticket--delivery .ticket-header { background: #1769d2; }
+.kds-ticket--preorden .ticket-header { background: #1a1a1a; }
+.kds-ticket--mesa .ticket-header h2,
+.kds-ticket--llevar .ticket-header h2,
+.kds-ticket--delivery .ticket-header h2,
+.kds-ticket--preorden .ticket-header h2 { color: #fff; }
+.kds-ticket--mesa .ticket-assignment,
+.kds-ticket--llevar .ticket-assignment,
+.kds-ticket--delivery .ticket-assignment,
+.kds-ticket--preorden .ticket-assignment {
+  color: #fff;
+  background: rgb(255 255 255 / .16);
+}
+
+/* Cantidad visible de un vistazo, sin el sufijo multiplicador. */
+.ticket-item__product strong span,
+.ticket-item--locked .ticket-item__product strong span {
+  display: inline-grid;
+  min-width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* La indicación pertenece al producto y viaja a cada estación que lo trabaja. */
+.ticket-item__product .product-comment {
+  display: flex;
+  align-items: center;
+  gap: .38rem;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: .18rem;
+  padding: .3rem .48rem;
+  border-radius: 7px;
+  color: #7c2d12;
+  background: #ffedd5;
+  font-size: .76rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.product-comment > span {
+  color: #c2410c;
+  font-size: .58rem;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+/* Una preorden programada se reconoce por la banda, pero conserva la misma
+   estructura visual y permanece al final de las fichas operativas. */
+.kds-ticket--programada .ticket-meta {
+  color: #fff;
+  background: #b91c1c;
+}
+.kds-ticket--programada .ticket-meta > strong,
+.kds-ticket--programada .ticket-meta > span { color: #fff; }
+.kds-ticket--programada .ticket-preorder-badge {
+  color: #fff;
+  background: rgb(255 255 255 / .16);
+}
+.ticket-preorder-start {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: .24rem .55rem;
+  border-radius: 999px;
+  color: #fff;
+  background: #15803d;
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+.ticket-item__price{margin-left:.3rem;color:var(--color-text-secondary);font-size:.72rem;font-style:normal;font-weight:750;white-space:nowrap}
+
+.kds-user-menu{position:relative;max-width:100%;flex-shrink:0}.kds-user-trigger{display:flex;align-items:center;gap:.6rem;max-width:100%;min-height:48px;padding:.3rem .65rem .3rem .35rem;border:1px solid color-mix(in srgb,var(--brand-white) 32%,transparent);border-radius:12px;background:color-mix(in srgb,var(--brand-white) 10%,transparent);color:var(--brand-white);cursor:pointer;text-align:left}.kds-user-trigger:hover{background:color-mix(in srgb,var(--brand-white) 18%,transparent)}.kds-user-avatar{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:50%;overflow:hidden;background:color-mix(in srgb,var(--brand-white) 16%,transparent);border:1px solid color-mix(in srgb,var(--brand-white) 30%,transparent)}.kds-user-avatar img{width:100%;height:100%;object-fit:cover}.kds-user-copy{display:grid;gap:2px;min-width:0}.kds-user-copy b{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.88rem}.kds-user-copy small{font-size:.68rem;opacity:.8}.kds-user-dropdown{position:absolute;z-index:50;right:0;top:calc(100% + 8px);min-width:190px;padding:.35rem;border:1px solid var(--color-border);border-radius:11px;background:var(--color-surface);box-shadow:var(--shadow-lg)}.kds-user-dropdown button{display:flex;align-items:center;gap:.6rem;width:100%;min-height:44px;padding:.65rem .75rem;border:0;border-radius:8px;background:transparent;color:var(--color-danger);font:inherit;font-size:.88rem;cursor:pointer;text-align:left}.kds-user-dropdown button:hover{background:var(--color-hover)}.kds-user-dropdown button:disabled{opacity:.5;cursor:wait}.kds-user-trigger:focus-visible,.kds-user-dropdown button:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}
+
+
+/* El menú forma parte de los controles desplegables y se adapta al ancho disponible. */
+.kds-header__primary,.kds-title,.kds-quick-actions{min-width:0;max-width:100%}
+.kds-title{flex-wrap:wrap}
+.kds-quick-actions{flex:0 1 auto;flex-wrap:wrap;align-items:center}
+.kds-user-menu{min-width:0;flex:0 1 auto}
+.kds-user-trigger{color:var(--color-text);background:var(--color-hover);border-color:var(--color-border)}
+.kds-user-trigger:hover{background:var(--color-surface);border-color:var(--color-primary)}
+.kds-user-avatar{background:var(--color-surface);border-color:var(--color-border)}
+.kds-user-copy small{color:var(--color-text-secondary);opacity:1}
+.kds-user-dropdown{min-width:min(190px,calc(100vw - 32px));max-width:calc(100vw - 32px)}
+@media(max-width:560px){.kds-title{align-items:flex-start;gap:.65rem}.kds-quick-actions{width:100%;margin-left:0;justify-content:flex-start}.kds-user-menu{margin-left:auto}.kds-user-copy b{max-width:120px}.kds-user-trigger{gap:.4rem}.kds-user-avatar{width:32px;height:32px;flex-basis:32px}}
+
+.kds-user-dropdown .profile-link{color:var(--color-text)}
+.kds-user-dropdown .profile-link app-icon{color:var(--color-text)}

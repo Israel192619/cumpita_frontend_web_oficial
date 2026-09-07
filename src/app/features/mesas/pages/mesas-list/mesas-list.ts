@@ -10,6 +10,7 @@ import { DataTable } from '../../../../shared/components';
 
 @Component({
   selector: 'app-mesas-list',
+  standalone: true,
   imports: [
     CommonModule, DataTable
   ],
@@ -22,11 +23,40 @@ export class MesasList {
   error = signal<string | null>(null);
   errorMessageLink = signal<string | null>(null);
   errorMessageText = signal<string | null>(null);
+  guardandoPlano = signal(false);
+  mesaArrastrada: Mesa | null = null;
 
   constructor(private mesaService: MesaService, private router: Router, private toastr: ToastrService, private confirmDialog: ConfirmDialogService) { }
   
   ngOnInit(): void {
     this.obtenerMesas();
+  }
+
+  posicionX(mesa: Mesa, index: number): number { return mesa.posicion_x ?? 4 + (index % 8) * 11; }
+  posicionY(mesa: Mesa, index: number): number { return mesa.posicion_y ?? 78 + Math.floor(index / 8) * 10; }
+
+  iniciarArrastre(event: PointerEvent, mesa: Mesa): void {
+    event.preventDefault(); this.mesaArrastrada = mesa;
+    (event.target as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  moverMesa(event: PointerEvent, plano: HTMLElement): void {
+    if (!this.mesaArrastrada) return;
+    const rect = plano.getBoundingClientRect();
+    const x = Math.max(0, Math.min(92, ((event.clientX - rect.left) / rect.width) * 100 - 4));
+    const y = Math.max(0, Math.min(92, ((event.clientY - rect.top) / rect.height) * 100 - 4));
+    this.mesas.update(mesas => mesas.map(mesa => mesa.id === this.mesaArrastrada?.id ? { ...mesa, posicion_x: x, posicion_y: y } : mesa));
+  }
+
+  terminarArrastre(): void { this.mesaArrastrada = null; }
+
+  guardarPlano(): void {
+    this.guardandoPlano.set(true);
+    const posiciones = this.mesas().map((mesa, index) => ({ id: mesa.id, posicion_x: this.posicionX(mesa, index), posicion_y: this.posicionY(mesa, index) }));
+    this.mesaService.guardarPlano(posiciones).subscribe({
+      next: () => { this.guardandoPlano.set(false); this.toastr.success('Distribución del local guardada'); },
+      error: () => { this.guardandoPlano.set(false); this.toastr.error('No se pudo guardar la distribución'); }
+    });
   }
 
   obtenerMesas() {

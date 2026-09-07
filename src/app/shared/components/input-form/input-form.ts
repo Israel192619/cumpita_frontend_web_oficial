@@ -29,7 +29,10 @@ export class InputForm implements OnChanges, OnDestroy {
   @Input() step: number | string | null = null;
   @Input() maxlength: number | null = null;
   @Input() inputmode: string | null = null;
+  @Input() digitsOnly = false;
   @Output() valueChange = new EventEmitter<string | number | null>();
+  @Output() imageCleared = new EventEmitter<void>();
+  @Output() imageSelected = new EventEmitter<void>();
   @Output() inputBlur = new EventEmitter<FocusEvent>();
 
   readonly generatedId = `input-${Math.random().toString(36).slice(2, 9)}`;
@@ -47,6 +50,11 @@ export class InputForm implements OnChanges, OnDestroy {
 
   onNativeInput(event: Event): void {
     const element = event.target as HTMLInputElement;
+    if (this.digitsOnly) {
+      const digits = element.value.replace(/[^0-9]/g, '');
+      element.value = this.maxlength === null ? digits : digits.slice(0, this.maxlength);
+      if (this.control && this.control.value !== element.value) this.control.setValue(element.value);
+    }
     this.value = this.type === 'number' && element.value !== '' ? Number(element.value) : element.value;
     this.valueChange.emit(this.value);
   }
@@ -58,7 +66,10 @@ export class InputForm implements OnChanges, OnDestroy {
     this.control?.setValue(file);
     this.control?.markAsTouched();
     this.valueChange.emit(file as unknown as string | null);
-    if (file) this.preview = URL.createObjectURL(file);
+    if (file) {
+      this.preview = URL.createObjectURL(file);
+      this.imageSelected.emit();
+    }
   }
 
   clearImage(fileInput: HTMLInputElement): void {
@@ -67,6 +78,7 @@ export class InputForm implements OnChanges, OnDestroy {
     this.valueChange.emit(null);
     this.revokeLocalPreview();
     fileInput.value = '';
+    this.imageCleared.emit();
   }
 
   validationMessage(): string | null {
@@ -79,7 +91,7 @@ export class InputForm implements OnChanges, OnDestroy {
     if (errors['maxlength']) return `Máximo ${errors['maxlength'].requiredLength} caracteres.`;
     if (errors['min']) return `El valor mínimo es ${errors['min'].min}.`;
     if (errors['max']) return `El valor máximo es ${errors['max'].max}.`;
-    if (errors['pattern']) return 'El formato ingresado no es válido.';
+    if (errors['pattern']) return this.digitsOnly ? 'Ingresa entre 4 y 6 dígitos numéricos.' : 'El formato ingresado no es válido.';
     return 'Revisa este campo.';
   }
 

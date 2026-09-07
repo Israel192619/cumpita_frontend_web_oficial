@@ -9,13 +9,12 @@
     </div>
   </header>
 
-  @if ((searchable || filters.length) && !loading && !error) {
+  @if ((searchable || filters.length) && !error && (!loading || data.length)) {
     <div class="table-tools">
       @if (searchable) {
         <label class="search-control">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
           <input type="search" [value]="searchTerm" [placeholder]="searchPlaceholder" (input)="onSearch($event)">
-          @if (searchTerm) { <button type="button" (click)="clearSearch()" aria-label="Limpiar búsqueda">×</button> }
         </label>
       }
       @if (filters.length) {
@@ -29,17 +28,18 @@
   }
 
   @if (loading) {
-    <div class="loading-state" role="status" aria-live="polite">
+    @if (data.length) { <div class="refreshing-state" role="status" aria-live="polite"><span class="spinner"></span>Actualizando…</div> }
+    @else { <div class="loading-state" role="status" aria-live="polite">
       <div class="loading-heading"><span class="spinner"></span><span>Actualizando información…</span></div>
       @for (row of [1,2,3,4,5]; track row) { <div class="skeleton-row"><i></i><i></i><i></i><i></i></div> }
-    </div>
+    </div> }
   }
 
   @if (!loading) {
     <app-error-message [message]="error" [linkRedireccion]="errorMessageLink" [linkTexto]="errorMessageText"></app-error-message>
   }
 
-  @if (!loading && !error && visibleData.length) {
+  @if (!error && visibleData.length) {
     <div class="table-scroll" tabindex="0" aria-label="Tabla con desplazamiento horizontal">
       <table>
         <thead><tr>
@@ -52,11 +52,18 @@
         </tr></thead>
         <tbody>
           @for (item of visibleData; track $index) {
-            <tr>
+            <tr [class.clickable-row]="clickableRows" [attr.tabindex]="clickableRows ? 0 : null" (click)="selectRow(item)" (keydown.enter)="selectRow(item)">
               @for (col of columns; track col.key) {
                 <td [attr.data-label]="col.label">
                   @switch (col.type) {
-                    @case ('image') { <div class="avatar-cell"><img [src]="getValue(item, col.key)" class="avatar-img" alt=""></div> }
+                    @case ('image') {
+                      <div class="avatar-cell">
+                        <span class="avatar-fallback" aria-hidden="true"><app-icon [name]="imageFallbackIcon" [size]="23" /></span>
+                        @if (getValue(item, col.key)) {
+                          <img [src]="getValue(item, col.key)" class="avatar-img" alt="" (error)="hideBrokenImage($event)">
+                        }
+                      </div>
+                    }
                     @case ('date') { <span class="date-value">{{ getValue(item, col.key) | date:'short' }}</span> }
                     @case ('currency') { <span class="number-value">{{ getValue(item, col.key) | appCurrency }}</span> }
                     @case ('boolean') { <span class="neutral-badge">{{ displayBoolean(getValue(item, col.key)) }}</span> }
@@ -68,14 +75,14 @@
                 </td>
               }
               @if (rowActions === undefined || rowActions.length) {
-                <td class="actions-cell" data-label="Acciones"><div class="row-actions">
+                <td class="actions-cell" data-label="Acciones"><div class="row-actions" (click)="$event.stopPropagation()">
                   @if (rowActions === undefined) {
                     <button class="row-action edit" type="button" (click)="action.emit({type:'edit', item})" title="Editar"><app-icon name="edit" [size]="17"/><span class="sr-only">Editar</span></button>
-                    <button class="row-action view" type="button" (click)="action.emit({type:'view', item})" title="Ver"><app-icon name="eye" [size]="17"/><span class="sr-only">Ver</span></button>
+                    @if (showViewAction) { <button class="row-action view" type="button" (click)="action.emit({type:'view', item})" title="Ver"><app-icon name="eye" [size]="17"/><span class="sr-only">Ver</span></button> }
                     <button class="row-action delete" type="button" (click)="action.emit({type:'delete', item})" title="Eliminar"><app-icon name="trash" [size]="17"/><span class="sr-only">Eliminar</span></button>
                   } @else {
                     @for (rowAction of availableActions(item); track rowAction.type) {
-                      <button type="button" class="row-action custom-action" [ngClass]="rowAction.class" (click)="action.emit({type: rowAction.type, item})" [title]="rowAction.label"><app-icon *ngIf="rowAction.icon" [name]="rowAction.icon" [size]="17"/><span>{{ rowAction.label }}</span></button>
+                      <button type="button" class="row-action custom-action" [ngClass]="rowAction.class" (click)="action.emit({type: rowAction.type, item})" [title]="rowAction.label" [attr.aria-label]="rowAction.label"><app-icon *ngIf="rowAction.icon" [name]="rowAction.icon" [size]="17"/><span [class.sr-only]="rowAction.iconOnly">{{ rowAction.label }}</span></button>
                     }
                   }
                 </div></td>

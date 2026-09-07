@@ -8,7 +8,7 @@ export interface MovimientoCaja {
   caja_id: number;
   tipo: 'INGRESO' | 'RETIRO';
   monto: number;
-  motivo: string;
+  motivo?: string | null;
   estado: 'ACTIVO' | 'ANULADO';
   created_at: string;
   usuario: { id: number; name: string; username: string };

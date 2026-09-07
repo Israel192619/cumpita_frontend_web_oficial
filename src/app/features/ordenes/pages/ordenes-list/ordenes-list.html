@@ -1,9 +1,8 @@
 <app-filter-bar><app-date-range-picker [value]="dateRange()" (valueChange)="onDateRangeChange($event)" /></app-filter-bar>
 <app-data-table
   title="Órdenes"
-  [data]="filteredOrders()"
+  [data]="ordenes()"
   [columns]="[
-    { key: 'id', label: 'ID' },
     { key: 'numero_orden', label: 'Número' },
     { key: 'cliente_nombre', label: 'Cliente' },
     { key: 'tipo_orden', label: 'Tipo' },
@@ -19,12 +18,21 @@
   [errorMessageLink]="errorMessageLink()"
   [errorMessageText]="errorMessageText()"
   [rowActions]="rowActions"
+  [clickableRows]="true"
+  [backendPagination]="true"
+  [totalItems]="totalOrders()"
+  [currentPage]="currentPage()"
+  [pageSize]="pageSize()"
+  initialSortKey="created_at"
+  initialSortDirection="desc"
   (refresh)="obtenerOrdenes()"
+  (queryChange)="onTableQuery($event)"
+  (paginationChange)="onPaginationChange($event)"
   (action)="handleAction($event)"
+  (rowClick)="verOrden($event)"
 >
 </app-data-table>
 
-<app-modal [open]="!!selectedOrder()" [title]="'Pedido #' + (selectedOrder()?.numero_orden || selectedOrder()?.id || '')" size="full" (closed)="closeOrderDetail()">
+<app-modal [open]="!!selectedOrder()" [title]="'Pedido #' + (selectedOrder()?.numero_orden || selectedOrder()?.id || '')" size="full" panelClass="order-detail-modal" (closed)="closeOrderDetail()">
   <app-orden-show *ngIf="selectedOrder() as order" [orderId]="order.id" />
-  <div modal-actions><app-button text="Cerrar" color="secondary" (buttonClick)="closeOrderDetail()" /></div>
 </app-modal>

@@ -1,4 +1,4 @@
-import { createDateTimeString, normalizeDateOnlyValue, normalizeDateTimeValue, normalizeOrderDateValue } from './date-time-utils';
+import { createDateTimeString, formatDateOnly, normalizeDateOnlyValue, normalizeDateTimeValue, normalizeOrderDateValue } from './date-time-utils';
 
 describe('date-time-utils', () => {
   it('normalizes a date-only string', () => {
@@ -15,5 +15,10 @@ describe('date-time-utils', () => {
 
   it('normalizes a date-only value', () => {
     expect(normalizeDateOnlyValue('2026-07-20T14:30:45')).toBe('2026-07-20');
+  });
+
+  it('converts a zoned order datetime before extracting its local day', () => {
+    const value = '2026-09-03T02:30:00Z';
+    expect(normalizeOrderDateValue(value)).toBe(formatDateOnly(new Date(value)));
   });
 });

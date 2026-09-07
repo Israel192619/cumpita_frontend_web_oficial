@@ -1,3 +1,13 @@
+<section class="layout-card">
+  <header><div><h2>Plano del local</h2><p>Arrastra las mesas para reflejar su ubicación real.</p></div><button type="button" (click)="guardarPlano()" [disabled]="guardandoPlano()">{{ guardandoPlano() ? 'Guardando…' : 'Guardar distribución' }}</button></header>
+  <div #plano class="layout-floor" (pointermove)="moverMesa($event, plano)" (pointerup)="terminarArrastre()" (pointercancel)="terminarArrastre()">
+    <div class="layout-entrance">ENTRADA ↓</div><div class="layout-wall"></div><div class="layout-cashier">CAJA</div>
+    @for (mesa of mesas(); track mesa.id; let i = $index) {
+      <button type="button" class="layout-table" [style.left.%]="posicionX(mesa, i)" [style.top.%]="posicionY(mesa, i)" (pointerdown)="iniciarArrastre($event, mesa)" [attr.aria-label]="'Mover mesa ' + mesa.numero"><b>{{ mesa.numero }}</b><small>{{ mesa.capacidad }} pers.</small></button>
+    }
+  </div>
+</section>
+
 <app-data-table
   title="Mesas"
   [data]="mesas()"
@@ -12,6 +22,7 @@
   [errorMessageLink]="errorMessageLink()"
   [errorMessageText]="errorMessageText()"
   createLink="/app/mesas/create"
+  [showViewAction]="false"
   (refresh)="obtenerMesas()"
   (action)="handleAction($event)"
 >

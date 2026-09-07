@@ -53,10 +53,6 @@ export class UsersList {
       this.router.navigate(['/app/users/edit', item.id]);
     }
 
-    if (type === 'view') {
-      //this.router.navigate(['/user', item.id]);
-    }
-
     if (type === 'delete') {
       this.eliminarUsuario(item.id);
     }

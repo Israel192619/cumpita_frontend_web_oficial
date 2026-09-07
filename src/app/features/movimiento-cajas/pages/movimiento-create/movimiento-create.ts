@@ -22,7 +22,7 @@ export class MovimientoCreate {
     this.form = this.fb.group({
       tipo: ['INGRESO' as 'INGRESO' | 'RETIRO', Validators.required],
       monto: [null as number | null, [Validators.required, Validators.min(0.01)]],
-      motivo: ['', [Validators.required, Validators.maxLength(255)]],
+      motivo: ['', [Validators.maxLength(255)]],
     });
   }
 

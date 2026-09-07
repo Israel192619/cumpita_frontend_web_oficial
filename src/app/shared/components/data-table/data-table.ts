@@ -38,8 +38,11 @@ export class DataTable implements OnChanges {
   @Input() errorMessageText: string | null = null;
   @Input() createLink?: string;
   @Input() createText = '+ Crear';
+  @Input() showViewAction = true;
+  @Input() imageFallbackIcon = 'user';
+  @Input() clickableRows = false;
   @Input() rowActions?: {
-    type: string; label: string; icon?: string; class?: string; visible?: (item: any) => boolean;
+    type: string; label: string; icon?: string; class?: string; iconOnly?: boolean; visible?: (item: any) => boolean;
   }[];
 
   @Input() searchable = true;
@@ -55,9 +58,12 @@ export class DataTable implements OnChanges {
   @Input() backendPagination = false;
   @Input() totalItems?: number;
   @Input() currentPage = 1;
+  @Input() initialSortKey: string | null = null;
+  @Input() initialSortDirection: 'asc' | 'desc' = 'asc';
 
   @Output() refresh = new EventEmitter<void>();
   @Output() action = new EventEmitter<{ type: string; item: any }>();
+  @Output() rowClick = new EventEmitter<any>();
   @Output() paginationChange = new EventEmitter<{ page: number; pageSize: number }>();
   @Output() queryChange = new EventEmitter<DataTableQuery>();
 
@@ -71,6 +77,8 @@ export class DataTable implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['pageSize']) this.internalPageSize = this.validPageSize(this.pageSize);
     if (changes['currentPage']) this.internalPage = Math.max(1, Number(this.currentPage) || 1);
+    if (changes['initialSortKey']) this.sortKey = this.initialSortKey;
+    if (changes['initialSortDirection']) this.sortDirection = this.initialSortDirection;
     if (changes['data'] && !changes['data'].firstChange && !this.backendPagination) this.ensureValidPage();
   }
 
@@ -81,6 +89,8 @@ export class DataTable implements OnChanges {
   availableActions(item: any) {
     return this.rowActions?.filter(action => !action.visible || action.visible(item)) ?? [];
   }
+
+  selectRow(item: any): void { if (this.clickableRows) this.rowClick.emit(item); }
 
   isSortable(column: DataTableColumn): boolean { return column.sortable !== false && column.type !== 'image'; }
 
@@ -155,6 +165,10 @@ export class DataTable implements OnChanges {
     if (value === true || value === 1 || value === '1') return 'Sí';
     if (value === false || value === 0 || value === '0') return 'No';
     return String(value ?? '—');
+  }
+
+  hideBrokenImage(event: Event): void {
+    (event.target as HTMLImageElement).style.display = 'none';
   }
 
   private get localProcessedData(): any[] {

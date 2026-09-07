@@ -5,6 +5,7 @@ import { ToastrService } from 'ngx-toastr';
 import { ErrorMessage, FormCard, InputForm } from '../../../../shared/components';
 import { Producto } from '../../../../core/models/producto';
 import { ProductoService, TipoAjusteStock } from '../../services/producto-service';
+import { ModificadorService, ModificadorOpcion } from '../../../modificadores/services/modificador-service';
 
 @Component({
   selector: 'app-ajuste-stock-create',
@@ -14,15 +15,16 @@ import { ProductoService, TipoAjusteStock } from '../../services/producto-servic
 })
 export class AjusteStockCreate {
   productos = signal<Producto[]>([]);
+  opciones = signal<Array<ModificadorOpcion & { grupo: string }>>([]);
   loading = signal(false);
   loadingProducts = signal(true);
   error = signal<string | null>(null);
   form: FormGroup;
   readonly tipo = computed(() => this.form.get('tipo')?.value as TipoAjusteStock);
 
-  constructor(private fb: FormBuilder, private service: ProductoService, private router: Router, private toastr: ToastrService) {
+  constructor(private fb: FormBuilder, private service: ProductoService, private modificadorService: ModificadorService, private router: Router, private toastr: ToastrService) {
     this.form = this.fb.group({
-      producto_id: [null as number | null, Validators.required],
+      destino: [null as string | null, Validators.required],
       tipo: ['ENTRADA' as TipoAjusteStock, Validators.required],
       cantidad: [1, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]],
       motivo: ['', [Validators.maxLength(255)]],
@@ -34,6 +36,9 @@ export class AjusteStockCreate {
       next: productos => { this.productos.set(productos.filter(producto => producto.maneja_stock && producto.stock != null)); this.loadingProducts.set(false); },
       error: () => { this.error.set('No se pudieron cargar los productos con stock.'); this.loadingProducts.set(false); },
     });
+    this.modificadorService.listarModificadores().subscribe(modificadores => this.opciones.set(
+      modificadores.filter(mod => mod.activo).flatMap(mod => (mod.opciones ?? []).filter(op => op.activo !== false && op.maneja_stock && op.stock != null).map(op => ({ ...op, grupo: mod.nombre })))
+    ));
     this.control('tipo').valueChanges.subscribe(tipo => {
       const quantity = this.control('cantidad');
       quantity.setValidators([Validators.required, Validators.min(tipo === 'CORRECCION' ? 0 : 1), Validators.pattern(/^\d+$/)]);
@@ -52,7 +57,10 @@ export class AjusteStockCreate {
     if (this.form.invalid || this.loading()) { this.form.markAllAsTouched(); return; }
     this.loading.set(true);
     this.error.set(null);
-    this.service.crearAjusteStock(this.form.getRawValue()).subscribe({
+    const { destino, ...resto } = this.form.getRawValue();
+    const [tipoDestino, id] = String(destino).split(':');
+    const payload = { ...resto, ...(tipoDestino === 'producto' ? { producto_id: Number(id) } : { modificador_opcion_id: Number(id) }) };
+    this.service.crearAjusteStock(payload).subscribe({
       next: () => { this.toastr.success('Ajuste de stock registrado.'); this.router.navigate(['/app/ajustes-stock']); },
       error: err => { this.error.set(err?.error?.message || Object.values(err?.error?.errors ?? {}).flat().join(' ') || 'No se pudo registrar el ajuste.'); this.loading.set(false); },
     });

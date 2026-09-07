@@ -10,6 +10,9 @@ export interface ModificadorOpcion {
   nombre: string;
   precio_extra: number;
   activo?: boolean;
+  maneja_stock?: boolean;
+  stock?: number | null;
+  stock_minimo?: number | null;
 }
 
 export interface Modificador {

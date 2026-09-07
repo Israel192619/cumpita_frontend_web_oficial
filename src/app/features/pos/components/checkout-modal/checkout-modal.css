@@ -107,6 +107,23 @@
 
 .summary-item.deleted-refund .price { color: var(--color-danger); }
 
+.refund-cash-info {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.55rem;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  color: var(--color-text-secondary);
+  background: var(--color-hover);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.refund-cash-info strong { color: var(--color-text); }
+.refund-cash-info--blocked { border-color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface)); }
+.refund-cash-info--blocked strong:last-child { color: var(--color-danger); }
+
 .amount-card { display: grid; gap: 0.65rem; }
 
 .amount-input-wrapper {
@@ -268,3 +285,50 @@
 @media (prefers-reduced-motion: reduce) {
   .amount-input-wrapper, .quick-amount-btn, .payment-btn { transition: none; }
 }
+
+/* Pago y cierre: jerarquía mediante espacio y color, no mediante contornos. */
+.section{border-bottom:0}
+.summary-pill,
+.items-summary,
+.refund-items-block,
+.summary-item.deleted-refund{border:0;box-shadow:none}
+.refund-items-title{border-bottom:0}
+.amount-input-wrapper{
+  border:0;
+  background:var(--color-hover);
+  box-shadow:none;
+}
+.amount-input-wrapper:focus-within{border:0;box-shadow:none}
+.currency-chip{border-left:0;background:transparent}
+.quick-amount-btn{
+  border:0;
+  color:var(--color-text);
+  background:var(--color-hover);
+  box-shadow:none;
+}
+.quick-amount-btn:hover{
+  border:0;
+  color:var(--color-primary);
+  background:color-mix(in srgb,var(--color-primary) 10%,var(--color-surface));
+}
+.quick-amount-btn.exact{
+  border:0;
+  background:color-mix(in srgb,var(--color-primary) 12%,var(--color-surface));
+}
+.status-card{border:0}
+.payment-history{border-top:0}
+.payment-btn{
+  border:0;
+  background:var(--color-hover);
+  box-shadow:none;
+}
+.payment-btn:hover:not(:disabled){border:0;background:color-mix(in srgb,var(--color-primary) 9%,var(--color-surface))}
+.payment-btn.active{
+  border:0;
+  color:var(--color-primary);
+  background:color-mix(in srgb,var(--color-primary) 14%,var(--color-surface));
+  box-shadow:none;
+}
+.selection-mark{border:0;background:transparent}
+:host ::ng-deep .checkout-actions .btn-light{border:0;background:var(--color-hover)}
+:host ::ng-deep .checkout-actions .btn-primary{color:#fff}

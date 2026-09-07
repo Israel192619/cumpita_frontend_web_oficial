@@ -1,17 +1,47 @@
 <main class="service-page">
   <header class="service-header">
-    <div class="brand"><span>DESPACHO</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
+    <div class="brand"><span>{{ esAdministrador() ? 'ADMINISTRACIÓN' : esDespacho() ? 'DESPACHO' : 'MESERO' }}</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
     <div class="service-header-actions">
+      <button type="button" class="service-theme-toggle" (click)="alternarPantallaCompleta()" [attr.aria-pressed]="pantallaCompleta()" [attr.aria-label]="pantallaCompleta() ? 'Salir de pantalla completa' : 'Pantalla completa'" [title]="pantallaCompleta() ? 'Salir de pantalla completa' : 'Pantalla completa'">
+        <app-icon [name]="pantallaCompleta() ? 'minimize' : 'maximize'" [size]="19" />
+      </button>
+      <button type="button" class="service-theme-toggle" (click)="themeService.toggle()" [attr.aria-label]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'" [title]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'">
+        <app-icon [name]="themeService.theme() === 'dark' ? 'sun' : 'moon'" [size]="19" />
+      </button>
       <label class="service-date-filter">
         <span>Fecha</span>
         <input type="date" [value]="fechaTablero()" (change)="cambiarFechaTablero($any($event.target).value)" aria-label="Filtrar órdenes por fecha">
       </label>
       @if (fechaTablero() !== fechaHoy) { <app-button text="Hoy" color="secondary" (buttonClick)="volverAHoy()" /> }
+      <button type="button" class="preorders-button" (click)="abrirPreordenes()" [attr.aria-label]="'Ver ' + preordenesProgramadas().length + ' preórdenes'">
+        <app-icon name="calendar" [size]="18" /><span>Preórdenes</span><b>{{ preordenesProgramadas().length }}</b>
+      </button>
+      @if (esMesero()) { <app-button text="+ Nueva preorden" (buttonClick)="crearPreorden()" /> }
       @if (sesionSeleccionada()) { <app-button text="Buscar orden" color="secondary" (buttonClick)="abrirBuscadorOrden()" /> }
       @if (permiteSesionesPin()) { <app-button text="+ Ingresar mesero" (buttonClick)="abrirIngreso()" /> }
+      @if (esAdministrador()) { <app-button text="← Volver a órdenes" color="secondary" (buttonClick)="volverAOrdenes()" /> }
+      @if (esMesero()) {
+        <div class="service-user-menu">
+          <button type="button" class="service-user-trigger" [attr.aria-expanded]="menuUsuarioAbierto()" aria-controls="service-user-dropdown" (click)="menuUsuarioAbierto.update(abierto => !abierto)">
+            <span class="service-user-avatar">
+              @if (usuarioCabecera()?.perfil_usuarios?.avatar_url && !avatarFallido()) {
+                <img [src]="usuarioCabecera()!.perfil_usuarios!.avatar_url" alt="" (error)="avatarFallido.set(true)">
+              } @else { <app-icon name="user" [size]="23" /> }
+            </span>
+            <span class="service-user-copy"><b>{{ usuarioCabecera()?.name || sesionSeleccionada()?.user?.name }}</b><small>Mesero</small></span>
+            <app-icon [name]="menuUsuarioAbierto() ? 'chevron-up' : 'chevron-down'" [size]="16" />
+          </button>
+          @if (menuUsuarioAbierto()) {
+            <div class="service-user-dropdown" id="service-user-dropdown"><button type="button" class="profile-link" routerLink="/perfil" (click)="menuUsuarioAbierto.set(false)"><app-icon name="user" [size]="20" /><span>Mi perfil</span></button>
+              <button type="button" [disabled]="procesando() === 'cerrar'" (click)="cerrarSesionAplicacion()"><app-icon name="log-out" [size]="20" /><span>Cerrar sesión</span></button>
+            </div>
+          }
+        </div>
+      } @else if (esDespacho()) { <app-button text="Cerrar sesión" color="danger" (buttonClick)="cerrarSesionAplicacion()" /> }
     </div>
   </header>
 
+  @if (esDespacho()) {
   <section class="sessions" aria-label="Sesiones activas">
     <div class="sessions-title"><span>Sesiones activas</span><strong>{{ sesiones().length }}</strong></div>
     <div class="session-list">
@@ -29,29 +59,67 @@
       <div class="session-actions"><span>Atendiendo como <b>{{ activa.user.name }}</b></span><app-button text="Cerrar mi sesión" color="danger" size="small" [disabled]="procesando() === 'cerrar'" (buttonClick)="cerrarMiSesion()" /></div>
     }
   </section>
-
-  @if (sesionSeleccionada()) {
-    <section class="service-order-action" aria-label="Agregar productos a una orden">
-      <div><span>ADICIONALES</span><b>Agregar productos a una orden activa</b><small>Busca rápidamente por mesa o nombre del cliente.</small></div>
-      <app-button text="Buscar orden" size="large" (buttonClick)="abrirBuscadorOrden()" />
-    </section>
   }
 
   @if (loading()) { <div class="loading">Actualizando fichas…</div> }
 
-  @if (preordenesProgramadas().length) {
-    <section class="programmed-service">
-      <div class="section-heading"><div><span>PROGRAMADAS</span><h2>Preórdenes bloqueadas</h2></div><strong>{{ preordenesProgramadas().length }}</strong></div>
-      <div class="programmed-grid">
-        @for (ficha of preordenesProgramadas(); track ficha.id) {
-          <article><div><b>#{{ ficha.numero_orden }}</b><span>{{ ficha.fecha_programada | date:'dd/MM HH:mm' }}</span></div><p>{{ ficha.cliente || 'Cliente pendiente' }} · {{ ficha.total_items }} producto(s)</p><strong>Esperando activación de Caja</strong></article>
-        }
-      </div>
-    </section>
-  }
+  <ng-template #fichaServicio let-ficha>
+          <article class="work-ticket"
+            [class.work-ticket--mesa]="ficha.tipo_orden === 'dine-in'"
+            [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go' || ficha.tipo_orden === 'delivery'"
+            [class.work-ticket--preorden]="ficha.tipo_flujo === 'preorden'">
+            <div class="ticket-head"><div><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3><small class="ticket-table">{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="progress" [class.complete]="ficha.todo_listo"><b>{{ ficha.listos }}/{{ ficha.total_items }}</b><small>listos</small></div></div>
+            <div class="ticket-detail-meta"><span class="ticket-client-name"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ etiquetaTipo(ficha) }}</span><span>Responsable: {{ ficha.mesero || 'Sin asignar' }}</span><span>{{ ficha.hora }}</span><span [class.wait-alert]="ficha.tiempo_espera_minutos >= 15">{{ formatearEspera(ficha.tiempo_espera_minutos) }} esperando</span></div>
+            <div class="items">
+              @for (grupo of agruparDetalles(ficha); track grupo.clave) {
+                @if (grupo.inicioCategoria) { <h4 class="service-category">{{ grupo.categoria }}</h4> }
+                <button type="button" class="item" [class.ready]="grupo.detalles[0].servido || ficha.estado === 'entregado'" [disabled]="!sesionSeleccionada() || grupo.detalles[0].servido || ficha.estado === 'entregado' || !!procesando() || (!!grupo.detalles[0].llevando_por_id && grupo.detalles[0].llevando_por_id !== sesionSeleccionada()?.user?.id)" (click)="confirmar(grupo.detalles[0].id)">
+                  <span class="check">{{ grupo.detalles[0].servido || ficha.estado === 'entregado' ? '✓' : '' }}</span>
+                  <span class="item-copy"><b><em *ngIf="grupo.cantidad > 1">{{ grupo.cantidad }}×</em> {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opciones.length) { <small>{{ grupo.opciones.join(' · ') }}</small> }@if (grupo.nota) { <small class="item-note">Nota: {{ grupo.nota }}</small> }@if (grupo.detalles[0].entregado_por) { <small class="service-delivered-by">Entregado por {{ grupo.detalles[0].entregado_por }}</small> }</span>
+                  <span class="state">{{ grupo.detalles[0].llevando_por ? grupo.detalles[0].llevando_por + ' lo lleva' : grupo.detalles[0].servido || ficha.estado === 'entregado' ? 'Entregado' : grupo.listo ? 'Listo' : grupo.cantidad > 1 ? grupo.cantidad + ' pendientes' : 'Pendiente' }}</span>
+                </button>
+                @if (grupo.detalles[0].llevando_por_id && (grupo.detalles[0].llevando_por_id === sesionSeleccionada()?.user?.id || ficha.mesero_id === sesionSeleccionada()?.user?.id)) { <button type="button" class="collaboration-link" [disabled]="!!procesando()" (click)="colaborar(grupo.detalles[0].id, 'cancelar')">Cancelar traslado de {{ grupo.detalles[0].llevando_por }}</button> }
+              }
+            </div>
+            @if (sesionSeleccionada()) { <div class="ticket-additional"><app-button text="+ Agregar producto" color="secondary" size="small" [fullWidth]="true" (buttonClick)="abrirOrdenDesdeFicha(ficha)" /></div> }
+            @if (sesionSeleccionada() && ficha.estado !== 'entregado') {
+              @if (ficha.mesero_id === sesionSeleccionada()?.user?.id) {
+              <div class="ticket-actions"><button type="button" class="release" [disabled]="procesando() === 'liberar-' + ficha.id" (click)="solicitarLiberacion(ficha)">Liberar ficha</button><button type="button" class="deliver" [disabled]="!ficha.todo_listo || tieneProductosEnCamino(ficha) || procesando() === 'entregar-' + ficha.id" (click)="entregar(ficha)">ENTREGAR</button></div>
+              } @else if (!ficha.mesero_id) {
+                <div class="ticket-additional"><app-button text="TOMAR FICHA" [fullWidth]="true" [disabled]="!!procesando()" (buttonClick)="tomar(ficha)" /></div>
+              }
+            }
+          </article>
+  </ng-template>
 
   <section class="board-section my-tickets">
-    <div class="section-heading"><div><span>MI TURNO</span><h2>Mis fichas</h2></div><strong>{{ misFichas().length }}</strong></div>
+    <div class="section-heading service-view-heading"><div><span>MI TURNO</span><h2>{{ viendoTodas() ? 'Todas las fichas' : viendoEntregadas() ? 'Mis entregadas' : 'Mis fichas' }}</h2></div><div class="service-view-switch"><button type="button" [class.active]="!viendoTodas() && !viendoEntregadas()" (click)="viendoTodas.set(false); viendoEntregadas.set(false)">En atención <b>{{ misFichas().length }}</b></button><button type="button" [class.active]="!viendoTodas() && viendoEntregadas()" (click)="viendoTodas.set(false); viendoEntregadas.set(true)">Entregadas <b>{{ misEntregadas().length }}</b></button><button type="button" [class.active]="viendoTodas()" (click)="abrirTodas()">Todas las fichas</button></div></div>
+    @if (viendoTodas()) {
+      <div class="collaboration-filters">
+        <input type="search" placeholder="Buscar ficha, mesa, cliente o mesero" aria-label="Buscar en todas las fichas" [value]="filtroTodas()" (input)="filtroTodas.set($any($event.target).value)">
+        <button type="button" (click)="cargar(false)">Actualizar</button>
+      </div>
+      <div class="my-grid collaboration-grid">
+        @for (ficha of todasFiltradas(); track ficha.id) {
+          <ng-container *ngTemplateOutlet="fichaServicio; context: { $implicit: ficha }" />
+        } @empty { <div class="empty-card">No hay fichas que coincidan con los filtros.</div> }
+      </div>
+    } @else if (viendoEntregadas()) {
+      <div class="my-grid delivered-grid">
+        @for (ficha of misEntregadas(); track ficha.id) {
+          <article class="work-ticket delivered-ticket"
+            [class.work-ticket--mesa]="ficha.tipo_orden === 'dine-in'"
+            [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go' || ficha.tipo_orden === 'delivery'"
+            [class.work-ticket--preorden]="ficha.tipo_flujo === 'preorden'">
+            <div class="ticket-head"><div><span>FICHA ENTREGADA</span><h3>#{{ ficha.numero_orden }}</h3><small class="ticket-table">{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="delivered-badge">✓ Entregada</div></div>
+            <div class="ticket-detail-meta"><span class="ticket-client-name"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ ficha.total_items }} producto(s)</span><span>{{ ficha.entregada_en | date:'HH:mm' }}</span></div>
+            <div class="items delivered-items">@for (grupo of agruparDetalles(ficha); track grupo.clave) {
+                @if (grupo.inicioCategoria) { <h4 class="service-category">{{ grupo.categoria }}</h4> } <div class="item ready"><span class="check">✓</span><span class="item-copy"><b><em *ngIf="grupo.cantidad > 1">{{ grupo.cantidad }}×</em> {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opciones.length) { <small>{{ grupo.opciones.join(' · ') }}</small> }@if (grupo.detalles[0].entregado_por) { <small>Entregado por {{ grupo.detalles[0].entregado_por }}</small> }</span><span class="state">Entregado</span></div> }</div>
+            <div class="ticket-additional"><app-button text="+ Agregar producto" color="secondary" size="small" [fullWidth]="true" (buttonClick)="abrirOrdenDesdeFicha(ficha)" /></div>
+          </article>
+        } @empty { <div class="empty-card">Todavía no entregaste fichas hoy.</div> }
+      </div>
+    } @else {
     @if (!sesionSeleccionada() && permiteSesionesPin()) {
       <button type="button" class="signin-callout" (click)="abrirIngreso()"><b>Ingresar como mesero</b><span>Inicia una sesión para tomar y atender fichas.</span></button>
     } @else if (!sesionSeleccionada() && esAccesoPrincipal()) {
@@ -59,39 +127,51 @@
     } @else {
       <div class="my-grid">
         @for (ficha of misFichas(); track ficha.id) {
-          <article class="work-ticket">
-            <div class="ticket-head"><div><span>FICHA</span><h3>#{{ ficha.numero_orden }}</h3><small>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="progress" [class.complete]="ficha.todo_listo"><b>{{ ficha.listos }}/{{ ficha.total_items }}</b><small>listos</small></div></div>
-            <div class="ticket-detail-meta"><span><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ etiquetaTipo(ficha) }}</span><span>{{ ficha.hora }}</span><span [class.wait-alert]="ficha.tiempo_espera_minutos >= 15">{{ ficha.tiempo_espera_minutos }} min esperando</span></div>
-            <div class="items">
-              @for (item of ficha.detalles; track item.id) {
-                <button type="button" class="item" [class.ready]="item.listo" [disabled]="item.listo || procesando() === 'detalle-' + item.id" (click)="confirmar(item.id)">
-                  <span class="check">{{ item.listo ? '✓' : '' }}</span>
-                  <span class="item-copy"><b>{{ item.producto }}</b>@if (item.opciones.length) { <small>{{ item.opciones.join(' · ') }}</small> }</span>
-                  <span class="state">{{ item.listo ? 'Listo' : 'Pendiente' }}</span>
-                </button>
-              }
-            </div>
-            <div class="ticket-additional"><app-button text="+ Agregar producto" color="secondary" size="small" [fullWidth]="true" (buttonClick)="abrirOrdenDesdeFicha(ficha)" /></div>
-            <div class="ticket-actions"><button type="button" class="release" [disabled]="procesando() === 'liberar-' + ficha.id" (click)="solicitarLiberacion(ficha)">Liberar ficha</button><button type="button" class="deliver" [disabled]="!ficha.todo_listo || procesando() === 'entregar-' + ficha.id" (click)="entregar(ficha)">ENTREGAR</button></div>
-          </article>
+          <ng-container *ngTemplateOutlet="fichaServicio; context: { $implicit: ficha }" />
         } @empty { <div class="empty-card">No tienes fichas en atención.</div> }
       </div>
     }
+    }
   </section>
 
+  @if (!viendoTodas() && !viendoEntregadas()) {
   <section class="board-section available">
     <div class="section-heading"><div><span>COLA COMÚN</span><h2>Disponibles</h2></div><strong>{{ disponibles().length }}</strong></div>
     <div class="available-grid">
       @for (ficha of disponibles(); track ficha.id) {
-        <article class="available-ticket"><div><span>FICHA</span><h3>#{{ ficha.numero_orden }}</h3><p>{{ ficha.mesa ? 'Mesa ' + ficha.mesa + ' · ' : '' }}{{ ficha.total_items }} productos</p></div><app-button text="TOMAR" size="large" [disabled]="procesando() === 'tomar-' + ficha.id" (buttonClick)="tomar(ficha)" /></article>
+        <article class="available-ticket" [class.has-ready-items]="ficha.listos > 0" [class.all-ready-items]="ficha.todo_listo">
+          <div class="available-ticket-copy"><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3><div class="available-customer"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b><strong>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</strong></div><p>{{ ficha.total_items }} producto{{ ficha.total_items === 1 ? '' : 's' }}</p>@if (ficha.listos > 0) { <small class="available-ready-state">{{ ficha.todo_listo ? 'Todo listo para recoger' : ficha.listos + ' de ' + ficha.total_items + ' listos' }}</small> }</div>
+          <app-button text="TOMAR" size="large" [disabled]="procesando() === 'tomar-' + ficha.id" (buttonClick)="tomar(ficha)" />
+        </article>
       } @empty { <div class="empty-card">No hay fichas disponibles.</div> }
     </div>
   </section>
+  }
+
+  <app-modal [open]="preordenesAbiertas()" [title]="'Preórdenes (' + preordenesProgramadas().length + ')'" size="large" (closed)="cerrarPreordenes()">
+    <div class="preorder-search">
+      <span aria-hidden="true">⌕</span>
+      <input type="search" autofocus placeholder="Buscar por número, cliente o mesa" [value]="consultaPreorden()" (input)="consultaPreorden.set($any($event.target).value)" aria-label="Buscar preorden">
+      <small>{{ preordenesFiltradas().length }} resultado{{ preordenesFiltradas().length === 1 ? '' : 's' }}</small>
+    </div>
+    <div class="preorder-list">
+      @for (ficha of preordenesFiltradas(); track ficha.id) {
+        <article class="preorder-row">
+          <div class="preorder-number"><small>PREORDEN</small><b>#{{ ficha.numero_orden }}</b></div>
+          <div class="preorder-info"><strong>{{ ficha.cliente || 'Cliente no registrado' }}</strong><span>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }} · {{ ficha.total_items }} producto{{ ficha.total_items === 1 ? '' : 's' }}</span></div>
+          <time>{{ ficha.fecha_programada | date:'dd/MM/yyyy' }}<b>{{ ficha.fecha_programada | date:'HH:mm' }}</b></time>
+          <button type="button" class="activate-preorder" [disabled]="procesando() === 'activar-preorden-' + ficha.id" (click)="activarPreorden(ficha)">{{ procesando() === 'activar-preorden-' + ficha.id ? 'Activando…' : 'Activar' }}</button>
+        </article>
+      } @empty {
+        <div class="empty-card">{{ preordenesProgramadas().length ? 'No hay coincidencias.' : 'No hay preórdenes programadas.' }}</div>
+      }
+    </div>
+  </app-modal>
 
   <app-modal [open]="mostrarIngreso()" [title]="meseroSeleccionado() ? meseroSeleccionado()!.name : '¿Quién está atendiendo?'" size="small" [busy]="procesando() === 'ingreso'" (closed)="cerrarIngreso()">
     @if (!meseroSeleccionado()) {
       <p>Selecciona tu nombre para iniciar.</p>
-      <div class="waiter-grid">@for (mesero of meseros(); track mesero.id) { <button type="button" (click)="elegirMesero(mesero)"><span>{{ mesero.name.charAt(0) }}</span><b>{{ mesero.name }}</b></button> }</div>
+      <div class="waiter-grid">@for (mesero of meserosDisponibles(); track mesero.id) { <button type="button" (click)="elegirMesero(mesero)"><span>{{ mesero.name.charAt(0) }}</span><b>{{ mesero.name }}</b></button> } @empty { <p>No hay otros meseros disponibles para iniciar.</p> }</div>
     } @else {
       <button type="button" class="back" (click)="meseroSeleccionado.set(null)">← Cambiar nombre</button>
       <p>Introduce tu PIN una sola vez para esta jornada.</p>
@@ -106,20 +186,21 @@
 
   <app-modal [open]="buscarOrdenAbierto()" title="Buscar orden" size="large" (closed)="cerrarBuscadorOrden()">
     @if (!ordenSeleccionada()) {
-      <form class="order-search" (submit)="$event.preventDefault(); buscarOrdenes()">
-        <input type="search" placeholder="Mesa o nombre del cliente" [value]="consultaOrden()" (input)="consultaOrden.set($any($event.target).value)" autocomplete="off" />
-        <app-button text="Buscar" type="submit" [loading]="procesando() === 'buscar-orden'" [disabled]="consultaOrden().trim().length < 1" />
-      </form>
+      <div class="order-search">
+        <input type="search" placeholder="Nombre, mesa o número de orden" [value]="consultaOrden()" (input)="actualizarConsultaOrden($any($event.target).value)" autocomplete="off" autofocus />
+        @if (procesando() === 'buscar-orden') { <span class="order-search-status">Buscando…</span> }
+      </div>
       <div class="order-results">
         @for (orden of resultadosOrden(); track orden.id) {
-          <button type="button" (click)="seleccionarOrden(orden)"><b>Orden #{{ orden.numero_orden }}</b><span>{{ orden.mesa ? 'Mesa ' + orden.mesa + ' · ' : '' }}{{ orden.cliente || 'Cliente no registrado' }} · {{ orden.estado }}</span></button>
-        } @empty { <p class="empty-card">Busca una orden por número, mesa o cliente.</p> }
+          <button type="button" (click)="seleccionarOrden(orden)"><strong>#{{ orden.numero_orden }}</strong><span class="order-result-field"><small>CLIENTE</small><b>{{ orden.cliente || 'Sin nombre' }}</b></span><span class="order-result-field"><small>MESA</small><b>{{ orden.mesa ? orden.mesa : 'Sin mesa' }}</b></span></button>
+        } @empty { <p class="empty-card">{{ consultaOrden().trim() ? (procesando() === 'buscar-orden' ? 'Buscando coincidencias…' : 'No hay coincidencias en las órdenes de hoy.') : 'Escribe un nombre, mesa o número. Solo se buscan órdenes de hoy.' }}</p> }
       </div>
     } @else {
-      <div class="selected-order-head"><button type="button" (click)="ordenSeleccionada.set(null)">← Resultados</button><div><span>ORDEN</span><h3>#{{ ordenSeleccionada()!.numero_orden }}</h3><p>{{ ordenSeleccionada()!.mesa ? 'Mesa ' + ordenSeleccionada()!.mesa + ' · ' : '' }}{{ ordenSeleccionada()!.cliente || 'Cliente no registrado' }}</p></div></div>
+      <div class="selected-order-head"><button type="button" (click)="ordenSeleccionada.set(null)">← Resultados</button><div class="selected-order-identity"><span>ORDEN</span><h3>#{{ ordenSeleccionada()!.numero_orden }}</h3></div><div class="selected-order-meta"><span>CLIENTE<strong>{{ ordenSeleccionada()!.cliente || 'Sin nombre' }}</strong></span><span>MESA<strong>{{ ordenSeleccionada()!.mesa || 'Sin mesa' }}</strong></span></div></div>
       <div class="selected-order-items">
-        @for (detalle of ordenSeleccionada()!.detalles; track detalle.id) {
-          <div><b>{{ detalle.cantidad }} × {{ detalle.producto }}</b>@if (detalle.opciones.length) { <small>{{ detalle.opciones.join(' · ') }}</small> }</div>
+        @for (grupo of agruparDetallesOrden(ordenSeleccionada()!.detalles); track grupo.clave) {
+                @if (grupo.inicioCategoria) { <h4 class="service-category">{{ grupo.categoria }}</h4> }
+          <div><b>{{ grupo.cantidad }} × {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opciones.length) { <small>{{ grupo.opciones.join(' · ') }}</small> }@if (grupo.nota) { <small class="item-note">Nota: {{ grupo.nota }}</small> }</div>
         }
       </div>
       @if (ordenSeleccionada()!.puede_agregar) {
@@ -130,11 +211,25 @@
 
   <app-modal [open]="selectorProductoAbierto()" title="Agregar producto" size="large" (closed)="selectorProductoAbierto.set(false)">
     @if (!productoSeleccionado()) {
-      <input class="product-search" type="search" placeholder="Buscar producto" [value]="busquedaProducto()" (input)="busquedaProducto.set($any($event.target).value)" />
-      <div class="service-product-grid"><app-product-grid [productos]="productosFiltrados()" [compact]="true" [showPrices]="false" [allowStockAdjustment]="false" (productAdded)="seleccionarProducto($event)" /></div>
+      <div class="service-product-search-wrap">
+        <span aria-hidden="true">⌕</span>
+        <input class="product-search" type="search" placeholder="Buscar producto" [value]="busquedaProducto()" (input)="actualizarBusquedaProducto($any($event.target).value)" autocomplete="off" autofocus />
+        @if (busquedaProducto().trim()) { <small>{{ productosFiltrados().length }} coincidencia{{ productosFiltrados().length === 1 ? '' : 's' }}</small> }
+      </div>
+      <div class="service-product-grid">
+        @for (producto of productosFiltrados(); track producto.id) {
+          <button type="button" class="service-product-option" [disabled]="!productoDisponible(producto)" (click)="seleccionarProducto(producto)">
+            <img [src]="producto.imagen_url || '/images/no-image.png'" [alt]="producto.nombre" />
+            <span><strong>{{ producto.nombre }}</strong><small [class.out-of-stock]="!productoDisponible(producto)">{{ textoStockProducto(producto) }}</small></span>
+            <b>→</b>
+          </button>
+        } @empty {
+          <p class="empty-card">No hay productos que coincidan con la búsqueda.</p>
+        }
+      </div>
     } @else {
       <button type="button" class="back" (click)="productoSeleccionado.set(null)">← Cambiar producto</button>
-      <div class="additional-product-head"><div><span>PRODUCTO</span><h3>{{ productoSeleccionado()!.nombre }}</h3></div><div class="quantity"><button type="button" (click)="disminuirCantidadAdicional()">−</button><b>{{ cantidadAdicional() }}</b><button type="button" (click)="aumentarCantidadAdicional()">+</button></div></div>
+      <div class="additional-product-head"><div><span>PRODUCTO</span><h3 [class.producto-inactivo]="!productoSeleccionado()!.activo">{{ productoSeleccionado()!.nombre }}</h3><p>{{ formatearPrecio(productoSeleccionado()!.precio) }}</p>@if (!productoSeleccionado()!.activo) { <small class="producto-inactivo">Desactivado · Selecciona otro producto</small> }</div><div class="quantity"><button type="button" (click)="disminuirCantidadAdicional()">−</button><b>{{ cantidadAdicional() }}</b><button type="button" (click)="aumentarCantidadAdicional()">+</button></div></div>
       <div class="modifier-groups">
         @for (grupo of productoSeleccionado()!.modificadores || []; track grupo.id) {
           <section><div class="modifier-title"><b>{{ grupo.nombre }}</b><span>Opcional · {{ grupo.tipo === 'multiple' ? 'Varias opciones' : 'Una opción' }}</span></div><div class="modifier-options">
@@ -143,7 +238,7 @@
         }
       </div>
       <label class="additional-note"><span>Nota para Cocina</span><input type="text" maxlength="255" [value]="notaAdicional()" (input)="notaAdicional.set($any($event.target).value)" placeholder="Opcional" /></label>
-      <div class="additional-actions"><app-button text="Cancelar" color="secondary" (buttonClick)="selectorProductoAbierto.set(false)" /><app-button text="Agregar" [loading]="procesando() === 'agregar-adicional'" (buttonClick)="agregarAdicional()" /></div>
+      <div class="additional-actions"><app-button text="Cancelar" color="secondary" (buttonClick)="selectorProductoAbierto.set(false)" /><app-button text="Agregar" [disabled]="!productoSeleccionado()!.activo" [loading]="procesando() === 'agregar-adicional'" (buttonClick)="agregarAdicional()" /></div>
     }
   </app-modal>
 

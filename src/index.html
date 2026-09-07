@@ -5,8 +5,33 @@
     <title>Toñito</title>
     <base href="/">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f4f6f9">
+    <meta id="theme-color" name="theme-color" content="#f7f3ee">
+    <script>
+      (() => {
+        const storageKey = 'tonito_theme';
+        let theme;
+
+        try {
+          const savedTheme = localStorage.getItem(storageKey);
+          theme = savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : undefined;
+        } catch {
+          // El almacenamiento puede estar bloqueado; en ese caso se usa el tema del sistema.
+        }
+
+        theme ??= matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document.querySelector('#theme-color').content = theme === 'dark' ? '#111111' : '#f7f3ee';
+      })();
+    </script>
+    <style>
+      html[data-theme='light'], html[data-theme='light'] body { background: #f7f3ee; }
+      html[data-theme='dark'], html[data-theme='dark'] body { background: #111111; }
+    </style>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
   </head>
-  <body><app-root></app-root></body>
+  <body>
+    <script>document.body.dataset.pcTheme = document.documentElement.dataset.theme;</script>
+    <app-root></app-root>
+  </body>
 </html>

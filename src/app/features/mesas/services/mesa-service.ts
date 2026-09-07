@@ -44,4 +44,8 @@ export class MesaService {
   eliminarMesa(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/mesas/${id}`);
   }
+
+  guardarPlano(mesas: Pick<Mesa, 'id' | 'posicion_x' | 'posicion_y'>[]): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/mesas-plano`, { mesas });
+  }
 }

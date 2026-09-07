@@ -2,3 +2,25 @@
 @keyframes overlay-in{from{opacity:0}}@keyframes panel-in{from{opacity:0;transform:translateY(5px)}}
 @media(max-width:600px){.modal-overlay{align-items:end;padding:0}.modal-panel,.size-small,.size-large,.size-full{width:100%;max-height:92dvh;border-radius:14px 14px 0 0}.size-full{height:92dvh}.modal-header{padding-inline:15px}.modal-content{padding:15px}.modal-actions:not(:empty){padding:12px 15px}}
 @media(prefers-reduced-motion:reduce){.modal-overlay,.modal-panel{animation:none}}
+
+/* Presentación editorial usada por el detalle de una orden. */
+.order-detail-modal{width:min(100%,1240px);height:min(94vh,920px);background:linear-gradient(112deg,color-mix(in srgb,var(--color-surface) 94%,var(--color-text)),var(--color-surface) 62%);border-color:color-mix(in srgb,var(--color-border) 55%,transparent);border-radius:10px}
+.order-detail-modal .modal-header{min-height:80px;padding:18px 26px;border-bottom:0}
+.order-detail-modal .modal-heading h2{font-size:2rem;font-weight:400;letter-spacing:-.025em}
+.order-detail-modal .modal-close{align-self:flex-start;margin-top:1px}
+.order-detail-modal .modal-content{padding:0 26px 28px}
+@media(max-width:600px){.order-detail-modal{height:92dvh}.order-detail-modal .modal-header{min-height:64px;padding:14px 18px}.order-detail-modal .modal-heading h2{font-size:1.45rem}.order-detail-modal .modal-content{padding:0 18px 24px}}
+
+/* Modal de cobro plano, coherente con el dashboard. */
+.checkout-modal{border:0;box-shadow:none}
+.checkout-modal .modal-header{border-bottom:0}
+.checkout-modal .modal-actions:not(:empty){border-top:0}
+.payment-history-modal{border:0;box-shadow:none}
+.payment-history-modal .modal-header{border-bottom:0}
+.payment-history-modal .modal-actions:not(:empty){border-top:0}
+.pos-dashboard-modal{border:0;background:var(--color-surface);box-shadow:none}
+.pos-dashboard-modal .modal-header{border-bottom:0;padding-bottom:8px}
+.pos-dashboard-modal .modal-heading h2{font-size:1.18rem;font-weight:800}
+.pos-dashboard-modal .modal-close{color:var(--color-text-secondary)}
+.pos-dashboard-modal .modal-close:hover{color:var(--color-primary);background:transparent}
+.pos-dashboard-modal .modal-actions:not(:empty){border-top:0}

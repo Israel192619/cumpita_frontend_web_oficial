@@ -3,7 +3,9 @@ import { Component, Input } from '@angular/core';
 export type IconName =
   | 'arrow-down-right-circle'
   | 'arrow-up-right-circle'
+  | 'arrow-left'
   | 'banknote'
+  | 'calendar'
   | 'chevron-down'
   | 'chevron-right'
   | 'chevron-up'
@@ -15,19 +17,29 @@ export type IconName =
   | 'edit'
   | 'eye'
   | 'eye-off'
+  | 'menu'
+  | 'maximize'
+  | 'minimize'
+  | 'log-out'
+  | 'moon'
   | 'qrcode'
   | 'package'
+  | 'play'
   | 'report'
+  | 'search'
   | 'restaurant'
   | 'settings'
   | 'shopping-cart'
+  | 'sun'
   | 'trash'
   | 'trending-up'
+  | 'user'
   | 'users'
   | 'wallet';
 
 @Component({
   selector: 'app-icon',
+  standalone: true,
   templateUrl: './icon.html',
   styleUrl: './icon.css',
 })
@@ -45,4 +57,5 @@ export class Icon {
   get cssSize(): string {
     return typeof this.size === 'number' ? `${this.size}px` : this.size;
   }
+
 }

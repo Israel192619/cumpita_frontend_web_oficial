@@ -1,0 +1,24 @@
+.restock-dialog select {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  padding: .55rem .7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  color: var(--text-primary);
+  background: var(--bg-main);
+  font: inherit;
+  font-size: .9rem;
+}
+
+.restock-dialog label + label { margin-top: .75rem; }
+.restock-dialog select:focus { outline: 3px solid var(--color-focus); outline-offset: 1px; }
+.product-cart-quantity { margin: 0 0 .4rem; padding: .2rem .5rem; border-radius: 8px; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, transparent); font-size: .75rem; font-weight: 700; }
+.product-grid-container.compact { min-height: 0; }
+.product-grid-container.compact .product-grid { grid-auto-rows: max-content; align-content: start; }
+.product-grid-container.compact .product-card { height: auto; min-height: 230px; justify-content: flex-start; overflow: visible; }
+.product-grid-container.compact .product-image-wrapper { position: relative; top: auto; left: auto; transform: none; flex-shrink: 0; overflow: visible; margin: 0 0 1rem; }
+.product-grid-container.compact .stock-badge { width: auto; min-width: 28px; height: 28px; padding: 0 5px; box-sizing: border-box; right: -6px; bottom: -5px; font-size: .72rem; color: #fff; border: 2px solid var(--color-surface); border-radius: 999px; }
+.product-grid-container.compact .product-content { flex: 1 0 auto; min-width: 0; justify-content: flex-start; }
+.product-grid-container.compact .restock-btn { white-space: normal; min-height: 40px; }
+.product-grid-container.compact .restock-btn svg { flex-shrink: 0; }

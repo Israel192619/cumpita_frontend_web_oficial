@@ -49,6 +49,7 @@
 }
 
 .cart-title { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+.mobile-order-summary__reservation { grid-column: 1 / -1; color: var(--color-primary); font-size: .75rem; font-weight: 600; overflow-wrap: anywhere; }
 .mobile-order-summary, .mobile-actions-toggle, .mobile-details-date { display: none; }
 
 /* Cliente quick-select area */
@@ -415,7 +416,7 @@
     min-width: 0;
   }
 
-  .order-type-selector { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .order-type-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .cart-table-header {
     grid-template-columns: 1fr auto;

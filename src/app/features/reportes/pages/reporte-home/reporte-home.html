@@ -1,6 +1,6 @@
-<section class="report-page">
+<section class="report-page" [class]="'report-page report-page--' + tipo">
   <header class="report-header">
-    <div><p class="eyebrow">Toñito</p><h1>{{ titulo }}</h1><p class="print-meta">Período: {{ etiquetaPeriodo() }} · Generado: {{ generado() }}</p></div>
+    <div><p class="eyebrow">Restaurante Toñito</p><h1>{{ titulo }}</h1><p class="print-meta"><span><strong>Período:</strong> {{ etiquetaPeriodo() }}</span><span><strong>Generado:</strong> {{ generado() }}</span></p></div>
     <app-button class="no-print" text="Imprimir" color="secondary" (buttonClick)="imprimir()" />
   </header>
   <nav class="report-tabs no-print"><a routerLink="/app/reportes/ventas" routerLinkActive="active">Ventas</a><a routerLink="/app/reportes/productos" routerLinkActive="active">Productos</a><a routerLink="/app/reportes/caja" routerLinkActive="active">Caja</a></nav>
@@ -24,7 +24,7 @@
   @if (respuesta()?.resumen; as resumen) {
     <section class="summary-grid">
       @if (tipo === 'ventas') {
-        <article><span>Venta total</span><strong>{{ resumen.venta_total | appCurrency }}</strong></article><article><span>Órdenes</span><strong>{{ resumen.cantidad_ordenes }}</strong></article><article><span>Ticket promedio</span><strong>{{ resumen.ticket_promedio | appCurrency }}</strong></article><article><span>Efectivo</span><strong>{{ resumen.efectivo | appCurrency }}</strong></article><article><span>QR / Yape</span><strong>{{ resumen.qr | appCurrency }}</strong></article><article><span>Otros métodos</span><strong>{{ resumen.otros | appCurrency }}</strong></article><article><span>Descuentos</span><strong>{{ resumen.descuentos | appCurrency }}</strong></article><article><span>Devoluciones</span><strong>{{ resumen.devoluciones | appCurrency }}</strong></article>
+        <article><span>Venta total</span><strong>{{ resumen.venta_total | appCurrency }}</strong></article><article><span>Órdenes</span><strong>{{ resumen.cantidad_ordenes }}</strong></article><article><span>Ticket promedio</span><strong>{{ resumen.ticket_promedio | appCurrency }}</strong></article><article><span>Efectivo</span><strong>{{ resumen.efectivo | appCurrency }}</strong></article><article><span>QR / Yape</span><strong>{{ resumen.qr | appCurrency }}</strong></article><article><span>Devoluciones</span><strong>{{ resumen.devoluciones | appCurrency }}</strong></article>
       } @else if (tipo === 'productos') {
         <article><span>Productos vendidos</span><strong>{{ resumen.productos_vendidos }}</strong></article><article><span>Unidades vendidas</span><strong>{{ resumen.unidades_vendidas }}</strong></article><article><span>Total generado</span><strong>{{ resumen.total_generado | appCurrency }}</strong></article>
       } @else {
@@ -32,5 +32,6 @@
       }
     </section>
   }
-  <app-data-table [title]="titulo" [data]="filas" [columns]="columnas" [loading]="cargando()" [error]="error()" [rowActions]="[]" [pagination]="false" [searchable]="true" emptyMessage="No hay datos para el período seleccionado." />
+  <app-data-table [title]="titulo" [data]="filas" [columns]="columnas" [loading]="cargando()" [error]="error()" [rowActions]="[]" [pagination]="false" [searchable]="true" emptyMessage="No hay datos para el período seleccionado." (refresh)="cargar()" />
+  <footer class="print-footer print-only"><span>Restaurante Toñito</span><span>{{ titulo }} · {{ etiquetaPeriodo() }}</span></footer>
 </section>

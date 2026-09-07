@@ -23,6 +23,7 @@ interface OpcionSeleccionada {
 interface ModificadorSeleccionado {
   modificador_id: number;
   nombre: string;
+  cantidad_requerida: number | null;
   opciones: OpcionSeleccionada[];
 }
 
@@ -32,7 +33,7 @@ interface ModificadorSeleccionado {
     FormCard, InputForm, Select, ErrorMessage, ReactiveFormsModule, CommonModule, AppCurrencyPipe
   ],
   templateUrl: './producto-edit.html',
-  styleUrl: './producto-edit.css',
+  styleUrls: ['./producto-edit.css', '../producto-modifiers.css'],
 })
 export class ProductoEdit {
   readonly currencySymbol = CURRENCY_CONFIG.symbol;
@@ -46,6 +47,7 @@ export class ProductoEdit {
   categoriaSeleccionada = signal<number | null>(null);
   modificadores = signal<Modificador[]>([]);
   producto = signal<Producto | null>(null);
+  eliminarImagen = signal(false);
   modificadoresSeleccionados = signal<ModificadorSeleccionado[]>([]);
   estaciones = signal<{ label: string; value: number }[]>([]);
 
@@ -85,7 +87,6 @@ export class ProductoEdit {
         this.cargarCategoriasPrincipales();
         this.cargarModificadores();
         this.cargarEstaciones();
-        this.cargarProducto(id);
       }
     });
 
@@ -155,7 +156,9 @@ export class ProductoEdit {
   cargarModificadores() {
     this.modificadorService.listarModificadores().subscribe({
       next: (modificadores) => {
-        this.modificadores.set(modificadores);
+        this.modificadores.set(modificadores.filter(modificador => modificador.activo));
+        const id = this.productId();
+        if (id) this.cargarProducto(id);
       }
     });
   }
@@ -220,6 +223,7 @@ export class ProductoEdit {
                   modsSeleccionados.push({
                     modificador_id: modificador.id,
                     nombre: modificador.nombre,
+                    cantidad_requerida: modProd.cantidad_requerida ?? null,
                     opciones: opcionesDelModificador
                   });
                 }
@@ -264,6 +268,7 @@ export class ProductoEdit {
       {
         modificador_id: id,
         nombre: modificador.nombre,
+        cantidad_requerida: null,
         opciones: opcionesDelModificador
       }
     ]);
@@ -275,6 +280,11 @@ export class ProductoEdit {
     this.modificadoresSeleccionados.update(mods =>
       mods.filter(m => m.modificador_id !== modificadorId)
     );
+  }
+
+  actualizarCantidadRequerida(modificadorId: number, valor: string) {
+    const cantidad = valor === '' ? null : Math.max(1, Number(valor));
+    this.modificadoresSeleccionados.update(mods => mods.map(mod => mod.modificador_id === modificadorId ? { ...mod, cantidad_requerida: cantidad } : mod));
   }
 
   toggleOpcion(modificadorId: number, opcionId: number) {
@@ -328,6 +338,9 @@ export class ProductoEdit {
     if (formValue.imagen instanceof File) {
       formData.append('imagen', formValue.imagen);
     }
+    if (this.eliminarImagen()) {
+      formData.append('eliminar_imagen', '1');
+    }
 
     // Agregar opciones seleccionadas
     const opciones: any[] = [];
@@ -346,6 +359,10 @@ export class ProductoEdit {
         formData.append(`opciones[${index}][predeterminado]`, op.predeterminado ? '1' : '0');
       });
     }
+    this.modificadoresSeleccionados().forEach((mod, index) => {
+      formData.append(`modificadores[${index}][id]`, String(mod.modificador_id));
+      if (mod.cantidad_requerida != null) formData.append(`modificadores[${index}][cantidad_requerida]`, String(mod.cantidad_requerida));
+    });
 
     formData.append('_method', 'PUT');
 
@@ -363,6 +380,14 @@ export class ProductoEdit {
     this.guardarProductoLogic(() => {
       this.router.navigate(['/app/productos']);
     });
+  }
+
+  quitarImagen(): void {
+    this.eliminarImagen.set(true);
+  }
+
+  seleccionarImagen(): void {
+    this.eliminarImagen.set(false);
   }
 
   cancelar() {

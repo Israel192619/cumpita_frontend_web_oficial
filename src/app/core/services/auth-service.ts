@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
-import { finalize, Observable, tap } from 'rxjs';
+import { finalize, Observable, shareReplay, tap } from 'rxjs';
 import { Router } from '@angular/router';
 import { User } from '../models';
 
@@ -12,14 +12,20 @@ import { User } from '../models';
 export class AuthService {
   private apiUrl = environment.apiUrl;
   private readonly servicioCerradoKey = 'servicio_celular_cerrado';
+  private readonly usuarioCacheKey = 'auth_user';
+  private meRequest?: Observable<User>;
+  readonly usuarioActual = signal<User | null>(null);
 
-  constructor(private http: HttpClient, private router:Router) {}
+  constructor(private http: HttpClient, private router:Router) {
+    this.usuarioActual.set(this.usuarioGuardado());
+  }
 
   login(credentials: { identificador: string; password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, credentials).pipe(
       tap((res: any) => {
         if (res?.token) {
           localStorage.setItem('auth_token', res.token);
+          this.meRequest = undefined;
           this.limpiarCierreServicioCelular();
         }
       })
@@ -34,6 +40,9 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/logout`, {}).pipe(
       finalize(() => {
         localStorage.removeItem('auth_token');
+        sessionStorage.removeItem(this.usuarioCacheKey);
+        this.usuarioActual.set(null);
+        this.meRequest = undefined;
         this.limpiarCierreServicioCelular();
         this.router.navigate(['/login']);
       })
@@ -45,7 +54,35 @@ export class AuthService {
   }
 
   me(): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/me`);
+    if (!this.meRequest) {
+      this.meRequest = this.http.get<User>(`${this.apiUrl}/me`).pipe(
+        tap(user => {
+          sessionStorage.setItem(this.usuarioCacheKey, JSON.stringify(user));
+          this.usuarioActual.set(user);
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    }
+    return this.meRequest;
+  }
+
+  usuarioGuardado(): User | null {
+    try {
+      const value = sessionStorage.getItem(this.usuarioCacheKey);
+      return value ? JSON.parse(value) as User : null;
+    } catch {
+      return null;
+    }
+  }
+
+  actualizarPerfil(data: FormData): Observable<User> {
+    return this.http.post<User>(`${this.apiUrl}/me/profile`, data).pipe(
+      tap(user => {
+        sessionStorage.setItem(this.usuarioCacheKey, JSON.stringify(user));
+        this.usuarioActual.set(user);
+        this.meRequest = undefined;
+      })
+    );
   }
 
   olvidasteContrasena(identificador: string) {

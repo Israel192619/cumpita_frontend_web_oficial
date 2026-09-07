@@ -32,7 +32,7 @@ describe('role access policy', () => {
       const current = user(role);
       expect(userCanAccess(current, 'servicio')).toBe(true);
       expect(userCanAccess(current, 'pos')).toBe(false);
-      expect(homeForUser(current)).toBe('/app/servicio');
+      expect(homeForUser(current)).toBe('/servicio');
     }
   });
 });
