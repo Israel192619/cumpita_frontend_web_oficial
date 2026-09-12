@@ -5,11 +5,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { Cliente } from '../../../../core/models/cliente';
 import { FormCard, InputForm, ErrorMessage } from '../../../../shared/components';
+import { LocationMap, MapLocation } from '../../../../shared/components/location-map/location-map';
 
 @Component({
   selector: 'app-cliente-edit',
   imports: [
-    FormCard, InputForm, ErrorMessage, ReactiveFormsModule
+    FormCard, InputForm, ErrorMessage, ReactiveFormsModule, LocationMap
   ],
   templateUrl: './cliente-edit.html',
   styleUrl: './cliente-edit.css',
@@ -24,6 +25,11 @@ export class ClienteEdit {
     this.form = this.fb.group({
       nombre: ['', Validators.required],
       telefono: ['', []],
+      direccion: [''],
+      referencia_ubicacion: [''],
+      latitud: [null],
+      longitud: [null],
+      foto_local: [null],
     });
   }
 
@@ -37,7 +43,11 @@ export class ClienteEdit {
           this.cliente.set(cliente);
           this.form.patchValue({
             nombre: cliente.nombre,
-            telefono: cliente.telefono || ''
+            telefono: cliente.telefono || '',
+            direccion: cliente.direccion || '',
+            referencia_ubicacion: cliente.referencia_ubicacion || '',
+            latitud: cliente.latitud ?? null,
+            longitud: cliente.longitud ?? null,
           });
         },
         error: () => {
@@ -46,6 +56,8 @@ export class ClienteEdit {
       });
     }
   }
+
+  actualizarUbicacion(ubicacion: MapLocation): void { this.form.patchValue(ubicacion); }
 
   getControl(names: string): FormControl {
     return this.form.get(names) as FormControl;

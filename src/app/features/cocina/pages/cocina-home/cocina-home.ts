@@ -10,6 +10,7 @@ import { ActualizacionEstadoCocinaResponse, CocinaService, KdsCambioOrden, KdsDe
 import { formatCurrency } from '@app/core/config/currency.config';
 import { ThemeService } from '@app/core/services/theme-service';
 import { Icon } from '@app/shared/components/icon/icon';
+import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
 
 interface KdsDetalleEstadoAgrupado {
   clave: string;
@@ -228,6 +229,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     readonly themeService: ThemeService,
+    private confirmDialog: ConfirmDialogService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
@@ -702,6 +704,21 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   marcarCategoriaCompleta(orden: KdsOrden, grupo: { categoria: string; grupos: KdsDetalleAgrupado[] }, servido: boolean): void {
     this.marcarServidosMasivo(orden, this.detallesDeCategoria(grupo), servido, `categoria:${orden.id}:${grupo.categoria}`);
+  }
+
+  confirmarCategoriaCompleta(orden: KdsOrden, grupo: { categoria: string; grupos: KdsDetalleAgrupado[] }, control: HTMLInputElement): void {
+    const servido = control.checked;
+    control.checked = !servido;
+    const accion = servido ? 'marcar como servidos' : 'volver a pendientes';
+    this.confirmDialog.confirm({
+      title: `Confirmar toda la categoría ${grupo.categoria}`,
+      message: `¿Deseas ${accion} todos los productos de ${grupo.categoria} de la ficha #${orden.numero_orden}?`,
+      confirmText: servido ? `Sí, completar ${grupo.categoria}` : `Sí, volver a pendientes`,
+      cancelText: 'Cancelar',
+      confirmColor: servido ? 'success' : 'warning',
+    }).subscribe(confirmado => {
+      if (confirmado) this.marcarCategoriaCompleta(orden, grupo, servido);
+    });
   }
 
   marcarProductoCompleto(orden: KdsOrden, grupo: KdsDetalleAgrupado, servido: boolean): void {

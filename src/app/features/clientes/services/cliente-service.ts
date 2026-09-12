@@ -24,11 +24,13 @@ export class ClienteService {
   }
 
   crearCliente(data: CreateCliente): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/clientes`, data);
+    return this.http.post<void>(`${this.apiUrl}/clientes`, this.formData(data));
   }
 
   editarCliente(id: number, cliente: UpdateCliente): Observable<void> {
-    return this.http.put<void>(`${this.apiUrl}/clientes/${id}`, cliente);
+    const data = this.formData(cliente);
+    data.append('_method', 'PUT');
+    return this.http.post<void>(`${this.apiUrl}/clientes/${id}`, data);
   }
 
   getClientePorId(id: number): Observable<Cliente> {
@@ -36,6 +38,15 @@ export class ClienteService {
       .pipe(
         map(res => res.cliente)
       );
+  }
+
+  private formData(data: CreateCliente | UpdateCliente): FormData {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value instanceof File) formData.append(key, value);
+      else if (value !== null && value !== undefined) formData.append(key, String(value));
+    });
+    return formData;
   }
 }
 

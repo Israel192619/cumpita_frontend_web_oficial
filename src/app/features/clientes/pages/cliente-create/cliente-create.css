@@ -1,0 +1,5 @@
+.location-fields{display:grid;gap:14px;margin-top:8px;padding-top:18px;border-top:1px solid var(--color-border)}
+.location-fields h3,.location-fields p{margin:0}.location-fields p{color:var(--color-text-muted);font-size:.85rem}
+.coordinates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.location-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.location-actions button,.location-actions a{padding:9px 13px;border:0;border-radius:8px;color:var(--color-text);background:var(--color-hover);font:inherit;font-weight:650;text-decoration:none;cursor:pointer}
+@media(max-width:600px){.coordinates{grid-template-columns:1fr}}

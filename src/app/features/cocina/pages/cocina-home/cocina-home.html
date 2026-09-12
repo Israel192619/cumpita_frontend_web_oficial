@@ -153,7 +153,7 @@
         <strong>#{{ orden.numero_orden || orden.id }}</strong>
         <span>{{ etiquetaTipoOrden(orden) }}</span>
         <span *ngIf="orden.tipo_flujo === 'preorden'" class="ticket-preorder-badge">Preorden</span>
-        <span *ngIf="orden.preorden_temprana && estacionActual()?.codigo === 'PARRILLA'" class="ticket-preorder-start">Comenzar a preparar</span>
+        <span *ngIf="orden.preorden_temprana && estacionActual()?.codigo === 'PARRILLA'" class="ticket-preorder-start">Aún no activa</span>
         <span *ngIf="orden.estado !== 'preparando' && orden.estado !== 'pendiente'" class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
       </div>
 
@@ -178,8 +178,8 @@
             <div><strong>{{ grupo.cantidad }} {{ grupo.producto.nombre }}</strong><small *ngIf="grupo.opciones.length">{{ grupo.opciones.join(' · ') }}</small></div>
             <label *ngFor="let detalle of detallesDelGrupo(grupo)" class="serve-switch">
               <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'"
-                [disabled]="estaDetalleActualizando(detalle.id)" (change)="marcarServido(detalle, $any($event.target).checked)">
-              <span></span><b>Servido</b>
+                [disabled]="estaDetalleActualizando(detalle.id) || esPreordenProgramada(orden)" (change)="marcarServido(detalle, $any($event.target).checked)">
+              <span></span><b>{{ esPreordenProgramada(orden) ? 'Aún no activa' : 'Servido' }}</b>
             </label>
           </div>
         </div>
@@ -190,8 +190,8 @@
           <h3>{{ grupo.categoria }}</h3>
           <label *ngIf="puedeMarcarCategoria(grupo)" class="bulk-serve-check">
             <input type="checkbox" [checked]="todosServidos(detallesDeCategoria(grupo))"
-              [disabled]="!!operacionMasivaActualizando()"
-              (change)="marcarCategoriaCompleta(orden, grupo, $any($event.target).checked)">
+              [disabled]="!!operacionMasivaActualizando() || esPreordenProgramada(orden)"
+              (change)="confirmarCategoriaCompleta(orden, grupo, $any($event.target))">
             <span>✓</span><b>{{ operacionMasivaActualizando() === 'categoria:' + orden.id + ':' + grupo.categoria ? 'Guardando…' : 'Todo ' + grupo.categoria }}</b>
           </label>
         </div>
@@ -222,8 +222,8 @@
             <div *ngFor="let estado of detalleGrupo.estados" class="ticket-item__state"
               [class.ticket-item__state--locked]="estado.bloqueado"
               [class.ticket-item__state--ready]="estado.listoParaAtender">
-              <span *ngIf="estado.bloqueado" class="waiting-station-indicator">{{ etiquetaBloqueo(orden) }}</span>
-              <div *ngIf="!estado.bloqueado" class="ticket-item__state-controls">
+              <span *ngIf="estado.bloqueado || esPreordenProgramada(orden)" class="waiting-station-indicator">{{ etiquetaBloqueo(orden) }}</span>
+              <div *ngIf="!estado.bloqueado && !esPreordenProgramada(orden)" class="ticket-item__state-controls">
                 <label *ngFor="let detalle of estado.detalles" class="serve-switch" [class.serve-switch--loading]="estaDetalleActualizando(detalle.id)">
                   <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="estaDetalleActualizando(detalle.id) || detalle.bloqueado" (change)="marcarServido(detalle, $any($event.target).checked)">
                   <span></span>

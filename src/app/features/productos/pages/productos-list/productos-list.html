@@ -11,11 +11,13 @@
     { key: 'maneja_stock', label: 'Gestión Stock', type: 'boolean' }
   ]"
   [loading]="isloading()"
+  [clickableRows]="true"
   [error]="error()"
   imageFallbackIcon="package"
   createLink="/app/productos/create"
   (refresh)="obtenerProductos()"
   (action)="handleAction($event)"
+  (rowClick)="verProducto($event.id)"
 >
 </app-data-table>
 

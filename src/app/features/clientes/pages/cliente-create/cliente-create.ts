@@ -4,11 +4,12 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } 
 import { ToastrService } from 'ngx-toastr';
 import { Router } from '@angular/router';
 import { ErrorMessage, FormCard, InputForm } from '../../../../shared/components';
+import { LocationMap, MapLocation } from '../../../../shared/components/location-map/location-map';
 
 @Component({
   selector: 'app-cliente-create',
   imports: [
-    FormCard, InputForm, ErrorMessage, ReactiveFormsModule
+    FormCard, InputForm, ErrorMessage, ReactiveFormsModule, LocationMap
   ],
   templateUrl: './cliente-create.html',
   styleUrl: './cliente-create.css',
@@ -23,8 +24,15 @@ export class ClienteCreate {
     this.form = this.fb.group({
       nombre: ['', Validators.required],
       telefono: ['', []],
+      direccion: [''],
+      referencia_ubicacion: [''],
+      latitud: [null],
+      longitud: [null],
+      foto_local: [null],
     });
   }
+
+  actualizarUbicacion(ubicacion: MapLocation): void { this.form.patchValue(ubicacion); }
 
   ngOnInit() {
     this.error.set(null);
@@ -76,6 +84,7 @@ export class ClienteCreate {
     this.form.reset({
       nombre: '',
       telefono: ''
+      , direccion: '', referencia_ubicacion: '', latitud: null, longitud: null, foto_local: null
     });
     this.error.set(null);
     this.form.markAsPristine();

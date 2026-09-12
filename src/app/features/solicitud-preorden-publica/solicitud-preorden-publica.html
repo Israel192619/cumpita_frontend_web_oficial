@@ -1,0 +1,36 @@
+<main class="public-order">
+  <header><div class="brand">Restaurante Toñito</div><span>Solicitud de preorden</span></header>
+  @if (codigo()) {
+    <section class="success"><b>{{ estado() === 'aceptada' ? '✓ Preorden confirmada' : estado() === 'rechazada' ? 'Solicitud revisada' : '✓ Solicitud enviada' }}</b><h1>{{ estado() === 'aceptada' ? 'Tu preorden fue aceptada' : estado() === 'rechazada' ? 'No pudimos confirmar esta solicitud' : 'La revisaremos antes de confirmarla' }}</h1><p>@if (estado() === 'aceptada') { Tu pedido está confirmado. Preséntate a la hora solicitada. } @else if (estado() === 'rechazada') { Comunícate con el restaurante si deseas realizar otra solicitud. } @else { Te avisaremos al <strong>{{ telefono }}</strong> cuando el personal la revise. }</p><code>{{ codigo() }}</code><button class="copy-code" (click)="copiarSeguimiento()">{{ copiado() ? '✓ Código copiado' : 'Copiar código' }}</button><span class="status">{{ textoEstado() }}</span><button class="new-request" (click)="nuevaSolicitud()">Crear otra solicitud</button></section>
+  } @else {
+    <section class="intro"><small>PREORDENA PARA HOY</small><h1>¿Qué deseas pedir?</h1><p>Selecciona tus productos. Al enviarlos se reservarán por 20 minutos mientras el personal confirma tu solicitud.</p><div class="tracking-search"><label>¿Ya tienes una solicitud?<input [(ngModel)]="codigoConsulta" placeholder="Pega aquí tu código de seguimiento"></label><button [disabled]="consultandoEstado()" (click)="consultarCodigo()">{{ consultandoEstado() ? 'Consultando…' : 'Consultar' }}</button></div>@if (errorSeguimiento()) {<p class="tracking-error">{{ errorSeguimiento() }}</p>}</section>
+    <div class="layout">
+      <section class="menu">
+        <div class="catalog-tools"><input class="search" [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)" placeholder="Buscar productos"><nav><button [class.active]="categoriaSeleccionada() === null" (click)="categoriaSeleccionada.set(null)">Todos</button>@for (c of categorias(); track c.id) {<button [class.active]="categoriaSeleccionada() === c.id" (click)="categoriaSeleccionada.set(c.id)">{{ c.nombre }}</button>}</nav></div>
+        @if (cargando()) { <p class="empty">Cargando menú…</p> }
+        <div class="products">@for (p of filtrados(); track p.id) {
+          <article><img [src]="p.imagen_url || '/images/no-image.png'" [alt]="p.nombre"><div class="product-copy"><small>{{ p.categoria?.nombre }}</small><h3>{{ p.nombre }}</h3><p>{{ p.descripcion }}</p><b>{{ moneda(+p.precio) }}</b>@if (p.maneja_stock) {<span>{{ p.stock_disponible }} disponibles</span>}</div><button type="button" (click)="agregar(p)">Agregar</button></article>
+        } @empty { @if (!cargando()) { <p class="empty">No hay productos disponibles.</p> } }</div>
+      </section>
+      <aside class="summary" [class.open]="resumenAbierto()">
+        <div class="summary-head"><button class="back-mobile" (click)="resumenAbierto.set(false)">←</button><h2>Tu solicitud <span>{{ cantidadTotal() }}</span></h2><button class="close-mobile" (click)="resumenAbierto.set(false)">×</button></div>
+        <section class="form-section"><h3>1. Tus datos</h3><div class="customer">
+          <label>Teléfono<input [ngModel]="telefono" (input)="telefonoIngresado($event)" (blur)="telefonoCambiado()" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="tel-national" placeholder="8 dígitos"></label>
+          @if (buscandoCliente()) {<small class="lookup">Buscando tus datos…</small>}
+          <label>Nombre<input [(ngModel)]="nombre" maxlength="120" placeholder="¿Cómo te llamas?"></label>
+          <label>Modalidad<select [(ngModel)]="tipoOrden"><option value="to-go">Para llevar</option><option value="dine-in">Comer en el restaurante</option></select></label>
+          <label>Hora de llegada<input type="time" [(ngModel)]="hora" [min]="horaMinima" [disabled]="!hayHorarioHoy" (focus)="actualizarHoraMinima()"></label><small class="today">@if (hayHorarioHoy) { Disponible desde {{ horaMinima }}; se requieren al menos 20 minutos de anticipación. } @else { Ya no hay un horario disponible para hoy. }</small>
+        </div></section>
+        <section class="form-section"><h3>2. Productos</h3><div class="cart">@for (item of carrito(); track $index; let i = $index) {<article [class.stock-error]="excesoStock(i)"><div><b>{{ item.producto.nombre }}</b>@if (nombresOpciones(item)) {<small>{{ nombresOpciones(item) }}</small>}@if (disponibilidadItem(i)) {<small class="availability">{{ disponibilidadItem(i) }}</small>}<span>{{ moneda(precioItem(item) * item.cantidad) }}</span></div><div class="qty"><button (click)="cambiarCantidad(i,-1)">−</button><b>{{ item.cantidad }}</b><button [disabled]="!puedeAumentar(i)" (click)="cambiarCantidad(i,1)">+</button><button class="remove" (click)="quitar(i)">×</button></div></article>} @empty {<p class="empty">Agrega productos del menú.</p>}</div></section>
+        <section class="form-section"><h3>3. Confirmación</h3><label>Observaciones (opcional)<textarea [(ngModel)]="observaciones" maxlength="500" placeholder="Alguna indicación para el personal"></textarea></label>@if (error()) { <p class="error">{{ error() }}</p> }<div class="total"><span>Total estimado</span><b>{{ moneda(total()) }}</b></div><button class="send" [disabled]="enviando() || !hayHorarioHoy" (click)="enviar()">{{ enviando() ? 'Enviando…' : 'Enviar solicitud' }}</button><p class="reservation-note">El stock quedará reservado durante 20 minutos mientras revisamos tu solicitud.</p></section>
+      </aside>
+    </div>
+    <button class="mobile-cart" (click)="resumenAbierto.set(true)"><span>Ver mi solicitud <b>{{ cantidadTotal() }}</b></span><strong>{{ moneda(total()) }} →</strong></button>
+  }
+</main>
+@if (productoConfigurando(); as p) {
+  <div class="overlay" (click)="productoConfigurando.set(null)"><section class="modifier" (click)="$event.stopPropagation()"><div class="modal-head"><button (click)="productoConfigurando.set(null)">←</button><div><small>PERSONALIZA</small><h2>{{ p.nombre }}</h2></div><button (click)="productoConfigurando.set(null)">×</button></div>
+    @for (g of p.modificadores || []; track g.id) {<section class="group"><div><b>{{ g.nombre }}</b><span>{{ g.cantidad_requerida != null ? 'Elige ' + g.cantidad_requerida : g.requerido ? 'Obligatorio' : 'Opcional' }}</span></div><div class="options">@for (o of g.opciones || []; track o.id) {<button [class.selected]="opcionesTemporales().includes(o.id)" [disabled]="opcionBloqueada(g,o.id)" (click)="toggle(g,o.id)">{{ opcionesTemporales().includes(o.id) ? '✓ ' : '' }}{{ o.nombre }} @if (stockOpcion(o)) {<small>{{ stockOpcion(o) }}</small>} @if (+o.precio_extra) {<small>+{{ moneda(+o.precio_extra) }}</small>}</button>}</div></section>}
+    <label>Nota para este producto (opcional)<input [(ngModel)]="notaTemporal" maxlength="255"></label><div class="modal-footer"><button class="secondary" (click)="productoConfigurando.set(null)">Cancelar</button><button class="send" [disabled]="!seleccionValida()" (click)="confirmarProducto()">Agregar</button></div>
+  </section></div>
+}

@@ -1,7 +1,7 @@
 /* ==================== ORDER TYPE SELECTOR ==================== */
 .order-type-selector {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.3rem;
   padding: 0.25rem 0.55rem;
   border-bottom: 1px solid var(--border-color);

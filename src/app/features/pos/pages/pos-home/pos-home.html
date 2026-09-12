@@ -135,7 +135,8 @@
         [orderDateInput]="orderDate()"
         [reservationDateInput]="preorderDate()"
         [stockByProductId]="productStockById()"
-        [modifierStockCredits]="originalModifierStockCredits()"
+          [modifierStockCredits]="originalModifierStockCredits()"
+          [forcedStockShortages]="customerRequestShortages()"
         [orders]="orders()"
         [isEditing]="isEditingOrder()"
         [editingOrderIdInput]="editingOrderId()"
@@ -360,12 +361,12 @@
               <span class="pending-order-client">{{ orden.cliente_nombre || 'Sin cliente' }}</span>
               <span *ngIf="orden.mesa?.numero" class="pending-order-table"><small>Mesa</small><strong>{{ orden.mesa?.numero }}</strong></span>
             </div>
-            <p class="pending-order-meta">{{ (orden.fecha_orden || orden.created_at) | date:'HH:mm' }} · {{ orden.estado_pago | titlecase }}</p>
+            <p class="pending-order-meta">{{ (orden.fecha_orden || orden.created_at) | date:'HH:mm' }} · {{ orden.estado_solicitud === 'rechazada' ? 'Solicitud rechazada' : (orden.estado_pago | titlecase) }}</p>
           </div>
           <span class="pending-order-amount">{{ formatPrice(orden.total) }}</span>
         </div>
         <div class="pending-order-row">
-          <div class="pending-order-summary">{{ orden.estado | titlecase }}</div>
+          <div class="pending-order-summary">{{ orden.estado_solicitud === 'rechazada' ? 'Solicitud rechazada' : (orden.estado | titlecase) }}</div>
           <div class="pending-order-actions">
             <app-button text="Ver" color="secondary" size="small" (buttonClick)="openTodayOrderDetail(orden)" />
             <app-button *ngIf="orden.estado !== 'cancelado'" text="Editar" color="secondary" size="small" (buttonClick)="onEditTodayOrder(orden.id)" />
@@ -448,8 +449,6 @@
         <div *ngFor="let pago of orden.pagos" class="today-order-detail__item"><span>{{ pago.metodo_pago === 'qr' ? 'Pago QR' : 'Efectivo' }} · {{ $any(pago).created_at | date:'h:mm a' }}</span><strong>{{ formatPrice(pago.monto_pagado) }}</strong></div>
       </section>
       <div class="today-order-detail__totals">
-        <div><span>Subtotal</span><strong>{{ formatPrice(orden.subtotal) }}</strong></div>
-        <div *ngIf="orden.descuento"><span>Descuento</span><strong>− {{ formatPrice(orden.descuento || 0) }}</strong></div>
         <div class="today-order-detail__total"><span>Total</span><strong>{{ formatPrice(orden.total) }}</strong></div>
         <div><span>Pagado</span><strong>{{ formatPrice(orden.total - (orden.saldo_pendiente || 0)) }}</strong></div>
         <div><span>Saldo pendiente</span><strong>{{ formatPrice(orden.saldo_pendiente || 0) }}</strong></div>

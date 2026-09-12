@@ -38,6 +38,24 @@ export class CartPanelComponent {
   private lineasDelGrupo(item: CartItem): CartItem[] {
     return this.itemsVisuales().find(grupo => grupo.id === item.id)?.lineas ?? [item];
   }
+  getStockShortage(item: CartItem): string | null {
+    const forzado = this.forcedStockShortages().find(nombre =>
+      nombre === item.producto.nombre || (item.modificadores || []).some(modificador => modificador.opcion_nombre === nombre)
+    );
+    if (forzado) return `Stock insuficiente de ${forzado}. Cambia la opción, el producto o la cantidad.`;
+    const cantidadProducto = this.itemsVisuales().filter(linea => linea.producto.id === item.producto.id).reduce((total, linea) => total + linea.cantidad, 0);
+    if (item.producto.maneja_stock && item.producto.stock_disponible != null && cantidadProducto > Number(item.producto.stock_disponible)) {
+      return `Stock insuficiente: necesita ${cantidadProducto}, hay ${item.producto.stock_disponible}.`;
+    }
+    for (const modificador of item.modificadores || []) {
+      const opcion = (item.producto.modificadores || []).flatMap(grupo => grupo.opciones || []).find(valor => valor.id === modificador.opcion_id);
+      if (!opcion?.maneja_stock || opcion.stock_disponible == null) continue;
+      const necesarias = this.itemsVisuales().reduce((total, linea) => total + ((linea.modificadores || []).some(valor => valor.opcion_id === opcion.id) ? linea.cantidad : 0), 0);
+      const disponibles = Number(opcion.stock_disponible) + (this.modifierStockCredits()[opcion.id] || 0);
+      if (necesarias > disponibles) return `${opcion.nombre}: necesita ${necesarias}, hay ${disponibles}.`;
+    }
+    return null;
+  }
   subtotal = input<number>(0);
   total = input<number>(0);
   isProcessing = input<boolean>(false);
@@ -48,6 +66,7 @@ export class CartPanelComponent {
   reservationDateInput = input<string | null>(null);
   stockByProductId = input<Record<number, number>>({});
   modifierStockCredits = input<Record<number, number>>({});
+  forcedStockShortages = input<string[]>([]);
   isEditing = input<boolean>(false);
   paidAmount = input<number>(0);
   remainingAmount = input<number>(0);
@@ -137,7 +156,6 @@ export class CartPanelComponent {
   modifierReservationPending = signal(false);
   private confirmedDraftModifiers: CartItemModificador[] = [];
   private queuedDraftModifiers: CartItemModificador[] | null = null;
-  private modifierReplacementIndex = new Map<number, number>();
   private modifierProgressTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly draftReservationEffect = effect(() => {
     const item = this.modifierModalItem();
@@ -283,6 +301,10 @@ export class CartPanelComponent {
   shouldShowPrimaryAction = computed<boolean>(() => {
     // Always show primary when not editing
     if (!this.isEditing()) return true;
+
+    // Una edición con cambios siempre necesita una acción para guardarlos,
+    // aunque el total y el saldo monetario no hayan variado.
+    if (this.hasEdits()) return true;
 
     // El saldo pendiente se muestra limitado a cero, por lo que no permite
     // distinguir una orden saldada de otra con dinero pendiente de devolver.
@@ -549,7 +571,7 @@ export class CartPanelComponent {
   }
 
   getPrimaryActionLabel(): string {
-    if (this.operationMode() === 'preorden') return 'Guardar preorden';
+    if (this.operationMode() === 'preorden') return this.isEditing() ? 'Guardar cambios' : 'Guardar preorden';
     if (!this.isEditing()) {
       return 'Cobrar';
     }
@@ -1141,7 +1163,6 @@ export class CartPanelComponent {
     const grupo = this.itemsVisuales().find(grupo => grupo.lineas.some(linea => linea.id === item.id));
     item = grupo ?? item;
     this.modifierGroupIds = (grupo?.lineas ?? [item]).map(linea => linea.id);
-    this.modifierReplacementIndex.clear();
     this.modifierModalItem.set(item);
     this.confirmedDraftModifiers = (item.modificadores || []).map(mod => ({ ...mod }));
     this.queuedDraftModifiers = null;
@@ -1161,7 +1182,6 @@ export class CartPanelComponent {
       clearTimeout(this.modifierProgressTimer);
       this.modifierProgressTimer = null;
     }
-    this.modifierReplacementIndex.clear();
     this.confirmedDraftModifiers = [];
     this.queuedDraftModifiers = null;
     this.modifierReservationPending.set(false);
@@ -1316,6 +1336,14 @@ export class CartPanelComponent {
     if (group.cantidad_requerida) {
       const cantidadGrupo = this.getModifierGroupQuantity(group);
       const cantidadOpcion = this.getModifierOptionQuantity(group, option);
+
+      if (alreadySelected) {
+        this.requestDraftModifiers(current.filter(
+          (mod) => !(mod.modificador_id === modifierId && mod.opcion_id === option.id)
+        ));
+        return;
+      }
+
       if (cantidadGrupo < group.cantidad_requerida) {
         const stockNecesario = (cantidadOpcion + 1) * this.modifierBatchSize();
         const effectiveStock = this.effectiveOptionStock(option);
@@ -1328,16 +1356,9 @@ export class CartPanelComponent {
         return;
       }
 
-      const indicesGrupo = current
-        .map((mod, index) => mod.modificador_id === modifierId ? index : -1)
-        .filter(index => index >= 0);
-      const turno = (this.modifierReplacementIndex.get(modifierId) || 0) % indicesGrupo.length;
-      const indiceAReemplazar = indicesGrupo[turno];
-      const reemplazados = [...current];
-      reemplazados[indiceAReemplazar] = newModifier;
-      this.requestDraftModifiers(reemplazados);
-      this.modifierReplacementIndex.set(modifierId, (turno + 1) % indicesGrupo.length);
-      this.modifierSelectionError.set(null);
+      this.modifierSelectionError.set(
+        `Ya elegiste ${group.cantidad_requerida} en “${group.nombre}”. Quita una opción para seleccionar otra.`
+      );
       return;
     }
 

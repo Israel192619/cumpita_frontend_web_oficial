@@ -91,8 +91,13 @@ export class OrdenesList implements OnInit, OnDestroy {
         const ordenesFormateadas = listaOriginal.map((orden: any) => ({
           ...orden,
           numero_orden: orden.numero_orden,
+          tipo_orden_label: orden.tipo_orden === 'dine-in'
+            ? 'En mesa'
+            : orden.tipo_orden === 'to-go' ? 'Para llevar' : 'Entrega',
           tipo_flujo_label: orden.tipo_flujo === 'preorden' ? 'Preorden' : 'Normal',
-          estado_preorden_label: orden.estado_preorden ? orden.estado_preorden.toUpperCase() : '—',
+          estado_preorden_label: orden.estado_solicitud === 'rechazada'
+            ? 'SOLICITUD RECHAZADA'
+            : orden.estado_preorden ? orden.estado_preorden.toUpperCase() : '—',
           
           // Si hay cliente usa su nombre, si no, usa observaciones o un respaldo por defecto
           cliente_nombre: orden.cliente 

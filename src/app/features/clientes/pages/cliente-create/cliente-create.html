@@ -7,6 +7,15 @@
   <app-input-form label="Teléfono" type="tel" [control]="getControl('telefono')" placeholder="Ej. +591 6578****">
   </app-input-form>
 
+  <section class="location-fields">
+    <h3>Ubicación para delivery</h3>
+    <p>Registra dónde entregar el pedido y dónde recoger los platos.</p>
+    <app-input-form label="Dirección, sector o número de puesto" [control]="getControl('direccion')" placeholder="Ej. Pasillo B, puesto 24" />
+    <app-input-form label="Referencia para encontrar el local" type="textarea" [control]="getControl('referencia_ubicacion')" placeholder="Ej. Frente al escenario, letrero azul" />
+    <app-location-map [editable]="true" [latitud]="getControl('latitud').value" [longitud]="getControl('longitud').value" (locationChange)="actualizarUbicacion($event)" />
+    <app-input-form label="Foto del local" type="file" [control]="getControl('foto_local')" helpText="Una fachada o letrero facilita encontrarlo." />
+  </section>
+
 </app-form-card>
 
 <app-error-message [message]="error()"></app-error-message>

@@ -3,7 +3,7 @@ import { availableProductUnits } from '../../components/product-grid/product-ava
 import { Component, signal, computed, effect, OnInit, OnDestroy, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { finalize, Observable, shareReplay, Subscription } from 'rxjs';
 import { CancelacionInfo, CartItem, CartItemModificador, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen, CajaUsuario } from '../../services';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
@@ -43,6 +43,7 @@ export class PosHome implements OnInit, OnDestroy {
   readonly operationMode: 'pos' | 'preorden';
   private routeSubscription?: Subscription;
   private orderUpdatesSubscription?: Subscription;
+  private preorderUpdatesSubscription?: Subscription;
   private stockUpdatesSubscription?: Subscription;
   private reservationUpdatesSubscription?: Subscription;
   private cajaUpdatesSubscription?: Subscription;
@@ -76,6 +77,7 @@ export class PosHome implements OnInit, OnDestroy {
   private resetPendingSearchOnOrderLoad = false;
   private resetPreordersSearchOnOrderLoad = false;
   private leaveAlreadyConfirmed = false;
+  private leaveConfirmation$?: Observable<boolean>;
   isLoadingCategorias = signal<boolean>(true);
   isLoadingProductos = signal<boolean>(false);
   isCheckoutModalOpen = signal<boolean>(false);
@@ -90,7 +92,7 @@ export class PosHome implements OnInit, OnDestroy {
     quantity: number;
   } | null>(null);
   originalModifierStockCredits = computed<Record<number, number>>(() => {
-    if (!this.isEditingOrder()) return {};
+    if (!this.isEditingOrder() || this.editingCustomerRequest()) return {};
     return this.originalCarrito().reduce((credits, item) => {
       (item.modificadores || []).forEach(mod => {
         credits[mod.opcion_id] = (credits[mod.opcion_id] || 0) + item.cantidad;
@@ -98,6 +100,8 @@ export class PosHome implements OnInit, OnDestroy {
       return credits;
     }, {} as Record<number, number>);
   });
+  editingCustomerRequest = signal(false);
+  customerRequestShortages = signal<string[]>([]);
   error = signal<string | null>(null);
   cajaActual = signal<Caja | null>(null);
   resumenCaja = signal<CajaResumen | null>(null);
@@ -118,26 +122,7 @@ export class PosHome implements OnInit, OnDestroy {
 
   // Detecta si hay cambios en el carrito vs el original de BD
   hasChanges = computed(() => {
-    if (!this.isEditingOrder() || this.originalCarrito().length === 0) {
-      return false;
-    }
-    
-    // Comparar cantidad de items
-    if (this.carrito().length !== this.originalCarrito().length) {
-      return true;
-    }
-    
-    // Comparar cantidades de cada item
-    for (let i = 0; i < this.carrito().length; i++) {
-      const current = this.carrito()[i];
-      const original = this.originalCarrito()[i];
-      
-      if (!original || current.cantidad !== original.cantidad) {
-        return true;
-      }
-    }
-    
-    return false;
+    return this.isEditingOrder() && this.originalCarrito().length > 0 && this.hasOrderEditsForUpdate();
   });
   isEditingOrder = signal<boolean>(false);
   editingOrderId = signal<number | null>(null);
@@ -414,6 +399,9 @@ export class PosHome implements OnInit, OnDestroy {
       this.orderUpdatesSubscription = this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe(() => {
         this.refreshOrderLists();
       });
+      this.preorderUpdatesSubscription = this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(() => {
+        this.refreshOrderLists();
+      });
       this.cajaUpdatesSubscription = this.reverb.escucharCanal('canal-caja', '.CajaActualizada').subscribe((evento: { caja_id?: number; accion?: string }) => {
         const cajaAntes = this.cajaActual();
         this.cargarCajaActual();
@@ -432,6 +420,11 @@ export class PosHome implements OnInit, OnDestroy {
       const isEdit = params['edit'] === 'true';
       
       if (orderId && isEdit) {
+        // El producto incluido en una solicitud trae el stock físico total. No se
+        // debe volver a sumar como crédito la reserva que ya pertenece a esa misma
+        // solicitud, esté vencida o todavía pendiente.
+        this.editingCustomerRequest.set(params['solicitudCliente'] === 'true');
+        this.customerRequestShortages.set(String(params['faltantes'] || '').split('|').filter(Boolean));
         this.editingOrderSource.set('url');
         this.pendingOrderAction.set('edit');
         this.cargarOrdenExistente(parseInt(orderId));
@@ -443,6 +436,7 @@ export class PosHome implements OnInit, OnDestroy {
     window.removeEventListener('beforeunload', this.beforeUnloadHandler);
     this.routeSubscription?.unsubscribe();
     this.orderUpdatesSubscription?.unsubscribe();
+    this.preorderUpdatesSubscription?.unsubscribe();
     this.catalogUpdatesSubscription?.unsubscribe();
     this.stockUpdatesSubscription?.unsubscribe();
     this.reservationUpdatesSubscription?.unsubscribe();
@@ -651,12 +645,17 @@ export class PosHome implements OnInit, OnDestroy {
     if (this.leaveAlreadyConfirmed) return true;
     if (!this.hasUnsavedChanges()) return true;
 
-    return this.confirmDialog.confirm({
+    if (this.leaveConfirmation$) return this.leaveConfirmation$;
+    this.leaveConfirmation$ = this.confirmDialog.confirm({
       title: '¿Abandonar pedido?',
       message: 'Tienes un pedido en proceso. Si sales ahora, se perderán todos los productos y cambios sin guardar.',
       confirmText: 'Abandonar pedido',
       confirmColor: 'danger',
-    });
+    }).pipe(
+      finalize(() => { this.leaveConfirmation$ = undefined; }),
+      shareReplay({ bufferSize: 1, refCount: false }),
+    );
+    return this.leaveConfirmation$;
   }
 
   private navigateBack(): void {
@@ -673,6 +672,7 @@ export class PosHome implements OnInit, OnDestroy {
   onSaveOrderEditsRequested(): void {
     if (this.stopIfInactiveProducts()) return;
     const orderId = this.editingOrderId();
+    const volverASolicitudes = this.route.snapshot.queryParamMap.get('solicitudCliente') === 'true';
     if (!this.isEditingOrder() || !orderId) {
       return;
     }
@@ -717,7 +717,15 @@ export class PosHome implements OnInit, OnDestroy {
     this.posService.actualizarOrden(orderId, payload, this.expectedOrderVersion()).subscribe({
       next: () => {
         this.toastr.success('Orden actualizada correctamente');
-        // Después de guardar cambios salimos del modo edición y limpiamos todo
+        if (volverASolicitudes) {
+          this.leaveAlreadyConfirmed = true;
+          this.finalizarVenta(false);
+          this.router.navigate(['/servicio'], { queryParams: { solicitudes: 'true' } })
+            .then(navigated => {
+              if (!navigated) this.leaveAlreadyConfirmed = false;
+            });
+          return;
+        }
         this.finalizarVenta();
       },
       error: (err) => {
@@ -741,7 +749,8 @@ export class PosHome implements OnInit, OnDestroy {
         this.toastr.error('No se encontró la información de la orden');
         return;
       }
-      if (orden.estado === 'cancelado') {
+      const editandoSolicitudCliente = this.route.snapshot.queryParamMap.get('solicitudCliente') === 'true';
+      if (orden.estado === 'cancelado' && !editandoSolicitudCliente) {
         this.toastr.warning('Esta orden fue cancelada y no puede editarse ni cobrarse nuevamente.');
         return;
       }
@@ -1983,6 +1992,14 @@ export class PosHome implements OnInit, OnDestroy {
     accept: () => void;
     reject: (message: string) => void;
   }): void {
+    // Una solicitud vencida ya no posee reservas. Durante su corrección pueden
+    // quedar unidades agotadas en los lotes todavía no editados; validar el
+    // carrito completo en cada clic impediría reemplazarlas una por una.
+    // El backend valida y reserva el resultado completo al guardar.
+    if (this.editingCustomerRequest()) {
+      event.accept();
+      return;
+    }
     const reservation = this.reservationItems(event.reservation);
     this.productoService.sincronizarReservasStock(this.reservationSessionId, reservation.items, reservation.opciones).subscribe({
       next: () => event.accept(),
@@ -2060,7 +2077,7 @@ export class PosHome implements OnInit, OnDestroy {
     return this.reservationSessionId;
   }
 
-  private finalizarVenta(): void {
+  private finalizarVenta(refrescarDatosOperativos = true): void {
     this.liberarReservas();
     this.carrito.set([]);
     this.originalCarrito.set([]);
@@ -2070,15 +2087,19 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedSubcategoryId.set(null);
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
+    this.orderType.set('dine-in');
     this.orderDate.set(null);
     this.preorderDate.set(null);
     this.isEditingOrder.set(false);
+    this.editingCustomerRequest.set(false);
     this.editingOrderId.set(null);
     this.editingOrderSource.set(null);
     this.pendingOrderAction.set(null);
-    this.cargarProductos();
-    this.refreshOrderLists(true, true);
-    this.cargarCajaActual();
+    if (refrescarDatosOperativos) {
+      this.cargarProductos();
+      this.refreshOrderLists(true, true);
+      this.cargarCajaActual();
+    }
   }
 
   private saveProgrammedPreorder(): void {
@@ -2473,6 +2494,7 @@ export class PosHome implements OnInit, OnDestroy {
   private resetOrderSelection(): void {
     this.liberarReservas();
     this.isEditingOrder.set(false);
+    this.editingCustomerRequest.set(false);
     this.editingOrderId.set(null);
     this.editingOrder.set(null);
     this.editingOrderSource.set(null);
@@ -2481,6 +2503,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.originalCarrito.set([]);
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
+    this.orderType.set('dine-in');
     this.orderDate.set(null);
     this.preorderDate.set(this.operationMode === 'preorden' ? this.defaultPreorderDate() : null);
     this.deletedItems.set([]);

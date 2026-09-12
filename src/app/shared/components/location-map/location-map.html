@@ -1,0 +1,13 @@
+@if (editable) {
+  <div class="map-tools">
+    <button type="button" class="current-location" (click)="usarUbicacionActual()">Usar mi ubicación actual</button>
+    <small>Toca el mapa o arrastra el puntero hasta la entrada exacta.</small>
+  </div>
+}
+<div #mapContainer class="map" [class.map-editable]="editable"></div>
+@if (showCurrentLocation && locationMessage()) {
+  <div class="location-status" [class.location-error]="locationStatus() !== 'locating'">
+    <small>{{ locationMessage() }}</small>
+    @if (locationStatus() !== 'locating' && locationStatus() !== 'insecure') { <button type="button" (click)="retryCurrentLocation()">Intentar nuevamente</button> }
+  </div>
+}

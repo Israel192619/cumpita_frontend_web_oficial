@@ -5,6 +5,8 @@ import { Button } from '@app/shared/components/button/button';
 import { InputForm } from '@app/shared/components/input-form/input-form';
 import { Select, SelectOption } from '@app/shared/components/select/select';
 import { DashboardData, DashboardService } from '../../services/dashboard-service';
+import { CategoriaService } from '../../../categorias/services/categoria-service';
+import { Categoria } from '../../../../core/models/categoria';
 
 type Periodo = 'hoy' | 'ayer' | 'ultimos_7' | 'mes' | 'personalizado';
 
@@ -26,10 +28,32 @@ export class Dashboard implements OnInit {
   readonly datos = signal<DashboardData | null>(null);
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
+  readonly categorias = signal<Categoria[]>([]);
+  readonly categoriaId = signal<number | null>(null);
+  readonly subcategoriaId = signal<number | null>(null);
+  readonly categoryOptions = computed<SelectOption[]>(() => this.categorias().map(categoria => ({ label: categoria.nombre, value: categoria.id })));
+  readonly subcategoryOptions = computed<SelectOption[]>(() =>
+    (this.categorias().find(categoria => categoria.id === this.categoriaId())?.children ?? [])
+      .map(subcategoria => ({ label: subcategoria.nombre, value: subcategoria.id }))
+  );
   readonly periodoValido = computed(() => !!this.desde() && !!this.hasta() && this.desde() <= this.hasta());
 
-  constructor(private dashboardService: DashboardService) {}
-  ngOnInit(): void { this.cargar(); }
+  constructor(private dashboardService: DashboardService, private categoriaService: CategoriaService) {}
+  ngOnInit(): void {
+    this.categoriaService.listarCategorias().subscribe({ next: categorias => this.categorias.set(categorias) });
+    this.cargar();
+  }
+
+  cambiarCategoria(value: unknown): void {
+    this.categoriaId.set(value == null ? null : Number(value));
+    this.subcategoriaId.set(null);
+    this.cargar();
+  }
+
+  cambiarSubcategoria(value: unknown): void {
+    this.subcategoriaId.set(value == null ? null : Number(value));
+    this.cargar();
+  }
 
   cambiarPeriodo(value: unknown): void {
     const periodo = value as Periodo;
@@ -53,7 +77,7 @@ export class Dashboard implements OnInit {
     if (!this.periodoValido()) { this.error.set('La fecha inicial no puede ser posterior a la fecha final.'); return; }
     this.cargando.set(true);
     this.error.set(null);
-    this.dashboardService.obtener(this.desde(), this.hasta()).subscribe({
+    this.dashboardService.obtener(this.desde(), this.hasta(), this.categoriaId(), this.subcategoriaId()).subscribe({
       next: datos => { this.datos.set(datos); this.cargando.set(false); },
       error: error => { this.error.set(error?.error?.message || 'No fue posible cargar el Dashboard.'); this.cargando.set(false); },
     });

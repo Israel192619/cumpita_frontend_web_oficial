@@ -17,6 +17,7 @@
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-text) 6%, transparent);
   overflow: hidden;
 }
+.cart-item-block--stock-shortage{border:2px solid var(--color-danger)!important;background:color-mix(in srgb,var(--color-danger) 8%,var(--color-surface))!important}.stock-shortage-warning{display:block;color:var(--color-danger);font-weight:800;margin-top:.15rem}
 
 /* ==================== HEADER ==================== */
 .cart-header {
@@ -416,7 +417,7 @@
     min-width: 0;
   }
 
-  .order-type-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .order-type-selector { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   .cart-table-header {
     grid-template-columns: 1fr auto;

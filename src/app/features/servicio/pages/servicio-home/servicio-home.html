@@ -16,6 +16,7 @@
       <button type="button" class="preorders-button" (click)="abrirPreordenes()" [attr.aria-label]="'Ver ' + preordenesProgramadas().length + ' preórdenes'">
         <app-icon name="calendar" [size]="18" /><span>Preórdenes</span><b>{{ preordenesProgramadas().length }}</b>
       </button>
+      @if (esMesero()) { <button type="button" class="preorders-button requests-button" (click)="abrirSolicitudes()"><app-icon name="clipboard" [size]="18" /><span>Solicitudes</span><b>{{ solicitudes().length }}</b></button> }
       @if (esMesero()) { <app-button text="+ Nueva preorden" (buttonClick)="crearPreorden()" /> }
       @if (sesionSeleccionada()) { <app-button text="Buscar orden" color="secondary" (buttonClick)="abrirBuscadorOrden()" /> }
       @if (permiteSesionesPin()) { <app-button text="+ Ingresar mesero" (buttonClick)="abrirIngreso()" /> }
@@ -70,10 +71,11 @@
             [class.work-ticket--preorden]="ficha.tipo_flujo === 'preorden'">
             <div class="ticket-head"><div><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3><small class="ticket-table">{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="progress" [class.complete]="ficha.todo_listo"><b>{{ ficha.listos }}/{{ ficha.total_items }}</b><small>listos</small></div></div>
             <div class="ticket-detail-meta"><span class="ticket-client-name"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ etiquetaTipo(ficha) }}</span><span>Responsable: {{ ficha.mesero || 'Sin asignar' }}</span><span>{{ ficha.hora }}</span><span [class.wait-alert]="ficha.tiempo_espera_minutos >= 15">{{ formatearEspera(ficha.tiempo_espera_minutos) }} esperando</span></div>
+            @if (ficha.tipo_orden === 'delivery') { <button type="button" class="view-location" (click)="abrirUbicacion(ficha)"><app-icon name="map-pin" [size]="17" /> Ver ubicación</button> }
             <div class="items">
               @for (grupo of agruparDetalles(ficha); track grupo.clave) {
                 @if (grupo.inicioCategoria) { <h4 class="service-category">{{ grupo.categoria }}</h4> }
-                <button type="button" class="item" [class.ready]="grupo.detalles[0].servido || ficha.estado === 'entregado'" [disabled]="!sesionSeleccionada() || grupo.detalles[0].servido || ficha.estado === 'entregado' || !!procesando() || (!!grupo.detalles[0].llevando_por_id && grupo.detalles[0].llevando_por_id !== sesionSeleccionada()?.user?.id)" (click)="confirmar(grupo.detalles[0].id)">
+                <button type="button" class="item" [class.ready]="grupo.detalles[0].servido || ficha.estado === 'entregado'" [disabled]="!sesionSeleccionada() || grupo.detalles[0].servido || ficha.estado === 'entregado' || confirmacionesPendientes().has(grupo.detalles[0].id) || (!!grupo.detalles[0].llevando_por_id && grupo.detalles[0].llevando_por_id !== sesionSeleccionada()?.user?.id)" (click)="confirmar(grupo.detalles[0].id)">
                   <span class="check">{{ grupo.detalles[0].servido || ficha.estado === 'entregado' ? '✓' : '' }}</span>
                   <span class="item-copy"><b><em *ngIf="grupo.cantidad > 1">{{ grupo.cantidad }}×</em> {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opciones.length) { <small>{{ grupo.opciones.join(' · ') }}</small> }@if (grupo.nota) { <small class="item-note">Nota: {{ grupo.nota }}</small> }@if (grupo.detalles[0].entregado_por) { <small class="service-delivered-by">Entregado por {{ grupo.detalles[0].entregado_por }}</small> }</span>
                   <span class="state">{{ grupo.detalles[0].llevando_por ? grupo.detalles[0].llevando_por + ' lo lleva' : grupo.detalles[0].servido || ficha.estado === 'entregado' ? 'Entregado' : grupo.listo ? 'Listo' : grupo.cantidad > 1 ? grupo.cantidad + ' pendientes' : 'Pendiente' }}</span>
@@ -148,6 +150,27 @@
   </section>
   }
 
+  <app-modal [open]="solicitudesAbiertas()" [title]="'Solicitudes de clientes (' + solicitudes().length + ')'" size="large" (closed)="solicitudesAbiertas.set(false)">
+    <p class="request-help">Revisa los productos y la hora solicitada. El stock se valida y descuenta únicamente al aceptar.</p>
+    <div class="request-list">
+      @for (solicitud of solicitudes(); track solicitud.id) {
+        <article class="request-row">
+          <div class="request-head"><div><small>CLIENTE</small><h3>{{ solicitud.cliente }}</h3><a [href]="'tel:' + solicitud.telefono">{{ solicitud.telefono }}</a></div><time>{{ solicitud.fecha_programada | date:'dd/MM/yyyy' }}<b>{{ solicitud.fecha_programada | date:'HH:mm' }}</b></time></div>
+          <p><b>{{ solicitud.tipo_orden === 'dine-in' ? 'Comer en el restaurante' : 'Para llevar' }}</b>@if (solicitud.observaciones) { · {{ solicitud.observaciones }} }</p>
+          <div class="request-items">@for (item of solicitud.items; track $index) { <span><b>{{ item.cantidad }}× {{ item.producto }}</b>@if (item.opciones.length) {<small>{{ item.opciones.join(' · ') }}</small>}</span> }</div>
+          <div class="request-total">Total estimado <b>{{ formatearPrecio(solicitud.total) }}</b></div>
+          <label class="request-reason">Motivo del rechazo (opcional)<input type="text" maxlength="255" [value]="motivoRechazo()" (input)="motivoRechazo.set($any($event.target).value)"></label>
+          <div class="request-actions"><app-button text="Editar" color="secondary" [disabled]="!!procesando()" (buttonClick)="editarSolicitud(solicitud)" /><app-button text="Rechazar" color="danger" [disabled]="!!procesando()" (buttonClick)="rechazarSolicitud(solicitud)" /><app-button text="Aceptar preorden" [loading]="procesando() === 'aceptar-solicitud-' + solicitud.id" [disabled]="!!procesando() && procesando() !== 'aceptar-solicitud-' + solicitud.id" (buttonClick)="aceptarSolicitud(solicitud)" /></div>
+        </article>
+      } @empty { <div class="empty-card">No hay solicitudes pendientes.</div> }
+    </div>
+    @if (solicitudesVencidas().length) {
+      <div class="expired-requests"><h3>Solicitudes vencidas</h3><p>Ya no reservan stock. Puedes reactivarlas si la hora y las existencias todavía lo permiten.</p>
+        @for (solicitud of solicitudesVencidas(); track solicitud.id) {<article class="request-row expired"><div class="request-head"><div><small>VENCIDA</small><h3>{{ solicitud.cliente }}</h3><span>{{ solicitud.telefono }}</span></div><time>{{ solicitud.fecha_programada | date:'HH:mm' }}</time></div><div class="request-items">@for (item of solicitud.items; track $index) {<span><b>{{ item.cantidad }}× {{ item.producto }}</b><small>{{ item.opciones.join(' · ') }}</small></span>}</div><div class="request-actions"><app-button text="Editar" color="secondary" [disabled]="!!procesando()" (buttonClick)="editarSolicitud(solicitud)" /><app-button text="Reactivar 20 min" [loading]="procesando() === 'reactivar-solicitud-' + solicitud.id || procesando() === 'revisar-solicitud-' + solicitud.id" [disabled]="!!procesando() && procesando() !== 'reactivar-solicitud-' + solicitud.id && procesando() !== 'revisar-solicitud-' + solicitud.id" (buttonClick)="reactivarSolicitud(solicitud)" /></div></article>}
+      </div>
+    }
+  </app-modal>
+
   <app-modal [open]="preordenesAbiertas()" [title]="'Preórdenes (' + preordenesProgramadas().length + ')'" size="large" (closed)="cerrarPreordenes()">
     <div class="preorder-search">
       <span aria-hidden="true">⌕</span>
@@ -176,6 +199,32 @@
       <button type="button" class="back" (click)="meseroSeleccionado.set(null)">← Cambiar nombre</button>
       <p>Introduce tu PIN una sola vez para esta jornada.</p>
       <form class="service-pin-form" (submit)="$event.preventDefault(); ingresar()"><app-input-form label="PIN de Servicio" type="password" [control]="pin" placeholder="••••" inputmode="numeric" [maxlength]="6" autocomplete="off" [error]="errorIngreso()" /><app-button text="INICIAR SESIÓN" type="submit" size="large" [loading]="procesando() === 'ingreso'" /></form>
+    }
+  </app-modal>
+
+  <app-modal [open]="!!fichaUbicacion()" [title]="'Ubicación de delivery #' + (fichaUbicacion()?.numero_orden || '')" size="large" (closed)="fichaUbicacion.set(null); editandoUbicacion.set(false)">
+    @if (fichaUbicacion(); as ficha) {
+      @if (editandoUbicacion()) {
+        <div class="delivery-edit-form">
+          <app-input-form label="Dirección, sector o número de puesto" [control]="ubicacionForm.controls.direccion" placeholder="Ej. Pasillo B, puesto 24" />
+          <app-input-form label="Referencia para encontrar el local" type="textarea" [control]="ubicacionForm.controls.referencia_ubicacion" placeholder="Ej. Frente al escenario, letrero azul" />
+          <app-location-map [editable]="true" [latitud]="ubicacionForm.controls.latitud.value" [longitud]="ubicacionForm.controls.longitud.value" (locationChange)="actualizarPuntoEntrega($event)" />
+          <app-input-form label="Foto del local" type="file" [control]="ubicacionForm.controls.foto_local" [initialPreview]="ficha.ubicacion_entrega?.foto_local_url || null" (imageCleared)="eliminandoFotoUbicacion.set(true)" />
+          <div class="location-modal-actions"><app-button text="Cancelar" color="secondary" (buttonClick)="editandoUbicacion.set(false)" /><app-button text="Guardar ubicación" [loading]="procesando() === 'guardar-ubicacion'" (buttonClick)="guardarUbicacion()" /></div>
+        </div>
+      } @else {
+        <div class="delivery-location-detail">
+          @if (ficha.ubicacion_entrega?.foto_local_url) { <img class="delivery-place-photo" [src]="ficha.ubicacion_entrega?.foto_local_url" alt="Foto del local de entrega"> }
+          @if (ficha.ubicacion_entrega?.direccion) { <div><span>Dirección</span><strong>{{ ficha.ubicacion_entrega?.direccion }}</strong></div> }
+          @if (ficha.ubicacion_entrega?.referencia) { <div><span>Referencia</span><strong>{{ ficha.ubicacion_entrega?.referencia }}</strong></div> }
+          @if (ficha.ubicacion_entrega?.latitud != null && ficha.ubicacion_entrega?.longitud != null) {
+            <app-location-map [latitud]="ficha.ubicacion_entrega?.latitud ?? null" [longitud]="ficha.ubicacion_entrega?.longitud ?? null" [originLatitud]="configuracion.ubicacionRestaurante()?.latitud ?? null" [originLongitud]="configuracion.ubicacionRestaurante()?.longitud ?? null" [showWalkingRoute]="true" />
+            @if (indicacionesUrl(ficha); as url) { <a class="directions-link" [href]="url" target="_blank" rel="noopener"><app-icon name="navigation" [size]="17" /> Verlo en Maps</a> }
+          }
+          @if (!ficha.ubicacion_entrega?.direccion && !ficha.ubicacion_entrega?.referencia && !ficha.ubicacion_entrega?.foto_local_url && ficha.ubicacion_entrega?.latitud == null) { <p class="empty-location">Este cliente todavía no tiene una ubicación registrada.</p> }
+          @if (sesionSeleccionada()) { <div class="location-modal-actions"><app-button text="Editar ubicación" (buttonClick)="editarUbicacion()" /></div> }
+        </div>
+      }
     }
   </app-modal>
 

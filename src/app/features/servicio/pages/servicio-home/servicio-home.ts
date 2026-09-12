@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, ElementRef, HostListener, OnDestroy, OnInit, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../../core/services/auth-service';
 import { ReverbService } from '../../../../core/services/reverb-service';
-import { OrdenServicioDetalle, OrdenServicioResumen, ServicioFicha, ServicioService, ServicioSesion, ServicioTablero } from '../../services/servicio-service';
+import { OrdenServicioDetalle, OrdenServicioResumen, ServicioFicha, ServicioService, ServicioSesion, ServicioTablero, SolicitudPreorden } from '../../services/servicio-service';
 import { Button } from '../../../../shared/components/button/button';
 import { InputForm } from '../../../../shared/components/input-form/input-form';
 import { Modal } from '../../../../shared/components/modal/modal';
@@ -14,6 +14,9 @@ import { Producto, ModificadorEstructurado, ModificadorOpcion } from '../../../.
 import { ThemeService } from '../../../../core/services/theme-service';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { formatCurrency } from '../../../../core/config/currency.config';
+import { ConfirmDialogService } from '../../../../shared/services/confirm-dialog-service';
+import { LocationMap, MapLocation } from '../../../../shared/components/location-map/location-map';
+import { ConfiguracionService } from '../../../../core/services/configuracion-service';
 
 interface Mesero { id: number; name: string; }
 interface GrupoDetalleServicio {
@@ -31,7 +34,7 @@ interface GrupoDetalleServicio {
 
 @Component({
   selector: 'app-servicio-home',
-  imports: [RouterLink, CommonModule, ReactiveFormsModule, Button, InputForm, Modal, Icon],
+  imports: [RouterLink, CommonModule, ReactiveFormsModule, Button, InputForm, Modal, Icon, LocationMap],
   templateUrl: './servicio-home.html',
   styleUrls: ['./servicio-home.css', './servicio-theme.css']
 })
@@ -91,12 +94,17 @@ export class ServicioHome implements OnInit, OnDestroy {
   });
   preordenesProgramadas = signal<ServicioFicha[]>([]);
   preordenesAbiertas = signal(false);
+  solicitudes = signal<SolicitudPreorden[]>([]);
+  solicitudesVencidas = signal<SolicitudPreorden[]>([]);
+  solicitudesAbiertas = signal(false);
+  motivoRechazo = signal('');
   consultaPreorden = signal('');
   meseros = signal<Mesero[]>([]);
   meseroSeleccionado = signal<Mesero | null>(null);
   mostrarIngreso = signal(false);
   loading = signal(true);
   procesando = signal<string | null>(null);
+  confirmacionesPendientes = signal<Set<number>>(new Set());
   errorIngreso = signal<string | null>(null);
   confirmarCierre = signal(false);
   permiteSesionesPin = signal(false);
@@ -105,6 +113,16 @@ export class ServicioHome implements OnInit, OnDestroy {
   esDespacho = signal(false);
   esMesero = signal(false);
   fichaALiberar = signal<ServicioFicha | null>(null);
+  fichaUbicacion = signal<ServicioFicha | null>(null);
+  editandoUbicacion = signal(false);
+  eliminandoFotoUbicacion = signal(false);
+  ubicacionForm = new FormGroup({
+    direccion: new FormControl(''),
+    referencia_ubicacion: new FormControl(''),
+    latitud: new FormControl<number | null>(null),
+    longitud: new FormControl<number | null>(null),
+    foto_local: new FormControl<File | null>(null),
+  });
   buscarOrdenAbierto = signal(false);
   consultaOrden = signal('');
   resultadosOrden = signal<OrdenServicioResumen[]>([]);
@@ -146,6 +164,18 @@ export class ServicioHome implements OnInit, OnDestroy {
   private busquedaOrdenSecuencia = 0;
   private temporizadorBusquedaProducto?: ReturnType<typeof setTimeout>;
   private readonly tableroPorSesion = new Map<string, Pick<ServicioTablero, 'mis_fichas' | 'mis_entregadas'>>();
+  private contextoAvisos?: AudioContext;
+  private avisosSonorosHabilitados = false;
+  private readonly habilitarAvisosSonoros = (): void => {
+    if (this.contextoAvisos) return;
+    try {
+      const contexto = new AudioContext();
+      void contexto.resume().then(() => {
+        this.contextoAvisos = contexto;
+        this.avisosSonorosHabilitados = contexto.state === 'running';
+      }).catch(() => void contexto.close());
+    } catch { /* El toaster continúa visible si el dispositivo no admite audio. */ }
+  };
 
   constructor(
     private elementRef: ElementRef<HTMLElement>,
@@ -154,11 +184,17 @@ export class ServicioHome implements OnInit, OnDestroy {
     private reverb: ReverbService,
     private toastr: ToastrService,
     private router: Router,
+    private route: ActivatedRoute,
     readonly themeService: ThemeService,
+    private confirmDialog: ConfirmDialogService,
+    readonly configuracion: ConfiguracionService,
   ) {}
 
   ngOnInit(): void {
     this.themeService.initialize();
+    this.configuracion.cargar().subscribe({ error: () => undefined });
+    document.addEventListener('pointerdown', this.habilitarAvisosSonoros, { once: true });
+    document.addEventListener('keydown', this.habilitarAvisosSonoros, { once: true });
     this.consultaOrdenSub = this.consultaOrdenCambios.pipe(debounceTime(180), distinctUntilChanged()).subscribe(() => this.buscarOrdenes());
     this.auth.me().subscribe({
       next: usuario => {
@@ -185,6 +221,16 @@ export class ServicioHome implements OnInit, OnDestroy {
         }
         this.activarTiempoReal();
         this.cargar();
+        this.cargarSolicitudes();
+        if (this.esMesero() && this.route.snapshot.queryParamMap.get('solicitudes') === 'true') {
+          this.solicitudesAbiertas.set(true);
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { solicitudes: null },
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+          });
+        }
       },
       error: () => this.router.navigate(['/login'])
     });
@@ -194,6 +240,9 @@ export class ServicioHome implements OnInit, OnDestroy {
     if (this.temporizadorBusquedaProducto) clearTimeout(this.temporizadorBusquedaProducto);
     this.consultaOrdenSub?.unsubscribe();
     this.detenerActividadAutomatica();
+    document.removeEventListener('pointerdown', this.habilitarAvisosSonoros);
+    document.removeEventListener('keydown', this.habilitarAvisosSonoros);
+    void this.contextoAvisos?.close();
   }
 
   volverAOrdenes(): void {
@@ -244,6 +293,80 @@ export class ServicioHome implements OnInit, OnDestroy {
   abrirPreordenes(): void {
     this.consultaPreorden.set('');
     this.preordenesAbiertas.set(true);
+  }
+
+  abrirSolicitudes(): void { this.solicitudesAbiertas.set(true); this.cargarSolicitudes(); }
+
+  cargarSolicitudes(): void {
+    if (!this.esMesero()) return;
+    this.servicio.listarSolicitudes(this.sesionSeleccionada()?.token).subscribe({ next: r => { this.solicitudes.set(r.solicitudes ?? []); this.solicitudesVencidas.set(r.vencidas ?? []); }, error: () => undefined });
+  }
+
+  aceptarSolicitud(solicitud: SolicitudPreorden): void {
+    this.confirmDialog.confirm({ title: 'Aceptar solicitud', message: `¿Confirmas la preorden de ${solicitud.cliente}? El stock reservado se descontará y la preorden quedará programada.`, confirmText: 'Aceptar preorden', confirmColor: 'success' }).subscribe(confirmado => {
+      if (!confirmado) return;
+    this.procesando.set(`aceptar-solicitud-${solicitud.id}`);
+    this.servicio.aceptarSolicitud(solicitud.id, this.sesionSeleccionada()?.token).subscribe({
+      next: () => { this.procesando.set(null); this.solicitudes.update(items => items.filter(x => x.id !== solicitud.id)); this.toastr.success('Solicitud aceptada. Ya aparece como preorden programada.'); this.cargar(false); },
+      error: e => { this.procesando.set(null); this.toastr.error(e?.error?.message || 'No se pudo aceptar la solicitud.'); this.cargarSolicitudes(); }
+    });
+    });
+  }
+
+  rechazarSolicitud(solicitud: SolicitudPreorden): void {
+    this.confirmDialog.confirm({ title: 'Rechazar solicitud', message: `¿Confirmas que deseas rechazar la solicitud de ${solicitud.cliente}? Se liberará el stock reservado.`, confirmText: 'Rechazar solicitud', confirmColor: 'danger' }).subscribe(confirmado => {
+      if (!confirmado) return;
+    this.procesando.set(`rechazar-solicitud-${solicitud.id}`);
+    this.servicio.rechazarSolicitud(solicitud.id, this.motivoRechazo(), this.sesionSeleccionada()?.token).subscribe({
+      next: () => { this.procesando.set(null); this.motivoRechazo.set(''); this.solicitudes.update(items => items.filter(x => x.id !== solicitud.id)); this.toastr.info('Solicitud rechazada.'); },
+      error: e => { this.procesando.set(null); this.toastr.error(e?.error?.message || 'No se pudo rechazar la solicitud.'); }
+    });
+    });
+  }
+
+  reactivarSolicitud(solicitud: SolicitudPreorden): void {
+    this.procesando.set(`revisar-solicitud-${solicitud.id}`);
+    this.servicio.disponibilidadSolicitud(solicitud.id, this.sesionSeleccionada()?.token).subscribe({
+      next: resultado => {
+        this.procesando.set(null);
+        if (!resultado.hora_valida) {
+          const minima = new Date(resultado.hora_minima).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+          this.confirmDialog.confirm({ title: 'Debes cambiar la hora', message: `La hora solicitada ya no deja 20 minutos completos de preparación. El horario mínimo ahora es ${minima}.`, confirmText: 'Editar solicitud', cancelText: 'Cancelar', confirmColor: 'warning' })
+            .subscribe(editar => { if (editar) this.abrirEdicionSolicitud(solicitud, resultado.faltantes); });
+          return;
+        }
+        if (!resultado.disponible) {
+          const detalle = resultado.faltantes.map(item => `${item.nombre}: necesita ${item.necesarias}, hay ${item.disponibles}`).join('. ');
+          this.confirmDialog.confirm({ title: 'Stock insuficiente', message: `${detalle}. Puedes editar la solicitud para acordar reemplazos o reducir cantidades.`, confirmText: 'Editar solicitud', cancelText: 'Cancelar', confirmColor: 'warning' })
+            .subscribe(editar => { if (editar) this.abrirEdicionSolicitud(solicitud, resultado.faltantes); });
+          return;
+        }
+        this.confirmDialog.confirm({ title: 'Reactivar solicitud', message: 'Hay stock suficiente. ¿Deseas reservarlo nuevamente durante 20 minutos?', confirmText: 'Reactivar 20 min', confirmColor: 'success' })
+          .subscribe(confirmado => { if (confirmado) this.confirmarReactivacion(solicitud); });
+      },
+      error: e => { this.procesando.set(null); this.toastr.error(e?.error?.message || 'No se pudo comprobar el stock.'); }
+    });
+  }
+
+  editarSolicitud(solicitud: SolicitudPreorden): void {
+    this.procesando.set(`revisar-solicitud-${solicitud.id}`);
+    this.servicio.disponibilidadSolicitud(solicitud.id, this.sesionSeleccionada()?.token).subscribe({
+      next: resultado => { this.procesando.set(null); this.abrirEdicionSolicitud(solicitud, resultado.faltantes); },
+      error: () => { this.procesando.set(null); this.abrirEdicionSolicitud(solicitud, []); },
+    });
+  }
+
+  private abrirEdicionSolicitud(solicitud: SolicitudPreorden, faltantes: { nombre: string }[]): void {
+    this.solicitudesAbiertas.set(false);
+    this.router.navigate(['/preordenes/nueva'], { queryParams: { edit: 'true', orderId: solicitud.id, solicitudCliente: 'true', solicitudEstado: solicitud.estado, faltantes: faltantes.map(item => item.nombre).join('|') } });
+  }
+
+  private confirmarReactivacion(solicitud: SolicitudPreorden): void {
+    this.procesando.set(`reactivar-solicitud-${solicitud.id}`);
+    this.servicio.reactivarSolicitud(solicitud.id, this.sesionSeleccionada()?.token).subscribe({
+      next: () => { this.procesando.set(null); this.toastr.success('Solicitud reactivada. El stock quedó reservado por 20 minutos.'); this.cargarSolicitudes(); },
+      error: e => { this.procesando.set(null); this.toastr.error(e?.error?.message || 'No se pudo reactivar la solicitud.'); }
+    });
   }
 
   cerrarPreordenes(): void {
@@ -524,19 +647,99 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   confirmar(detalleId: number): void {
     const sesion = this.requerirSesion();
-    if (!sesion || this.procesando()) return;
+    if (!sesion || this.confirmacionesPendientes().has(detalleId)) return;
     const ficha = [...this.misFichas(), ...this.todasFichas()].find(item => item.detalles.some(detalle => detalle.id === detalleId));
     const detalle = ficha?.detalles.find(item => item.id === detalleId);
     if (!ficha || !detalle || detalle.servido || ficha.estado === 'entregado') return;
-    this.procesando.set('detalle-' + detalleId);
+    const estadoAnterior = { listo: detalle.listo, servido: detalle.servido };
+    this.registrarActualizacionLocal(ficha.id);
+    this.actualizarDetalleLocal(detalleId, true, true);
+    this.marcarConfirmacionPendiente(detalleId, true);
     this.servicio.confirmar(detalleId, sesion.token).subscribe({
-      next: () => { this.procesando.set(null); this.cargar(false); },
+      next: () => {
+        this.marcarConfirmacionPendiente(detalleId, false);
+        const sesionActual = this.sesionSeleccionada();
+        if (sesionActual) this.guardarTableroSesion(sesionActual);
+      },
       error: error => {
-        this.procesando.set(null);
+        this.descartarActualizacionLocal(ficha.id);
+        this.actualizarDetalleLocal(detalleId, estadoAnterior.listo, estadoAnterior.servido);
+        this.marcarConfirmacionPendiente(detalleId, false);
         this.toastr.warning(error?.error?.message || 'No se pudo confirmar el producto.');
         this.cargar(false);
       }
     });
+  }
+
+  private marcarConfirmacionPendiente(detalleId: number, pendiente: boolean): void {
+    this.confirmacionesPendientes.update(actuales => {
+      const siguientes = new Set(actuales);
+      if (pendiente) siguientes.add(detalleId);
+      else siguientes.delete(detalleId);
+      return siguientes;
+    });
+  }
+
+  abrirUbicacion(ficha: ServicioFicha): void {
+    this.fichaUbicacion.set(ficha);
+    this.editandoUbicacion.set(false);
+    this.eliminandoFotoUbicacion.set(false);
+  }
+
+  editarUbicacion(): void {
+    const ubicacion = this.fichaUbicacion()?.ubicacion_entrega;
+    this.ubicacionForm.reset({
+      direccion: ubicacion?.direccion ?? '',
+      referencia_ubicacion: ubicacion?.referencia ?? '',
+      latitud: ubicacion?.latitud ?? null,
+      longitud: ubicacion?.longitud ?? null,
+      foto_local: null,
+    });
+    this.eliminandoFotoUbicacion.set(false);
+    this.editandoUbicacion.set(true);
+  }
+
+  actualizarPuntoEntrega(ubicacion: MapLocation): void { this.ubicacionForm.patchValue(ubicacion); }
+
+  guardarUbicacion(): void {
+    const ficha = this.fichaUbicacion();
+    if (!ficha?.cliente_id || this.procesando() === 'guardar-ubicacion') return;
+    const data = new FormData();
+    const valores = this.ubicacionForm.value;
+    data.append('direccion', valores.direccion ?? '');
+    data.append('referencia_ubicacion', valores.referencia_ubicacion ?? '');
+    if (valores.latitud != null) data.append('latitud', String(valores.latitud));
+    if (valores.longitud != null) data.append('longitud', String(valores.longitud));
+    if (valores.foto_local instanceof File) data.append('foto_local', valores.foto_local);
+    if (this.eliminandoFotoUbicacion()) data.append('eliminar_foto', '1');
+    this.procesando.set('guardar-ubicacion');
+    this.servicio.actualizarUbicacionCliente(ficha.cliente_id, data, this.sesionSeleccionada()?.token).subscribe({
+      next: response => {
+        const actualizar = (items: ServicioFicha[]) => items.map(item => item.cliente_id === ficha.cliente_id
+          ? { ...item, ubicacion_entrega: response.ubicacion_entrega }
+          : item);
+        this.misFichas.update(actualizar);
+        this.todasFichas.update(actualizar);
+        this.disponibles.update(actualizar);
+        this.fichaUbicacion.update(item => item ? { ...item, ubicacion_entrega: response.ubicacion_entrega } : null);
+        this.procesando.set(null);
+        this.editandoUbicacion.set(false);
+        this.toastr.success('Ubicación actualizada.');
+      },
+      error: error => {
+        this.procesando.set(null);
+        this.toastr.error(error?.error?.message || 'No se pudo guardar la ubicación.');
+      },
+    });
+  }
+
+  indicacionesUrl(ficha: ServicioFicha): string | null {
+    const ubicacion = ficha.ubicacion_entrega;
+    if (ubicacion?.latitud == null || ubicacion.longitud == null) return null;
+    const destino = encodeURIComponent(`${ubicacion.latitud},${ubicacion.longitud}`);
+    const origen = this.configuracion.ubicacionRestaurante();
+    if (!origen) return `https://www.google.com/maps/search/?api=1&query=${destino}`;
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(`${origen.latitud},${origen.longitud}`)}&destination=${destino}&travelmode=walking`;
   }
 
   agruparDetalles(ficha: ServicioFicha): GrupoDetalleServicio[] {
@@ -790,8 +993,8 @@ export class ServicioHome implements OnInit, OnDestroy {
         if (evento.actividad && sesion && sesion.user.id === evento.mesero_id && evento.actividad.user_id !== sesion.user.id) {
           this.toastr.info(evento.actividad.mensaje);
         }
-        if (this.viendoTodas() || evento.accion === 'colaboracion' || evento.accion === 'adicional') { this.cargar(false); return; }
         if (this.consumirActualizacionLocal(ordenId)) return;
+        if (this.viendoTodas() || evento.accion === 'colaboracion' || evento.accion === 'adicional') { this.cargar(false); return; }
 
         if (evento.accion === 'tomada') {
           this.disponibles.update(fichas => fichas.filter(ficha => ficha.id !== ordenId));
@@ -819,7 +1022,16 @@ export class ServicioHome implements OnInit, OnDestroy {
         if (evento.origen === 'servicio') return;
         this.cargar(false);
       }),
-      this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(() => this.cargar(false)),
+      this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe((evento: { tipo?: string }) => {
+        this.cargar(false);
+        if (evento.tipo?.startsWith('solicitud_')) {
+          this.cargarSolicitudes();
+          if (evento.tipo === 'solicitud_creada') {
+            this.reproducirAvisoSolicitud();
+            this.toastr.info('Nueva solicitud de preorden. Revísala antes de que venza la reserva de stock.');
+          }
+        }
+      }),
       this.reverb.escucharCanal('canal-ordenes', '.ServicioSesionActualizada').subscribe(evento => {
         if (this.cerrandoSesion) return;
         if (evento?.tipo === 'sesion_cerrada' && evento?.session_id) this.quitarSesionLocal(evento.session_id);
@@ -828,9 +1040,47 @@ export class ServicioHome implements OnInit, OnDestroy {
     );
   }
 
+  private reproducirAvisoSolicitud(): void {
+    if (!this.avisosSonorosHabilitados || this.contextoAvisos?.state !== 'running') return;
+    try {
+      const contexto = this.contextoAvisos;
+      const inicio = contexto.currentTime;
+      [659, 880, 1046].forEach((frecuencia, indice) => {
+        const cuando = inicio + indice * .14;
+        const tono = contexto.createOscillator();
+        const volumen = contexto.createGain();
+        tono.type = 'sine'; tono.frequency.value = frecuencia;
+        volumen.gain.setValueAtTime(.0001, cuando);
+        volumen.gain.exponentialRampToValueAtTime(.12, cuando + .02);
+        volumen.gain.exponentialRampToValueAtTime(.0001, cuando + .12);
+        tono.connect(volumen).connect(contexto.destination);
+        tono.start(cuando); tono.stop(cuando + .13);
+      });
+    } catch { /* El aviso visual sigue disponible. */ }
+  }
+
   private registrarActualizacionLocal(ordenId: number): void {
     const cantidad = this.actualizacionesLocales.get(ordenId)?.cantidad ?? 0;
     this.actualizacionesLocales.set(ordenId, { cantidad: cantidad + 1, fecha: Date.now() });
+  }
+
+  private actualizarDetalleLocal(detalleId: number, listo: boolean, servido?: boolean): void {
+    const actualizarFichas = (fichas: ServicioFicha[]): ServicioFicha[] => fichas.map(ficha => {
+      if (!ficha.detalles.some(detalle => detalle.id === detalleId)) return ficha;
+      const detalles = ficha.detalles.map(detalle => detalle.id === detalleId
+        ? { ...detalle, listo, servido }
+        : detalle);
+      const listos = detalles.filter(detalle => detalle.listo).length;
+      return {
+        ...ficha,
+        detalles,
+        listos,
+        todo_listo: detalles.length > 0 && detalles.every(detalle => detalle.listo),
+      };
+    });
+    this.misFichas.update(actualizarFichas);
+    this.todasFichas.update(actualizarFichas);
+    this.disponibles.update(actualizarFichas);
   }
 
   private consumirActualizacionLocal(ordenId: number): boolean {

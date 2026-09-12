@@ -20,8 +20,10 @@ export interface DashboardData {
 export class DashboardService {
   private readonly url = `${environment.apiUrl}/dashboard`;
   constructor(private http: HttpClient) {}
-  obtener(desde: string, hasta: string) {
-    const params = new HttpParams().set('desde', desde).set('hasta', hasta);
+  obtener(desde: string, hasta: string, categoriaId?: number | null, subcategoriaId?: number | null) {
+    let params = new HttpParams().set('desde', desde).set('hasta', hasta);
+    if (categoriaId != null) params = params.set('categoria_id', categoriaId);
+    if (subcategoriaId != null) params = params.set('subcategoria_id', subcategoriaId);
     return this.http.get<DashboardData>(this.url, { params });
   }
 }

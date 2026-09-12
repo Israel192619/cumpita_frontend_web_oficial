@@ -6,6 +6,10 @@ import { landingGuard, moduleAccessGuard } from './core/guards/role-guards';
 import { pendingPosOrderGuard } from './core/guards/pending-pos-order-guard';
 
 export const routes: Routes = [
+  {
+    path: 'solicitar-preorden',
+    loadComponent: () => import('./features/solicitud-preorden-publica/solicitud-preorden-publica').then(m => m.SolicitudPreordenPublica)
+  },
   // Rutas públicas (auth)
   {
     path: '',

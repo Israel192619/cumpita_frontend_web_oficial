@@ -58,6 +58,7 @@ export interface Order {
   fecha_programada?: string | null;
   tipo_flujo?: 'normal' | 'preorden';
   estado_preorden?: 'programada' | 'activada' | 'cancelada' | null;
+  estado_solicitud?: 'pendiente' | 'aceptada' | 'rechazada' | 'vencida' | null;
   preorden_activada_en?: string | null;
   items: CartItem[];
   subtotal: number;

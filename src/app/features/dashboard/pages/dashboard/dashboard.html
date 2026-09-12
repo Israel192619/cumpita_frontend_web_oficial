@@ -37,7 +37,15 @@
       </article>
 
       <article class="dashboard-panel">
-        <div class="panel-heading"><div><h2>Productos más vendidos</h2></div></div>
+        <div class="panel-heading ranking-heading">
+          <div><h2>Productos más vendidos</h2></div>
+          <div class="ranking-filters">
+            <app-select label="" placeholder="Todas las categorías" [options]="categoryOptions()" [value]="categoriaId()" (valueChange)="cambiarCategoria($event)" />
+            @if (subcategoryOptions().length) {
+              <app-select label="" placeholder="Todas las subcategorías" [options]="subcategoryOptions()" [value]="subcategoriaId()" (valueChange)="cambiarSubcategoria($event)" />
+            }
+          </div>
+        </div>
         @if (dashboard.productos_mas_vendidos.length) {
           <ol class="ranking-list">@for (producto of dashboard.productos_mas_vendidos; track producto.id; let posicion = $index) { <li><span class="rank">{{ posicion + 1 }}</span><span class="product-name">{{ producto.nombre }}</span><strong>{{ producto.cantidad }}</strong></li> }</ol>
         } @else { <div class="empty-panel">No hay productos vendidos en este período.</div> }
