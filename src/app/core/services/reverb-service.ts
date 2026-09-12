@@ -12,16 +12,18 @@ export class ReverbService {
   private echo: Echo<any>;
 
   constructor() {
-    const apiHost = new URL(environment.apiUrl).hostname;
+    const apiHost = new URL(environment.apiUrl, window.location.origin).hostname;
     const socketHost = typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost'
       ? window.location.hostname
       : apiHost;
+    const secure = window.location.protocol === 'https:';
     this.echo = new Echo({
       broadcaster: 'reverb',
       key: '6x0supev9eq3anpkyr8s',
       wsHost: socketHost,
-      wsPort: 8080,
-      forceTLS: false,
+      wsPort: secure ? 443 : 8080,
+      wssPort: 443,
+      forceTLS: secure,
       enabledTransports: ['ws', 'wss']
     });
 

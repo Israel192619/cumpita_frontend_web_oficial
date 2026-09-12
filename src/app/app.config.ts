@@ -1,4 +1,4 @@
-import { ApplicationConfig, importProvidersFrom, LOCALE_ID, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, importProvidersFrom, LOCALE_ID, provideBrowserGlobalErrorListeners, isDevMode } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
 import localeEsBo from '@angular/common/locales/es-BO';
 import { provideRouter } from '@angular/router';
@@ -12,6 +12,7 @@ import { provideToastr } from 'ngx-toastr';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { errorInterceptor } from './core/interceptors/error-interceptor';
+import { provideServiceWorker } from '@angular/service-worker';
 
 registerLocaleData(localeEsBo);
 
@@ -28,6 +29,10 @@ export const appConfig: ApplicationConfig = {
     importProvidersFrom(
       MatDialogModule,
       MatButtonModule
-    )
+    ),
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000'
+    })
   ]
 };
