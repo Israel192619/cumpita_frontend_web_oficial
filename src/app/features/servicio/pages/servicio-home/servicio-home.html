@@ -66,18 +66,20 @@
 
   <ng-template #fichaServicio let-ficha>
           <article class="work-ticket"
+            [class.ticket-black-hole-exit]="fichasSaliendo().has(ficha.id)"
             [class.work-ticket--mesa]="ficha.tipo_orden === 'dine-in'"
             [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go' || ficha.tipo_orden === 'delivery'"
             [class.work-ticket--preorden]="ficha.tipo_flujo === 'preorden'">
-            <div class="ticket-head"><div><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3><small class="ticket-table">{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="progress" [class.complete]="ficha.todo_listo"><b>{{ ficha.listos }}/{{ ficha.total_items }}</b><small>listos</small></div></div>
+            @if (fichasSaliendo().has(ficha.id)) { <div class="ticket-completion-overlay" aria-hidden="true"><span>✓</span></div> }
+            <div class="ticket-head"><div><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3><small class="ticket-table">{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="ticket-head-actions">@if (ficha.tipo_orden === 'dine-in' && ficha.estado !== 'cancelado' && ficha.estado !== 'entregado') { <button type="button" class="service-table-action" [disabled]="!sesionSeleccionada() || !!procesando()" (click)="abrirMesas(ficha)">{{ ficha.mesa ? 'Cambiar mesa' : 'Asignar mesa' }}</button> }<button type="button" class="cutlery-check" [class.checked]="ficha.cubiertos_entregados" [disabled]="!sesionSeleccionada() || ficha.estado === 'cancelado' || procesando() === 'cubiertos-' + ficha.id" [attr.aria-pressed]="!!ficha.cubiertos_entregados" [attr.aria-label]="ficha.cubiertos_entregados ? 'Marcar cubiertos como pendientes' : 'Marcar cubiertos como entregados'" [title]="ficha.cubiertos_entregados ? 'Cubiertos entregados; presiona para desmarcar' : 'Cubiertos pendientes; presiona para marcar'" (click)="alternarCubiertos(ficha)"><app-icon name="restaurant" [size]="19" /><span>Cubiertos</span><b>{{ ficha.cubiertos_entregados ? '✓' : '' }}</b></button><div class="progress" [class.complete]="ficha.todo_listo"><b>{{ ficha.listos }}/{{ ficha.total_items }}</b><small>listos</small></div></div></div>
             <div class="ticket-detail-meta"><span class="ticket-client-name"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ etiquetaTipo(ficha) }}</span><span>Responsable: {{ ficha.mesero || 'Sin asignar' }}</span><span>{{ ficha.hora }}</span><span [class.wait-alert]="ficha.tiempo_espera_minutos >= 15">{{ formatearEspera(ficha.tiempo_espera_minutos) }} esperando</span></div>
             @if (ficha.tipo_orden === 'delivery') { <button type="button" class="view-location" (click)="abrirUbicacion(ficha)"><app-icon name="map-pin" [size]="17" /> Ver ubicación</button> }
             <div class="items">
               @for (grupo of agruparDetalles(ficha); track grupo.clave) {
                 @if (grupo.inicioCategoria) { <h4 class="service-category">{{ grupo.categoria }}</h4> }
-                <button type="button" class="item" [class.ready]="grupo.detalles[0].servido || ficha.estado === 'entregado'" [disabled]="!sesionSeleccionada() || grupo.detalles[0].servido || ficha.estado === 'entregado' || confirmacionesPendientes().has(grupo.detalles[0].id) || (!!grupo.detalles[0].llevando_por_id && grupo.detalles[0].llevando_por_id !== sesionSeleccionada()?.user?.id)" (click)="confirmar(grupo.detalles[0].id)">
+                <button type="button" class="item" [class.ready]="grupo.detalles[0].servido || ficha.estado === 'entregado'" [disabled]="!sesionSeleccionada() || ficha.estado === 'entregado' || confirmacionesPendientes().has(grupo.detalles[0].id) || (!!grupo.detalles[0].llevando_por_id && grupo.detalles[0].llevando_por_id !== sesionSeleccionada()?.user?.id)" (click)="confirmar(grupo.detalles[0].id, grupo.detalles[0].servido)">
                   <span class="check">{{ grupo.detalles[0].servido || ficha.estado === 'entregado' ? '✓' : '' }}</span>
-                  <span class="item-copy"><b><em *ngIf="grupo.cantidad > 1">{{ grupo.cantidad }}×</em> {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opciones.length) { <small>{{ grupo.opciones.join(' · ') }}</small> }@if (grupo.nota) { <small class="item-note">Nota: {{ grupo.nota }}</small> }@if (grupo.detalles[0].entregado_por) { <small class="service-delivered-by">Entregado por {{ grupo.detalles[0].entregado_por }}</small> }</span>
+                  <span class="item-copy"><b><em *ngIf="grupo.cantidad > 1">{{ grupo.cantidad }}×</em> {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opcionesEstilo.length) { <small class="modifier-colored-list">@for (opcion of grupo.opcionesEstilo; track $index) { <span [ngStyle]="modifierColorStyle(opcion.color_fondo)">{{ opcion.nombre }}</span> }</small> }@if (grupo.nota) { <small class="item-note">Nota: {{ grupo.nota }}</small> }@if (grupo.detalles[0].entregado_por) { <small class="service-delivered-by">Entregado por {{ grupo.detalles[0].entregado_por }}</small> }</span>
                   <span class="state">{{ grupo.detalles[0].llevando_por ? grupo.detalles[0].llevando_por + ' lo lleva' : grupo.detalles[0].servido || ficha.estado === 'entregado' ? 'Entregado' : grupo.listo ? 'Listo' : grupo.cantidad > 1 ? grupo.cantidad + ' pendientes' : 'Pendiente' }}</span>
                 </button>
                 @if (grupo.detalles[0].llevando_por_id && (grupo.detalles[0].llevando_por_id === sesionSeleccionada()?.user?.id || ficha.mesero_id === sesionSeleccionada()?.user?.id)) { <button type="button" class="collaboration-link" [disabled]="!!procesando()" (click)="colaborar(grupo.detalles[0].id, 'cancelar')">Cancelar traslado de {{ grupo.detalles[0].llevando_por }}</button> }
@@ -86,7 +88,7 @@
             @if (sesionSeleccionada()) { <div class="ticket-additional"><app-button text="+ Agregar producto" color="secondary" size="small" [fullWidth]="true" (buttonClick)="abrirOrdenDesdeFicha(ficha)" /></div> }
             @if (sesionSeleccionada() && ficha.estado !== 'entregado') {
               @if (ficha.mesero_id === sesionSeleccionada()?.user?.id) {
-              <div class="ticket-actions"><button type="button" class="release" [disabled]="procesando() === 'liberar-' + ficha.id" (click)="solicitarLiberacion(ficha)">Liberar ficha</button><button type="button" class="deliver" [disabled]="!ficha.todo_listo || tieneProductosEnCamino(ficha) || procesando() === 'entregar-' + ficha.id" (click)="entregar(ficha)">ENTREGAR</button></div>
+              <div class="ticket-actions"><button type="button" class="release" [disabled]="procesando() === 'liberar-' + ficha.id" (click)="solicitarLiberacion(ficha)">Liberar ficha</button><button type="button" class="deliver" [disabled]="!ficha.todo_listo || !ficha.cubiertos_entregados || tieneProductosEnCamino(ficha) || procesando() === 'entregar-' + ficha.id" [title]="!ficha.cubiertos_entregados ? 'Marca los cubiertos como entregados' : !ficha.todo_listo ? 'Confirma todos los productos' : ''" (click)="entregar(ficha)">ENTREGAR</button></div>
               } @else if (!ficha.mesero_id) {
                 <div class="ticket-additional"><app-button text="TOMAR FICHA" [fullWidth]="true" [disabled]="!!procesando()" (buttonClick)="tomar(ficha)" /></div>
               }
@@ -116,7 +118,7 @@
             <div class="ticket-head"><div><span>FICHA ENTREGADA</span><h3>#{{ ficha.numero_orden }}</h3><small class="ticket-table">{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="delivered-badge">✓ Entregada</div></div>
             <div class="ticket-detail-meta"><span class="ticket-client-name"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ ficha.total_items }} producto(s)</span><span>{{ ficha.entregada_en | date:'HH:mm' }}</span></div>
             <div class="items delivered-items">@for (grupo of agruparDetalles(ficha); track grupo.clave) {
-                @if (grupo.inicioCategoria) { <h4 class="service-category">{{ grupo.categoria }}</h4> } <div class="item ready"><span class="check">✓</span><span class="item-copy"><b><em *ngIf="grupo.cantidad > 1">{{ grupo.cantidad }}×</em> {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opciones.length) { <small>{{ grupo.opciones.join(' · ') }}</small> }@if (grupo.detalles[0].entregado_por) { <small>Entregado por {{ grupo.detalles[0].entregado_por }}</small> }</span><span class="state">Entregado</span></div> }</div>
+                @if (grupo.inicioCategoria) { <h4 class="service-category">{{ grupo.categoria }}</h4> } <div class="item ready"><span class="check">✓</span><span class="item-copy"><b><em *ngIf="grupo.cantidad > 1">{{ grupo.cantidad }}×</em> {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opcionesEstilo.length) { <small class="modifier-colored-list">@for (opcion of grupo.opcionesEstilo; track $index) { <span [ngStyle]="modifierColorStyle(opcion.color_fondo)">{{ opcion.nombre }}</span> }</small> }@if (grupo.detalles[0].entregado_por) { <small>Entregado por {{ grupo.detalles[0].entregado_por }}</small> }</span><span class="state">Entregado</span></div> }</div>
             <div class="ticket-additional"><app-button text="+ Agregar producto" color="secondary" size="small" [fullWidth]="true" (buttonClick)="abrirOrdenDesdeFicha(ficha)" /></div>
           </article>
         } @empty { <div class="empty-card">Todavía no entregaste fichas hoy.</div> }
@@ -142,7 +144,7 @@
     <div class="available-grid">
       @for (ficha of disponibles(); track ficha.id) {
         <article class="available-ticket" [class.has-ready-items]="ficha.listos > 0" [class.all-ready-items]="ficha.todo_listo">
-          <div class="available-ticket-copy"><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3><div class="available-customer"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b><strong>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</strong></div><p>{{ ficha.total_items }} producto{{ ficha.total_items === 1 ? '' : 's' }}</p>@if (ficha.listos > 0) { <small class="available-ready-state">{{ ficha.todo_listo ? 'Todo listo para recoger' : ficha.listos + ' de ' + ficha.total_items + ' listos' }}</small> }</div>
+          <div class="available-ticket-copy"><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3>@if (ficha.tipo_orden === 'dine-in' && ficha.estado !== 'cancelado' && ficha.estado !== 'entregado') { <button type="button" class="service-table-action" [disabled]="!sesionSeleccionada() || !!procesando()" (click)="abrirMesas(ficha)">{{ ficha.mesa ? 'Cambiar mesa' : 'Asignar mesa' }}</button> }<div class="available-customer"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b><strong>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</strong></div><p>{{ ficha.total_items }} producto{{ ficha.total_items === 1 ? '' : 's' }}</p>@if (ficha.listos > 0) { <small class="available-ready-state">{{ ficha.todo_listo ? 'Todo listo para recoger' : ficha.listos + ' de ' + ficha.total_items + ' listos' }}</small> }</div>
           <app-button text="TOMAR" size="large" [disabled]="procesando() === 'tomar-' + ficha.id" (buttonClick)="tomar(ficha)" />
         </article>
       } @empty { <div class="empty-card">No hay fichas disponibles.</div> }
@@ -182,7 +184,7 @@
         <article class="preorder-row">
           <div class="preorder-number"><small>PREORDEN</small><b>#{{ ficha.numero_orden }}</b></div>
           <div class="preorder-info"><strong>{{ ficha.cliente || 'Cliente no registrado' }}</strong><span>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }} · {{ ficha.total_items }} producto{{ ficha.total_items === 1 ? '' : 's' }}</span></div>
-          <time>{{ ficha.fecha_programada | date:'dd/MM/yyyy' }}<b>{{ ficha.fecha_programada | date:'HH:mm' }}</b></time>
+          @if (ficha.tipo_orden === 'dine-in' && ficha.estado !== 'cancelado' && ficha.estado !== 'entregado') { <button type="button" class="service-table-action" [disabled]="!sesionSeleccionada() || !!procesando()" (click)="abrirMesas(ficha)">{{ ficha.mesa ? 'Cambiar mesa' : 'Asignar mesa' }}</button> }<time>{{ ficha.fecha_programada | date:'dd/MM/yyyy' }}<b>{{ ficha.fecha_programada | date:'HH:mm' }}</b></time>
           <button type="button" class="activate-preorder" [disabled]="procesando() === 'activar-preorden-' + ficha.id" (click)="activarPreorden(ficha)">{{ procesando() === 'activar-preorden-' + ficha.id ? 'Activando…' : 'Activar' }}</button>
         </article>
       } @empty {
@@ -249,7 +251,7 @@
       <div class="selected-order-items">
         @for (grupo of agruparDetallesOrden(ordenSeleccionada()!.detalles); track grupo.clave) {
                 @if (grupo.inicioCategoria) { <h4 class="service-category">{{ grupo.categoria }}</h4> }
-          <div><b>{{ grupo.cantidad }} × {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opciones.length) { <small>{{ grupo.opciones.join(' · ') }}</small> }@if (grupo.nota) { <small class="item-note">Nota: {{ grupo.nota }}</small> }</div>
+          <div><b>{{ grupo.cantidad }} × {{ grupo.producto }} <i *ngIf="grupo.precioUnitario > 0" class="service-item-price">{{ formatearPrecio(grupo.precioUnitario) }}</i></b>@if (grupo.opcionesEstilo.length) { <small class="modifier-colored-list">@for (opcion of grupo.opcionesEstilo; track $index) { <span [ngStyle]="modifierColorStyle(opcion.color_fondo)">{{ opcion.nombre }}</span> }</small> }@if (grupo.nota) { <small class="item-note">Nota: {{ grupo.nota }}</small> }</div>
         }
       </div>
       @if (ordenSeleccionada()!.puede_agregar) {
@@ -268,7 +270,7 @@
       <div class="service-product-grid">
         @for (producto of productosFiltrados(); track producto.id) {
           <button type="button" class="service-product-option" [disabled]="!productoDisponible(producto)" (click)="seleccionarProducto(producto)">
-            <img [src]="producto.imagen_url || '/images/no-image.png'" [alt]="producto.nombre" />
+            <img [src]="producto.imagen_url || '/images/no-image.png'" [alt]="producto.nombre" (error)="$any($event.target).src = '/images/no-image.png'" />
             <span><strong>{{ producto.nombre }}</strong><small [class.out-of-stock]="!productoDisponible(producto)">{{ textoStockProducto(producto) }}</small></span>
             <b>→</b>
           </button>
@@ -278,16 +280,17 @@
       </div>
     } @else {
       <button type="button" class="back" (click)="productoSeleccionado.set(null)">← Cambiar producto</button>
-      <div class="additional-product-head"><div><span>PRODUCTO</span><h3 [class.producto-inactivo]="!productoSeleccionado()!.activo">{{ productoSeleccionado()!.nombre }}</h3><p>{{ formatearPrecio(productoSeleccionado()!.precio) }}</p>@if (!productoSeleccionado()!.activo) { <small class="producto-inactivo">Desactivado · Selecciona otro producto</small> }</div><div class="quantity"><button type="button" (click)="disminuirCantidadAdicional()">−</button><b>{{ cantidadAdicional() }}</b><button type="button" (click)="aumentarCantidadAdicional()">+</button></div></div>
+      <div class="additional-product-head"><div><span>PRODUCTO</span><h3 [class.producto-inactivo]="!productoSeleccionado()!.activo">{{ productoSeleccionado()!.nombre }}</h3><p>{{ formatearPrecio(productoSeleccionado()!.precio) }}</p><small>{{ textoStockProducto(productoSeleccionado()!) }}</small>@if (!productoSeleccionado()!.activo) { <small class="producto-inactivo">Desactivado · Selecciona otro producto</small> }</div><div class="quantity"><button type="button" (click)="disminuirCantidadAdicional()">−</button><b>{{ cantidadAdicional() }}</b><button type="button" (click)="aumentarCantidadAdicional()">+</button></div></div>
       <div class="modifier-groups">
         @for (grupo of productoSeleccionado()!.modificadores || []; track grupo.id) {
-          <section><div class="modifier-title"><b>{{ grupo.nombre }}</b><span>Opcional · {{ grupo.tipo === 'multiple' ? 'Varias opciones' : 'Una opción' }}</span></div><div class="modifier-options">
-            @for (opcion of grupo.opciones || []; track opcion.id) { <button type="button" [class.selected]="opcionSeleccionada(opcion.id)" (click)="toggleOpcion(grupo, opcion)">{{ opcion.nombre }}</button> }
+          <section><div class="modifier-title"><b>{{ grupo.nombre }}</b><span>{{ grupo.cantidad_requerida != null ? (grupo.cantidad_es_maxima ? 'Hasta ' : 'Elige exactamente ') + grupo.cantidad_requerida : grupo.requerido ? 'Obligatorio' : 'Opcional' }}</span></div><div class="modifier-options">
+            @for (opcion of grupo.opciones || []; track opcion.id) { @if (opcion.activo !== false) { <button type="button" [ngStyle]="opcionSeleccionada(opcion.id) ? modifierColorStyle(grupo.color_fondo) : null" [class.selected]="opcionSeleccionada(opcion.id)" [disabled]="opcion.maneja_stock && opcion.stock_disponible != null && opcion.stock_disponible <= 0" (click)="toggleOpcion(grupo, opcion)">{{ opcion.nombre }} @if (cantidadOpcionSeleccionada(opcion.id)) { ×{{ cantidadOpcionSeleccionada(opcion.id) }} } @if (opcion.maneja_stock && opcion.stock_disponible != null) { <small>{{ opcion.stock_disponible > 0 ? opcion.stock_disponible + ' disponibles' : 'Agotada' }}</small> }</button> } }
           </div></section>
         }
       </div>
+      @if (problemaSeleccionAdicional()) { <p class="modifier-selection-error">{{ problemaSeleccionAdicional() }}</p> }
       <label class="additional-note"><span>Nota para Cocina</span><input type="text" maxlength="255" [value]="notaAdicional()" (input)="notaAdicional.set($any($event.target).value)" placeholder="Opcional" /></label>
-      <div class="additional-actions"><app-button text="Cancelar" color="secondary" (buttonClick)="selectorProductoAbierto.set(false)" /><app-button text="Agregar" [disabled]="!productoSeleccionado()!.activo" [loading]="procesando() === 'agregar-adicional'" (buttonClick)="agregarAdicional()" /></div>
+      <div class="additional-actions"><app-button text="Cancelar" color="secondary" (buttonClick)="selectorProductoAbierto.set(false)" /><app-button text="Agregar" [disabled]="reservando() || !productoSeleccionado()!.activo || !!problemaSeleccionAdicional()" [loading]="procesando() === 'agregar-adicional'" (buttonClick)="agregarAdicional()" /></div>
     }
   </app-modal>
 
@@ -296,3 +299,6 @@
     <div modal-actions><app-button text="Seguir atendiendo" color="secondary" (buttonClick)="confirmarCierre.set(false)" /><app-button text="Liberar y cerrar" color="danger" (buttonClick)="cerrarYLiberar()" /></div>
   </app-modal>
 </main>
+
+<app-mesas-modal [isOpen]="seleccionMesaAbierta()" [mesas]="mesasDisponibles()"
+  (mesaSelected)="asignarMesa($event)" (closed)="seleccionMesaAbierta.set(false)" />

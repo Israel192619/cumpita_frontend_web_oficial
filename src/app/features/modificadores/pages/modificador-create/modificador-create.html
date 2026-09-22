@@ -7,6 +7,7 @@
       <div class="field-grid">
         <app-input-form label="Nombre del modificador" [control]="getControl('nombre')" placeholder="Ej. Tamaño, punto de cocción, aderezo"></app-input-form>
         <app-select label="Estación de trabajo" [control]="getControl('estacion_id')" [options]="estacionOptions"></app-select>
+        <label class="modifier-color-field"><span>Color de fondo en POS y Servicio</span><div><input type="color" [formControl]="getControl('color_fondo')"><output [style.background]="getControl('color_fondo').value">{{ getControl('color_fondo').value }}</output></div><small>Se aplicará a todas las opciones de este modificador.</small></label>
       </div>
     </section>
     <section class="form-section">
@@ -25,6 +26,12 @@
           <div class="option-fields">
             <app-input-form label="Nombre visible" [control]="getOpcionControl(i, 'nombre')" placeholder="Ej. Grande, Extra queso"></app-input-form>
             <app-input-form [label]="'Precio adicional (' + currencySymbol + ')'" type="number" [control]="getOpcionControl(i, 'precio_extra')" placeholder="0.00"></app-input-form>
+            <div class="option-image-field">
+              <app-input-form label="Imagen de la opción" type="file" [control]="getOpcionControl(i, 'imagen')"
+                [enableCamera]="true" [optimizeImage]="true" helpText="Ej.: una foto individual de Ala, Pecho, Pierna o Entre pierna."
+                (imageCleared)="limpiarImagenOpcion(i)"></app-input-form>
+              <label class="option-status option-image-toggle"><input type="checkbox" [formControl]="getOpcionControl(i, 'mostrar_imagen')"><span>Mostrar imagen en POS</span></label>
+            </div>
             <label class="option-status"><input type="checkbox" [formControl]="getOpcionControl(i, 'maneja_stock')"><span>Controlar stock de esta opción</span></label>
             <app-input-form *ngIf="getOpcionControl(i, 'maneja_stock').value" label="Stock inicial" type="number" [control]="getOpcionControl(i, 'stock')" placeholder="0"></app-input-form>
             <app-input-form *ngIf="getOpcionControl(i, 'maneja_stock').value" label="Stock mínimo" type="number" [control]="getOpcionControl(i, 'stock_minimo')" placeholder="0"></app-input-form>

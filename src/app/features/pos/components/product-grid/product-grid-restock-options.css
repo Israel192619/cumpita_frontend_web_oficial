@@ -13,6 +13,18 @@
 
 .restock-dialog label + label { margin-top: .75rem; }
 .restock-dialog select:focus { outline: 3px solid var(--color-focus); outline-offset: 1px; }
+.restock-option-list { display:grid; gap:.65rem; max-height:min(54dvh,430px); overflow-y:auto; padding-right:.15rem; }
+.restock-option-row { display:grid; gap:.6rem; padding:.75rem; border:1px solid var(--border-color); border-radius:11px; background:var(--bg-main); }
+.restock-option-row__heading { display:flex; align-items:baseline; justify-content:space-between; gap:.75rem; }
+.restock-option-row__heading strong { color:var(--text-primary); font-size:.88rem; }
+.restock-option-row__heading span { color:var(--text-muted); font-size:.72rem; white-space:nowrap; }
+.restock-option-row__controls { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:.55rem; }
+.restock-option-row__controls input { min-height:40px; background:var(--bg-surface); }
+.restock-option-row__add { min-height:40px; border:1px solid var(--color-primary); border-radius:9px; padding:.45rem .8rem; background:var(--color-primary); color:var(--color-on-brand); font:inherit; font-size:.78rem; font-weight:800; cursor:pointer; }
+.restock-option-row__pending { display:flex; align-items:center; justify-content:space-between; gap:.7rem; color:var(--color-success); font-size:.78rem; font-weight:800; }
+.restock-option-row__pending button { border:0; padding:.15rem; background:transparent; color:var(--color-danger); font:inherit; font-size:.72rem; font-weight:750; cursor:pointer; }
+.restock-option-row button:disabled { cursor:wait; opacity:.6; }
+@media(max-width:430px){.restock-option-row__controls{grid-template-columns:1fr}.restock-option-row__add{width:100%}}
 .product-cart-quantity { margin: 0 0 .4rem; padding: .2rem .5rem; border-radius: 8px; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, transparent); font-size: .75rem; font-weight: 700; }
 .product-grid-container.compact { min-height: 0; }
 .product-grid-container.compact .product-grid { grid-auto-rows: max-content; align-content: start; }

@@ -29,6 +29,7 @@
 .btn-remove:hover { color: var(--color-on-danger); background: var(--color-danger); }
 .modifier-quantity { display: grid; grid-template-columns:minmax(0,1fr) 90px; align-items:center; gap: 14px; margin: 14px 16px 4px; color: var(--color-text-secondary); font-size: .78rem; font-weight: 650; }
 .modifier-quantity input { width: 100%; min-height: 38px; padding: 0 10px; color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px; font: inherit; }
+.modifier-quantity input[type="checkbox"] { width: 18px; min-height: 18px; height: 18px; padding: 0; justify-self: end; accent-color: var(--color-primary); }
 .modifier-quantity input:focus { border-color:var(--color-primary); outline:3px solid var(--color-focus); }
 .opciones-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 9px; padding: 12px 16px 16px; }
 .opcion-item { min-width:0; padding: 0; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 10px; transition: border-color .15s ease,background .15s ease; }

@@ -11,14 +11,18 @@ export interface ModificadorOpcion {
   stock?: number | null;
   stock_minimo?: number | null;
   stock_disponible?: number | null;
+  imagen_url?: string | null;
+  mostrar_imagen?: boolean;
 }
 
 export interface ModificadorEstructurado {
   id: number;
   nombre: string;
+  color_fondo?: string | null;
   tipo: 'unico' | 'multiple';
   requerido: boolean;
   cantidad_requerida?: number | null;
+  cantidad_es_maxima?: boolean;
   activo: boolean;
   opciones?: ModificadorOpcion[];
 }

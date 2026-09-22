@@ -16,6 +16,8 @@ export class InputForm implements OnChanges, OnDestroy {
   @Input() type: InputFormType = 'text';
   @Input() placeholder = '';
   @Input() initialPreview: string | null = null;
+  @Input() enableCamera = false;
+  @Input() optimizeImage = false;
   @Input() value: string | number | null = null;
   @Input() required = false;
   @Input() disabled = false;
@@ -59,9 +61,12 @@ export class InputForm implements OnChanges, OnDestroy {
     this.valueChange.emit(this.value);
   }
 
-  onFileChange(event: Event): void {
+  async onFileChange(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
+    const selectedFile = input.files?.[0] ?? null;
+    const file = selectedFile && this.optimizeImage
+      ? await this.prepareImage(selectedFile)
+      : selectedFile;
     this.revokeLocalPreview();
     this.control?.setValue(file);
     this.control?.markAsTouched();
@@ -72,12 +77,12 @@ export class InputForm implements OnChanges, OnDestroy {
     }
   }
 
-  clearImage(fileInput: HTMLInputElement): void {
+  clearImage(...fileInputs: HTMLInputElement[]): void {
     this.control?.setValue(null);
     this.control?.markAsTouched();
     this.valueChange.emit(null);
     this.revokeLocalPreview();
-    fileInput.value = '';
+    fileInputs.forEach(input => input.value = '');
     this.imageCleared.emit();
   }
 
@@ -98,5 +103,40 @@ export class InputForm implements OnChanges, OnDestroy {
   private revokeLocalPreview(): void {
     if (this.preview?.startsWith('blob:')) URL.revokeObjectURL(this.preview);
     this.preview = null;
+  }
+
+  private async prepareImage(file: File): Promise<File> {
+    if (!file.type.startsWith('image/')) return file;
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const maxSide = 1600;
+      const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) { bitmap.close(); return file; }
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+
+      let quality = .86;
+      let blob = await this.canvasBlob(canvas, quality);
+      while (blob.size > 1_800_000 && quality > .56) {
+        quality -= .1;
+        blob = await this.canvasBlob(canvas, quality);
+      }
+      const baseName = file.name.replace(/\.[^.]+$/, '') || `foto-${Date.now()}`;
+      return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
+    } catch {
+      return file;
+    }
+  }
+
+  private canvasBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+    return new Promise((resolve, reject) => canvas.toBlob(
+      blob => blob ? resolve(blob) : reject(new Error('No se pudo preparar la imagen.')),
+      'image/jpeg', quality));
   }
 }

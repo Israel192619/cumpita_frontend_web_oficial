@@ -867,3 +867,10 @@
 
 .kds-user-dropdown .profile-link{color:var(--color-text)}
 .kds-user-dropdown .profile-link app-icon{color:var(--color-text)}
+
+.kds-ticket.ticket-black-hole-exit{position:relative;z-index:4;pointer-events:none;transform-origin:center;animation:kds-ticket-black-hole .68s cubic-bezier(.55,0,.2,1) forwards}
+.kds-ticket .ticket-completion-overlay{position:absolute;z-index:60;inset:0;display:grid;place-items:center;border-radius:inherit;background:radial-gradient(circle,rgb(0 0 0/.74) 0 20%,rgb(0 0 0/.46) 42%,rgb(0 0 0/.16) 70%,transparent 100%);animation:kds-completion-flash .68s ease forwards}
+.kds-ticket .ticket-completion-overlay span{display:grid;width:82px;height:82px;place-items:center;border:6px solid #fff;border-radius:50%;color:#fff;background:#35b83b;box-shadow:0 0 0 7px #35b83b,0 0 34px rgb(53 184 59/.8);font-size:52px;font-weight:950;line-height:1;animation:kds-completion-check .68s cubic-bezier(.2,.9,.25,1) forwards}
+@keyframes kds-ticket-black-hole{0%,38%{opacity:1;clip-path:circle(150% at 50% 50%);transform:scale(1) rotate(0);filter:brightness(1)}62%{opacity:.94;clip-path:circle(48% at 50% 50%);transform:scale(.82) rotate(-2deg);filter:brightness(.7) saturate(.75);border-radius:50%}100%{opacity:0;clip-path:circle(0 at 50% 50%);transform:scale(.06) rotate(8deg);filter:brightness(0) blur(8px);border-radius:50%}}
+@keyframes kds-completion-flash{0%{opacity:0}14%,48%{opacity:1}100%{opacity:0}}
+@keyframes kds-completion-check{0%{opacity:0;transform:scale(.35) rotate(-18deg)}20%,52%{opacity:1;transform:scale(1) rotate(0)}100%{opacity:0;transform:scale(.18) rotate(18deg)}}

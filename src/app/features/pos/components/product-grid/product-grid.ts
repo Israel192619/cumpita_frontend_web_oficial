@@ -29,7 +29,8 @@ export class ProductGridComponent {
   restockingProductId = signal<number | null>(null);
   restockProduct = signal<Producto | null>(null);
   restockQuantity = signal('1');
-  restockOptionId = signal<number | null>(null);
+  restockOptionQuantities = signal<Record<number, string>>({});
+  pendingRestockOptions = signal<Record<number, number>>({});
 
   constructor(
     private productoService: ProductoService,
@@ -83,7 +84,9 @@ export class ProductGridComponent {
     if (this.restockingProductId() !== null) return;
     this.restockProduct.set(producto);
     this.restockQuantity.set('1');
-    this.restockOptionId.set(producto.maneja_stock ? null : this.stockOptions(producto)[0]?.id ?? null);
+    const quantities = Object.fromEntries(this.stockOptions(producto).map(option => [option.id, '1']));
+    this.restockOptionQuantities.set(quantities);
+    this.pendingRestockOptions.set({});
   }
 
   closeRestockDialog(): void {
@@ -94,7 +97,32 @@ export class ProductGridComponent {
     this.restockQuantity.set(value.replace(/\D/g, '') || '1');
   }
 
-  setRestockOption(value: string): void { this.restockOptionId.set(Number(value) || null); }
+  setRestockOptionQuantity(optionId: number, value: string): void {
+    const sanitized = value.replace(/\D/g, '');
+    this.restockOptionQuantities.update(quantities => ({ ...quantities, [optionId]: sanitized }));
+  }
+
+  addRestockOption(optionId: number): void {
+    const quantity = Number.parseInt(this.restockOptionQuantities()[optionId] || '', 10);
+    if (!Number.isFinite(quantity) || quantity < 1) {
+      this.toastr.warning('Ingresa una cantidad válida para agregar.');
+      return;
+    }
+    this.pendingRestockOptions.update(pending => ({ ...pending, [optionId]: (pending[optionId] || 0) + quantity }));
+    this.restockOptionQuantities.update(quantities => ({ ...quantities, [optionId]: '1' }));
+  }
+
+  removePendingRestockOption(optionId: number): void {
+    this.pendingRestockOptions.update(pending => {
+      const updated = { ...pending };
+      delete updated[optionId];
+      return updated;
+    });
+  }
+
+  pendingRestockTotal(): number {
+    return Object.values(this.pendingRestockOptions()).reduce((total, quantity) => total + quantity, 0);
+  }
 
   stockOptions(producto: Producto) {
     return (producto.modificadores || []).flatMap(group => group.opciones || [])
@@ -104,25 +132,30 @@ export class ProductGridComponent {
   confirmRestock(): void {
     const producto = this.restockProduct();
     const quantity = Number.parseInt(this.restockQuantity(), 10);
-    if (!producto || !Number.isFinite(quantity) || quantity < 1) {
+    if (!producto) return;
+
+    if (producto.maneja_stock && (!Number.isFinite(quantity) || quantity < 1)) {
       this.toastr.warning('Ingresa una cantidad válida para reabastecer.');
       return;
     }
 
-    const optionId = this.restockOptionId();
-    if (!producto.maneja_stock && !optionId) {
-      this.toastr.warning('Selecciona la presa u opción que deseas reabastecer.');
+    const optionItems = Object.entries(this.pendingRestockOptions())
+      .map(([optionId, itemQuantity]) => ({ modificador_opcion_id: Number(optionId), cantidad: itemQuantity }))
+      .filter(item => item.cantidad > 0);
+    if (!producto.maneja_stock && optionItems.length === 0) {
+      this.toastr.warning('Agrega al menos una presa u opción antes de aceptar.');
       return;
     }
     this.restockingProductId.set(producto.id);
     const request: Observable<unknown> = producto.maneja_stock
       ? this.productoService.ajustarStock(producto.id, quantity)
-      : this.productoService.crearAjusteStock({ modificador_opcion_id: optionId!, tipo: 'ENTRADA', cantidad: quantity, motivo: `Reabastecimiento desde POS: ${producto.nombre}` });
+      : this.productoService.crearAjustesStockLote(producto.id, optionItems, `Reabastecimiento desde POS: ${producto.nombre}`);
     request.subscribe({
       next: () => {
         this.restockingProductId.set(null);
         this.restockProduct.set(null);
-        this.toastr.success(`Se reabastecieron ${quantity} ${quantity === 1 ? 'unidad' : 'unidades'} de ${producto.nombre}`);
+        const total = producto.maneja_stock ? quantity : this.pendingRestockTotal();
+        this.toastr.success(`Se reabastecieron ${total} ${total === 1 ? 'unidad' : 'unidades'} de ${producto.nombre}`);
         this.stockAdjusted.emit();
       },
       error: error => {

@@ -15,6 +15,8 @@ import { formatCurrency } from '@app/core/config/currency.config';
 import { Modal } from '@app/shared/components/modal/modal';
 import { ToastrService } from 'ngx-toastr';
 import { Icon } from '@app/shared/components/icon/icon';
+import { ProductoService } from '@app/features/productos/services/producto-service';
+import { modifierColorStyle } from '@app/core/utils/modifier-color';
 
 @Component({
   selector: 'app-cart-panel',
@@ -24,6 +26,55 @@ import { Icon } from '@app/shared/components/icon/icon';
   styleUrls: ['./cart-panel.css', './cart-panel-items.css', './cart-panel-modifiers.css', './cart-panel-actions.css'],
 })
 export class CartPanelComponent {
+  private readonly productoService = inject(ProductoService);
+
+  modifierChipStyle(item: CartItem, modificador: CartItemModificador): Record<string, string> | null {
+    const color = (item.producto.modificadores || []).find(group => group.id === modificador.modificador_id)?.color_fondo;
+    return modifierColorStyle(color);
+  }
+  stockAdjusted = output<void>();
+  restockOption = signal<ModificadorOpcion | null>(null);
+  restockQuantity = signal('1');
+  restockSaving = signal(false);
+  restockError = signal<string | null>(null);
+
+  openOptionRestock(option: ModificadorOpcion): void {
+    if (this.restockSaving() || !option.maneja_stock || option.activo === false) return;
+    this.restockOption.set(option);
+    this.restockQuantity.set('1');
+    this.restockError.set(null);
+  }
+
+  closeOptionRestock(): void {
+    if (!this.restockSaving()) this.restockOption.set(null);
+  }
+
+  confirmOptionRestock(): void {
+    const option = this.restockOption();
+    const quantity = Number(this.restockQuantity());
+    if (!option || this.restockSaving()) return;
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+      this.restockError.set('Ingresa una cantidad entera mayor que cero.');
+      return;
+    }
+    this.restockSaving.set(true);
+    this.restockError.set(null);
+    this.productoService.crearAjusteStock({
+      modificador_opcion_id: option.id, tipo: 'ENTRADA', cantidad: quantity,
+      motivo: `Reabastecimiento desde POS: ${option.nombre}`,
+    }).subscribe({
+      next: () => {
+        this.restockSaving.set(false);
+        this.restockOption.set(null);
+        this.toastr.success(`Se agregaron ${quantity} unidades de ${option.nombre}.`);
+        this.stockAdjusted.emit();
+      },
+      error: error => {
+        this.restockSaving.set(false);
+        this.restockError.set(error?.error?.message || 'No se pudo reabastecer. Intenta nuevamente.');
+      },
+    });
+  }
   readonly configuracion = inject(ConfiguracionService);
   private readonly configuracionSync = timer(0, 15000).pipe(
     exhaustMap(() => this.configuracion.cargar().pipe(catchError(() => EMPTY))),
@@ -50,7 +101,7 @@ export class CartPanelComponent {
     for (const modificador of item.modificadores || []) {
       const opcion = (item.producto.modificadores || []).flatMap(grupo => grupo.opciones || []).find(valor => valor.id === modificador.opcion_id);
       if (!opcion?.maneja_stock || opcion.stock_disponible == null) continue;
-      const necesarias = this.itemsVisuales().reduce((total, linea) => total + ((linea.modificadores || []).some(valor => valor.opcion_id === opcion.id) ? linea.cantidad : 0), 0);
+      const necesarias = this.itemsVisuales().reduce((total, linea) => total + (linea.modificadores || []).filter(valor => valor.opcion_id === opcion.id).length * linea.cantidad, 0);
       const disponibles = Number(opcion.stock_disponible) + (this.modifierStockCredits()[opcion.id] || 0);
       if (necesarias > disponibles) return `${opcion.nombre}: necesita ${necesarias}, hay ${disponibles}.`;
     }
@@ -137,8 +188,10 @@ export class CartPanelComponent {
   // Cliente quick-select
   searchQuery = signal<string>('');
   clientesResults = signal<ClienteSearch[]>([]);
+  selectedSearchResultIndex = signal(-1);
   isLoadingClientes = signal<boolean>(false);
   isCreatingCliente = signal<boolean>(false);
+  private pendingClienteActions: Array<() => void> = [];
 
   // Mesas modal
   openMesasModal = signal<boolean>(false);
@@ -490,19 +543,15 @@ export class CartPanelComponent {
   private clearSearch(): void {
     this.searchQuery.set('');
     this.clientesResults.set([]);
+    this.selectedSearchResultIndex.set(-1);
   }
 
   onCheckout(): void {
-    this.clearSearch();
-    this.checkoutRequested.emit();
+    this.continueWithCliente(() => this.checkoutRequested.emit());
   }
 
   onPrimaryAction(): void {
     const action = this.getPrimaryActionType();
-    if (action === 'checkout' && !this.showMobileDetails()) {
-      this.showMobileDetails.set(true);
-      return;
-    }
     switch (action) {
       case 'checkout':
         this.onCheckout();
@@ -526,7 +575,7 @@ export class CartPanelComponent {
   }
 
   onEditAction(): void {
-    this.editRequested.emit();
+    this.continueWithCliente(() => this.editRequested.emit());
   }
 
   onUndoChanges(): void {
@@ -538,12 +587,7 @@ export class CartPanelComponent {
   }
 
   onPayLater(): void {
-    if (!this.showMobileDetails()) {
-      this.showMobileDetails.set(true);
-      return;
-    }
-    this.clearSearch();
-    this.payLaterRequested.emit();
+    this.continueWithCliente(() => this.payLaterRequested.emit());
   }
 
   selectExistingOrder(order: Order): void {
@@ -573,12 +617,12 @@ export class CartPanelComponent {
   getPrimaryActionLabel(): string {
     if (this.operationMode() === 'preorden') return this.isEditing() ? 'Guardar cambios' : 'Guardar preorden';
     if (!this.isEditing()) {
-      return 'Cobrar';
+      return 'Cobrar · F9';
     }
 
     const balance = this.getCurrentBalance();
     if (balance > 0) {
-      return `Cobrar ${this.formatPrice(balance)}`;
+      return `Cobrar ${this.formatPrice(balance)} · F9`;
     }
     if (balance < 0) {
       return `Devolver ${this.formatPrice(Math.abs(balance))}`;
@@ -729,6 +773,10 @@ export class CartPanelComponent {
     if (remaining <= 0) return 'Agotada';
     if (remaining === 1) return 'Última disponible';
     return `${remaining} disponibles`;
+  }
+
+  shouldShowOptionImage(option: ModificadorOpcion): boolean {
+    return option.mostrar_imagen === true && !!option.imagen_url;
   }
 
   getOptionRemaining(option: ModificadorOpcion): number | null {
@@ -985,7 +1033,7 @@ export class CartPanelComponent {
 
     for (const group of groups.filter(group => group.activo !== false)) {
       const count = copied.filter(modifier => modifier.modificador_id === group.id).length;
-      if (group.cantidad_requerida && count !== group.cantidad_requerida) return false;
+      if (group.cantidad_requerida && (group.cantidad_es_maxima ? count > group.cantidad_requerida : count !== group.cantidad_requerida)) return false;
       if (!group.cantidad_requerida && group.requerido && count === 0) return false;
       if (group.tipo === 'unico' && count > 1) return false;
     }
@@ -1086,6 +1134,7 @@ export class CartPanelComponent {
   // ================= CLIENTE =================
   onSearchCliente(query: string): void {
     this.searchQuery.set(query.trim());
+    this.selectedSearchResultIndex.set(-1);
     if (!query.trim()) {
       this.clientesResults.set([]);
       return;
@@ -1093,10 +1142,44 @@ export class CartPanelComponent {
 
     this.isLoadingClientes.set(true);
     this.posService.buscarClientes(query.trim()).subscribe({
-      next: (c) => this.clientesResults.set(c),
+      next: (c) => {
+        this.clientesResults.set(c);
+        this.selectedSearchResultIndex.set(c.length || this.orderSuggestions().length ? 0 : -1);
+      },
       error: () => this.clientesResults.set([]),
       complete: () => this.isLoadingClientes.set(false),
     });
+  }
+
+  onClienteSearchKeydown(event: KeyboardEvent): void {
+    const total = this.clientesResults().length + this.orderSuggestions().length;
+    if (!total || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+    event.preventDefault();
+
+    if (event.key === 'ArrowDown') {
+      this.setSelectedSearchResult((this.selectedSearchResultIndex() + 1 + total) % total);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      const current = this.selectedSearchResultIndex() < 0 ? 0 : this.selectedSearchResultIndex();
+      this.setSelectedSearchResult((current - 1 + total) % total);
+      return;
+    }
+
+    const selectedIndex = this.selectedSearchResultIndex() < 0 ? 0 : this.selectedSearchResultIndex();
+    if (selectedIndex < this.clientesResults().length) {
+      this.selectCliente(this.clientesResults()[selectedIndex]);
+      return;
+    }
+    const order = this.orderSuggestions()[selectedIndex - this.clientesResults().length];
+    if (order) this.selectExistingOrder(order);
+  }
+
+  private setSelectedSearchResult(index: number): void {
+    this.selectedSearchResultIndex.set(index);
+    requestAnimationFrame(() => (this.hostElement.nativeElement as HTMLElement)
+      .querySelector<HTMLElement>(`[data-search-result-index="${index}"]`)
+      ?.scrollIntoView({ block: 'nearest' }));
   }
 
   selectCliente(cliente: ClienteSearch): void {
@@ -1113,16 +1196,59 @@ export class CartPanelComponent {
   }
 
   onCreateCliente(): void {
+    this.createOrReuseCliente();
+  }
+
+  private continueWithCliente(action: () => void): void {
+    if (this.selectedCliente()) {
+      this.clearSearch();
+      action();
+      return;
+    }
+
+    if (!this.searchQuery().trim()) {
+      this.showMobileDetails.set(true);
+      action();
+      return;
+    }
+
+    this.createOrReuseCliente(action);
+  }
+
+  private createOrReuseCliente(action?: () => void): void {
     const nombre = this.searchQuery().trim();
     if (!nombre) return;
+
+    if (action) this.pendingClienteActions.push(action);
+    const existente = this.clientesResults().find(cliente =>
+      cliente.nombre.trim().localeCompare(nombre, undefined, { sensitivity: 'accent' }) === 0
+    );
+    if (existente) {
+      this.selectCliente(existente);
+      this.runPendingClienteActions();
+      return;
+    }
+    if (this.isCreatingCliente()) return;
+
     this.isCreatingCliente.set(true);
     this.posService.crearCliente(nombre).subscribe({
       next: (cliente) => {
         this.selectCliente(cliente);
+        this.runPendingClienteActions();
       },
-      error: () => { },
+      error: (error) => {
+        this.pendingClienteActions = [];
+        this.isCreatingCliente.set(false);
+        this.toastr.error(error?.error?.message || 'No se pudo crear el cliente.');
+      },
       complete: () => this.isCreatingCliente.set(false),
     });
+  }
+
+  private runPendingClienteActions(): void {
+    const actions = this.pendingClienteActions;
+    this.pendingClienteActions = [];
+    actions.forEach(action => action());
   }
 
   // ================= MESAS / LONG PRESS =================
@@ -1174,6 +1300,24 @@ export class CartPanelComponent {
     this.modifierSelectionError.set(null);
     this.modifierProgressMessage.set('');
     this.modifierModalOpen.set(true);
+    this.removeInactiveDraftOptions(item.producto);
+  }
+
+  refreshModifierModalProduct(producto: Producto): void {
+    const item = this.modifierModalItem();
+    if (!this.modifierModalOpen() || !item || item.producto.id !== producto.id) return;
+    this.modifierModalItem.set({ ...item, producto: { ...item.producto, ...producto } });
+    this.removeInactiveDraftOptions(producto);
+  }
+
+  private removeInactiveDraftOptions(producto: Producto): void {
+    const activeIds = new Set((producto.modificadores || []).flatMap(group =>
+      (group.opciones || []).filter(option => option.activo !== false).map(option => option.id)));
+    const current = this.draftModifiers();
+    const valid = current.filter(mod => activeIds.has(mod.opcion_id));
+    if (valid.length === current.length) return;
+    this.requestDraftModifiers(valid);
+    this.modifierSelectionError.set('Una opción fue desactivada. Elige otra para completar este producto.');
   }
 
   closeModifierModal(completed = false): void {
@@ -1209,7 +1353,7 @@ export class CartPanelComponent {
         ...group,
         opciones: (group.opciones || []).filter((option) => option.activo !== false),
       }))
-      .filter((group) => (group.opciones || []).length > 0);
+      .filter((group) => (group.opciones || []).length > 0 || !!group.cantidad_requerida || group.requerido);
   });
 
   getDefaultOptions(group: ModificadorEstructurado): ModificadorOpcion[] {
@@ -1313,10 +1457,6 @@ export class CartPanelComponent {
   }
 
   toggleModifierOption(group: ModificadorEstructurado, option: ModificadorOpcion): void {
-    if (!this.isModifierOptionAvailable(option)) {
-      this.modifierSelectionError.set(`${option.nombre} no tiene stock disponible.`);
-      return;
-    }
     //const modifierId = group.modificador_id;
     const modifierId = group.id;
     const newModifier: CartItemModificador = {
@@ -1333,27 +1473,47 @@ export class CartPanelComponent {
       (mod) => mod.modificador_id === modifierId && mod.opcion_id === option.id
     );
 
+    if (!alreadySelected && !this.isModifierOptionAvailable(option)) {
+      this.modifierSelectionError.set(`${option.nombre} no tiene stock disponible.`);
+      return;
+    }
+
     if (group.cantidad_requerida) {
       const cantidadGrupo = this.getModifierGroupQuantity(group);
       const cantidadOpcion = this.getModifierOptionQuantity(group, option);
 
       if (alreadySelected) {
-        this.requestDraftModifiers(current.filter(
-          (mod) => !(mod.modificador_id === modifierId && mod.opcion_id === option.id)
-        ));
+        if (group.cantidad_es_maxima || group.cantidad_requerida > 2) {
+          this.requestDraftModifiers(current.filter(
+            (mod) => !(mod.modificador_id === modifierId && mod.opcion_id === option.id)
+          ));
+          return;
+        }
+        if (group.cantidad_requerida === 1 || cantidadOpcion >= group.cantidad_requerida) return;
+      }
+
+      const stockNecesario = (cantidadOpcion + 1) * this.modifierBatchSize();
+      const effectiveStock = this.effectiveOptionStock(option);
+      if (effectiveStock != null && stockNecesario > effectiveStock) {
+        this.modifierSelectionError.set(`Esta orden puede usar hasta ${effectiveStock} unidades de ${option.nombre}.`);
         return;
       }
 
       if (cantidadGrupo < group.cantidad_requerida) {
-        const stockNecesario = (cantidadOpcion + 1) * this.modifierBatchSize();
-        const effectiveStock = this.effectiveOptionStock(option);
-        if (effectiveStock != null && stockNecesario > effectiveStock) {
-          this.modifierSelectionError.set(`Esta orden puede usar hasta ${effectiveStock} unidades de ${option.nombre}.`);
-          return;
-        }
         this.modifierSelectionError.set(null);
         this.requestDraftModifiers([...current, newModifier]);
         return;
+      }
+
+      if (group.cantidad_requerida <= 2) {
+        // Al repetir una presa, se sustituye la otra; al elegir una nueva, sale la más antigua.
+        const firstIndex = current.findIndex(mod =>
+          mod.modificador_id === modifierId && (!alreadySelected || mod.opcion_id !== option.id)
+        );
+        if (firstIndex >= 0) {
+          this.requestDraftModifiers([...current.filter((_, index) => index !== firstIndex), newModifier]);
+          return;
+        }
       }
 
       this.modifierSelectionError.set(
@@ -1384,9 +1544,21 @@ export class CartPanelComponent {
       return;
     }
 
-    const exactQuantityMismatch = this.modifierGroups().find(group => group.cantidad_requerida && this.getModifierGroupQuantity(group) !== group.cantidad_requerida);
+    const activeIds = new Set(this.modifierGroups().flatMap(group => group.opciones || []).map(option => option.id));
+    if (this.draftModifiers().some(mod => !activeIds.has(mod.opcion_id))) {
+      this.modifierSelectionError.set('Una opción fue desactivada. Elige otra opción disponible.');
+      return;
+    }
+
+    const exactQuantityMismatch = this.modifierGroups().find(group => group.cantidad_requerida && !group.cantidad_es_maxima && this.getModifierGroupQuantity(group) !== group.cantidad_requerida);
     if (exactQuantityMismatch) {
       this.modifierSelectionError.set(`Debes elegir exactamente ${exactQuantityMismatch.cantidad_requerida} en “${exactQuantityMismatch.nombre}”.`);
+      return;
+    }
+
+    const maximumQuantityExceeded = this.modifierGroups().find(group => group.cantidad_requerida && group.cantidad_es_maxima && this.getModifierGroupQuantity(group) > group.cantidad_requerida);
+    if (maximumQuantityExceeded) {
+      this.modifierSelectionError.set(`Puedes elegir hasta ${maximumQuantityExceeded.cantidad_requerida} en “${maximumQuantityExceeded.nombre}”.`);
       return;
     }
 

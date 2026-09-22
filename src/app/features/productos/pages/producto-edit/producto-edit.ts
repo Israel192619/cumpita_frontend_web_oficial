@@ -24,6 +24,7 @@ interface ModificadorSeleccionado {
   modificador_id: number;
   nombre: string;
   cantidad_requerida: number | null;
+  cantidad_es_maxima: boolean;
   opciones: OpcionSeleccionada[];
 }
 
@@ -224,6 +225,7 @@ export class ProductoEdit {
                     modificador_id: modificador.id,
                     nombre: modificador.nombre,
                     cantidad_requerida: modProd.cantidad_requerida ?? null,
+                    cantidad_es_maxima: modificador.nombre.trim().toLowerCase() === 'guarniciones' || !!modProd.cantidad_es_maxima,
                     opciones: opcionesDelModificador
                   });
                 }
@@ -269,6 +271,7 @@ export class ProductoEdit {
         modificador_id: id,
         nombre: modificador.nombre,
         cantidad_requerida: null,
+        cantidad_es_maxima: modificador.nombre.trim().toLowerCase() === 'guarniciones',
         opciones: opcionesDelModificador
       }
     ]);
@@ -285,6 +288,10 @@ export class ProductoEdit {
   actualizarCantidadRequerida(modificadorId: number, valor: string) {
     const cantidad = valor === '' ? null : Math.max(1, Number(valor));
     this.modificadoresSeleccionados.update(mods => mods.map(mod => mod.modificador_id === modificadorId ? { ...mod, cantidad_requerida: cantidad } : mod));
+  }
+
+  actualizarCantidadEsMaxima(modificadorId: number, valor: boolean) {
+    this.modificadoresSeleccionados.update(mods => mods.map(mod => mod.modificador_id === modificadorId ? { ...mod, cantidad_es_maxima: mod.nombre.trim().toLowerCase() === 'guarniciones' || valor } : mod));
   }
 
   toggleOpcion(modificadorId: number, opcionId: number) {
@@ -362,6 +369,7 @@ export class ProductoEdit {
     this.modificadoresSeleccionados().forEach((mod, index) => {
       formData.append(`modificadores[${index}][id]`, String(mod.modificador_id));
       if (mod.cantidad_requerida != null) formData.append(`modificadores[${index}][cantidad_requerida]`, String(mod.cantidad_requerida));
+      formData.append(`modificadores[${index}][cantidad_es_maxima]`, mod.cantidad_es_maxima ? '1' : '0');
     });
 
     formData.append('_method', 'PUT');

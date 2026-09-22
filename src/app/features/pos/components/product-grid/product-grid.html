@@ -16,6 +16,7 @@
           [alt]="prod.nombre"
           loading="lazy"
           decoding="async"
+          (error)="$any($event.target).src = '/images/no-image.png'"
         />
         <div 
           *ngIf="getAvailableUnits(prod) !== null" 
@@ -73,21 +74,34 @@
     <section class="restock-dialog" role="dialog" aria-modal="true" aria-labelledby="restock-dialog-title" (click)="$event.stopPropagation()">
       <span class="restock-dialog__eyebrow">AJUSTE DE STOCK</span>
       <h2 id="restock-dialog-title">Reabastecer {{ producto.nombre }}</h2>
-      <p>Indica cuántas unidades deseas agregar al inventario.</p>
-      <label *ngIf="!producto.maneja_stock">
-        <span>Presa u opción</span>
-        <select [value]="restockOptionId()" (change)="setRestockOption($any($event.target).value)" [disabled]="restockingProductId() === producto.id">
-          <option *ngFor="let option of stockOptions(producto)" [value]="option.id">{{ option.nombre }} · {{ option.stock_disponible ?? option.stock ?? 0 }} disponibles</option>
-        </select>
-      </label>
-      <label>
+      <p>{{ producto.maneja_stock ? 'Indica cuántas unidades deseas agregar al inventario.' : 'Agrega las cantidades de cada presa u opción y luego acepta el reabastecimiento.' }}</p>
+      <div *ngIf="!producto.maneja_stock" class="restock-option-list">
+        <article *ngFor="let option of stockOptions(producto)" class="restock-option-row">
+          <div class="restock-option-row__heading">
+            <strong>{{ option.nombre }}</strong>
+            <span>{{ option.stock_disponible ?? option.stock ?? 0 }} disponibles</span>
+          </div>
+          <div class="restock-option-row__controls">
+            <label>
+              <span>Cantidad a agregar</span>
+              <input type="number" min="1" inputmode="numeric" [value]="restockOptionQuantities()[option.id]" (input)="setRestockOptionQuantity(option.id, $any($event.target).value)" [disabled]="restockingProductId() === producto.id">
+            </label>
+            <button type="button" class="restock-option-row__add" [disabled]="restockingProductId() === producto.id" (click)="addRestockOption(option.id)">Agregar</button>
+          </div>
+          <div *ngIf="pendingRestockOptions()[option.id] as pending" class="restock-option-row__pending">
+            <span>+{{ pending }} por agregar</span>
+            <button type="button" [disabled]="restockingProductId() === producto.id" (click)="removePendingRestockOption(option.id)">Quitar</button>
+          </div>
+        </article>
+      </div>
+      <label *ngIf="producto.maneja_stock">
         <span>Cantidad a agregar</span>
         <input type="number" min="1" inputmode="numeric" [value]="restockQuantity()" (input)="setRestockQuantity($any($event.target).value)" [disabled]="restockingProductId() === producto.id" autofocus>
       </label>
       <div class="restock-dialog__actions">
         <button type="button" class="restock-dialog__cancel" [disabled]="restockingProductId() === producto.id" (click)="closeRestockDialog()">Cancelar</button>
         <button type="button" class="restock-dialog__confirm" [disabled]="restockingProductId() === producto.id" (click)="confirmRestock()">
-          {{ restockingProductId() === producto.id ? 'Guardando…' : 'Confirmar reabastecimiento' }}
+          {{ restockingProductId() === producto.id ? 'Guardando…' : (!producto.maneja_stock && pendingRestockTotal() ? 'Aceptar · ' + pendingRestockTotal() + ' uds.' : 'Aceptar') }}
         </button>
       </div>
     </section>

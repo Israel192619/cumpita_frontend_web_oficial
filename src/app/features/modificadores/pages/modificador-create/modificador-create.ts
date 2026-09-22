@@ -33,6 +33,7 @@ export class ModificadorCreate {
   ) {
     this.form = this.fb.group({
       nombre: ['', Validators.required],
+      color_fondo: ['#e6a817', Validators.pattern(/^#[0-9a-fA-F]{6}$/)],
       tipo: ['unico', Validators.required],
       requerido: [false],
       activo: [true, Validators.required],
@@ -57,7 +58,8 @@ export class ModificadorCreate {
       nombre: ['', Validators.required],
       precio_extra: [0, [Validators.required, Validators.min(0)]],
       activo: [true],
-      maneja_stock: [false], stock: [null], stock_minimo: [null]
+      maneja_stock: [false], stock: [null], stock_minimo: [null],
+      imagen: [null], mostrar_imagen: [false], eliminar_imagen: [false]
     });
     this.opcionesForm.push(opcionForm);
   }
@@ -86,6 +88,11 @@ export class ModificadorCreate {
 
   getOpcionControl(index: number, controlName: string): FormControl {
     return this.opcionesForm.at(index).get(controlName) as FormControl;
+  }
+
+  limpiarImagenOpcion(index: number): void {
+    this.getOpcionControl(index, 'imagen').setValue(null);
+    this.getOpcionControl(index, 'mostrar_imagen').setValue(false);
   }
 
   guardarModificador(onSuccess: () => void) {
@@ -138,6 +145,7 @@ export class ModificadorCreate {
   resetForm() {
     this.form.reset({
       nombre: '',
+      color_fondo: '#e6a817',
       tipo: 'unico',
       requerido: false,
       activo: true,

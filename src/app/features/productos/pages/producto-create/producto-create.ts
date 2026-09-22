@@ -24,6 +24,7 @@ interface ModificadorSeleccionado {
   modificador_id: number;
   nombre: string;
   cantidad_requerida: number | null;
+  cantidad_es_maxima: boolean;
   opciones: OpcionSeleccionada[];
 }
 
@@ -186,6 +187,7 @@ export class ProductoCreate {
         modificador_id: id,
         nombre: modificador.nombre,
         cantidad_requerida: null,
+        cantidad_es_maxima: modificador.nombre.trim().toLowerCase() === 'guarniciones',
         opciones: opcionesDelModificador
       }
     ]);
@@ -202,6 +204,10 @@ export class ProductoCreate {
   actualizarCantidadRequerida(modificadorId: number, valor: string) {
     const cantidad = valor === '' ? null : Math.max(1, Number(valor));
     this.modificadoresSeleccionados.update(mods => mods.map(mod => mod.modificador_id === modificadorId ? { ...mod, cantidad_requerida: cantidad } : mod));
+  }
+
+  actualizarCantidadEsMaxima(modificadorId: number, valor: boolean) {
+    this.modificadoresSeleccionados.update(mods => mods.map(mod => mod.modificador_id === modificadorId ? { ...mod, cantidad_es_maxima: mod.nombre.trim().toLowerCase() === 'guarniciones' || valor } : mod));
   }
 
   toggleOpcion(modificadorId: number, opcionId: number) {
@@ -288,6 +294,7 @@ export class ProductoCreate {
     this.modificadoresSeleccionados().forEach((mod, index) => {
       formData.append(`modificadores[${index}][id]`, String(mod.modificador_id));
       if (mod.cantidad_requerida != null) formData.append(`modificadores[${index}][cantidad_requerida]`, String(mod.cantidad_requerida));
+      formData.append(`modificadores[${index}][cantidad_es_maxima]`, mod.cantidad_es_maxima ? '1' : '0');
     });
 
     this.productoService.crearProducto(formData).subscribe({

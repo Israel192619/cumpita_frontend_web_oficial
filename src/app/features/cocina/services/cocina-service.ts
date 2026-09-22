@@ -42,7 +42,7 @@ export interface KdsDetalleOpcion {
   modificador_opcion?: {
     id: number;
     nombre: string;
-    modificador?: { id: number; nombre: string; estacion_id?: number | null } | null;
+    modificador?: { id: number; nombre: string; estacion_id?: number | null; color_fondo?: string | null } | null;
   } | null;
 }
 
@@ -88,6 +88,8 @@ export interface ActualizacionMasivaEstadoCocinaResponse {
 }
 
 export interface KdsPedidosResponse {
+  orden_ids?: number[] | null;
+  asignaciones?: Record<number, KdsOrden['asignacion']>;
   ordenes: KdsOrden[];
   preordenes_programadas?: KdsOrden[];
   estacion: KdsEstacion;
@@ -102,9 +104,10 @@ export class CocinaService {
 
   constructor(private http: HttpClient) {}
 
-  obtenerPedidos(fecha: string, estacion?: string | number | null): Observable<KdsPedidosResponse> {
+  obtenerPedidos(fecha: string, estacion?: string | number | null, ids?: number[]): Observable<KdsPedidosResponse> {
     const params: Record<string, string> = { fecha };
     if (estacion !== null && estacion !== undefined) params['estacion'] = String(estacion);
+    ids?.forEach((id, index) => params[`orden_ids[${index}]`] = String(id));
     return this.http.get<KdsPedidosResponse>(`${this.apiUrl}/kds/pedidos`, { params });
   }
 

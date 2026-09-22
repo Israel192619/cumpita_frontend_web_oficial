@@ -112,6 +112,21 @@
   display: flex;
   gap: 0.34rem;
   align-items: center;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.client-area .form-group:has(.form-input:focus) {
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 24%, transparent), 0 0 18px color-mix(in srgb, #ffb000 18%, transparent);
+}
+
+.client-area .form-group:has(.form-input:focus) .form-input {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .client-area .form-input {

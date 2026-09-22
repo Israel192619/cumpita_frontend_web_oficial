@@ -34,7 +34,7 @@
   </app-input-form>
 
   <!-- Imagen -->
-  <app-input-form label="Imagen" type="file" [control]="getControl('imagen')">
+  <app-input-form label="Imagen" type="file" [control]="getControl('imagen')" [enableCamera]="true" [optimizeImage]="true" helpText="Puedes tomar una foto con la cámara trasera o elegirla de la galería.">
   </app-input-form>
 
   <!-- Checkboxes Mejorados -->
@@ -89,7 +89,9 @@
           ✕ Quitar
         </button>
       </div>
-      <label class="modifier-quantity">Cantidad exacta requerida para este producto (opcional)<input type="number" min="1" max="20" [value]="mod.cantidad_requerida ?? ''" (input)="actualizarCantidadRequerida(mod.modificador_id, $any($event.target).value)"></label>
+      <label class="modifier-quantity">Cantidad de opciones para este producto (opcional)<input type="number" min="1" max="20" [value]="mod.cantidad_requerida ?? ''" (input)="actualizarCantidadRequerida(mod.modificador_id, $any($event.target).value)"></label>
+      <span class="modifier-quantity" *ngIf="mod.cantidad_requerida != null && mod.nombre.trim().toLowerCase() === 'guarniciones'">Hasta {{ mod.cantidad_requerida }} guarniciones (puede elegir ninguna)</span>
+      <label class="modifier-quantity" *ngIf="mod.cantidad_requerida != null && mod.nombre.trim().toLowerCase() !== 'guarniciones'"><input type="checkbox" [checked]="mod.cantidad_es_maxima" (change)="actualizarCantidadEsMaxima(mod.modificador_id, $any($event.target).checked)"> Hasta esa cantidad (permite ninguna)</label>
 
       <!-- Opciones del Modificador -->
       <div class="opciones-list">

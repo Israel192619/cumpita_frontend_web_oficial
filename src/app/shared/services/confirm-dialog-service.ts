@@ -11,7 +11,7 @@ export class ConfirmDialogService {
 
   confirm(data: ConfirmDialogData): Observable<boolean> {
     const dialogRef = this.dialog.open(ConfirmDialog, {
-      width: 'min(400px, calc(100vw - 24px))',
+      width: 'min(440px, calc(100vw - 24px))',
       maxWidth: 'calc(100vw - 24px)',
       disableClose: true,
       panelClass: 'confirm-dialog-panel',

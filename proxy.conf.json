@@ -1,0 +1,11 @@
+{
+  "/app/6x0supev9eq3anpkyr8s": {
+    "target": "http://127.0.0.1:8080",
+    "ws": true,
+    "secure": false,
+    "changeOrigin": true,
+    "headers": {
+      "Origin": "http://localhost"
+    }
+  }
+}

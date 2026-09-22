@@ -1,4 +1,4 @@
-<div class="pos-container">
+<div class="pos-container" [posSearchFocus]="searchFocusTarget()">
   <!-- Edit Mode Indicator -->
   <div *ngIf="isEditingOrder()" class="edit-mode-banner">
     <div class="edit-mode-content">
@@ -108,14 +108,14 @@
     <div class="mobile-product-tools">
       <label class="mobile-product-search">
         <app-icon name="search" [size]="18" />
-        <input type="search" placeholder="Buscar producto..." [value]="productSearchQuery()" (input)="onProductSearchChanged($any($event.target).value)">
+        <input data-pos-search="product" type="search" placeholder="Buscar producto..." [value]="productSearchQuery()" (input)="onProductSearchChanged($any($event.target).value)">
       </label>
       <app-button text="+" size="small" ariaLabel="Agregar producto" (buttonClick)="openProductSelector()" />
       <div *ngIf="productSearchQuery().trim() && globalSearchResults().length > 1" class="mobile-search-results" role="listbox" aria-label="Coincidencias de productos">
         <button *ngFor="let producto of globalSearchResults()" type="button" role="option"
           [disabled]="!producto.activo || (availableUnits(producto) === 0)"
           (click)="selectGlobalProduct(producto)">
-          <img [src]="producto.imagen_url || '/images/no-image.png'" [alt]="producto.nombre">
+          <img [src]="producto.imagen_url || '/images/no-image.png'" [alt]="producto.nombre" (error)="$any($event.target).src = '/images/no-image.png'">
           <span class="mobile-search-result__info"><strong>{{ producto.nombre }}</strong><small>{{ availableUnits(producto) !== null ? 'Stock: ' + availableUnits(producto) : 'Disponible' }}</small></span>
           <span class="mobile-search-result__price"><b>{{ formatPrice(producto.precio) }}</b><small *ngIf="!producto.activo || (availableUnits(producto) === 0)">Sin stock</small></span>
         </button>
@@ -124,6 +124,7 @@
 
     <div class="pos-section cart-section">
       <app-cart-panel
+        (stockAdjusted)="onStockAdjusted()"
         [operationMode]="operationMode"
         [items]="carrito()"
         [subtotal]="subtotal()"
@@ -212,10 +213,10 @@
     (checkoutCancelled)="onCheckoutCancelled()"
   />
 
-  <app-modal [open]="isCajaModalOpen()" [title]="cajaModalMode() === 'abrir' ? 'Abrir caja' : cajaModalMode() === 'cerrar' ? 'Cerrar caja' : cajaModalMode() === 'salir' ? 'Dejar caja compartida' : 'Solicitudes de acceso'" size="small" panelClass="pos-dashboard-modal" [busy]="isProcessingCaja()" (closed)="cerrarModalCaja()">
+  <app-modal [open]="isCajaModalOpen()" [title]="cajaModalMode() === 'abrir' ? 'Abrir caja' : cajaModalMode() === 'cerrar' ? 'Cerrar caja' : cajaModalMode() === 'salir' ? 'Dejar caja compartida' : 'Administrar acceso a la caja'" size="small" panelClass="pos-dashboard-modal" [busy]="isProcessingCaja()" (closed)="cerrarModalCaja()">
       <div class="caja-modal__body">
         <ng-container *ngIf="cajaModalMode() === 'gestionar'; else formularioCaja">
-          <p class="caja-modal__help">Envía una solicitud para compartir esta caja. El acceso comienza únicamente cuando el otro cajero la acepta.</p>
+          <p class="caja-modal__help">Marca a los cajeros que quieres invitar o desmarca a quienes quieras retirar el acceso. Pulsa «Guardar cambios» para aplicar. Las nuevas invitaciones requieren aceptación; los accesos ya aceptados se conservan mientras sigan marcados.</p>
           <label *ngFor="let usuario of usuariosDisponiblesCaja()" class="caja-user-option">
             <input type="checkbox" [checked]="usuariosSeleccionadosCaja().includes(usuario.id)" [disabled]="usuario.id === cajaActual()?.user_id" (change)="alternarCajeroAutorizado(usuario.id, $any($event.target).checked)">
             <span>{{ usuario.name }}<small *ngIf="usuario.username">@{{ usuario.username }}</small><small *ngIf="usuario.estado_invitacion">{{ usuario.estado_invitacion }}</small></span>
@@ -238,7 +239,7 @@
         <app-button text="Cancelar" color="secondary" [disabled]="isProcessingCaja()" (buttonClick)="cerrarModalCaja()" />
           <app-button *ngIf="cajaModalMode() === 'cerrar' && cajaActual()?.puede_cerrar" text="Cajeros" color="secondary" [disabled]="isProcessingCaja()" (buttonClick)="abrirGestionCajeros()" />
           <app-button *ngIf="cajaModalMode() === 'cerrar'" text="Movimiento" color="secondary" [disabled]="isProcessingCaja()" (buttonClick)="abrirModalMovimiento()" />
-        <app-button [text]="cajaModalMode() === 'abrir' ? 'Abrir caja' : cajaModalMode() === 'cerrar' ? 'Confirmar cierre' : cajaModalMode() === 'salir' ? 'Dejar de compartir' : 'Enviar solicitudes'" [loading]="isProcessingCaja()" (buttonClick)="confirmarCaja()" />
+        <app-button [text]="cajaModalMode() === 'abrir' ? 'Abrir caja' : cajaModalMode() === 'cerrar' ? 'Confirmar cierre' : cajaModalMode() === 'salir' ? 'Dejar de compartir' : 'Guardar cambios'" [loading]="isProcessingCaja()" (buttonClick)="confirmarCaja()" />
       </div>
   </app-modal>
 
@@ -297,7 +298,7 @@
   </app-modal>
 
   <app-modal [open]="isPendingOrdersModalOpen()" title="Órdenes pendientes" size="large" panelClass="pos-dashboard-modal" (closed)="closePendingOrdersModal()">
-      <p class="modal-intro">Selecciona una orden con saldo por pagar o en estado parcial.</p>
+      <p class="modal-intro">Selecciona una orden con saldo por cobrar o en estado parcial.</p>
 
       <div class="pending-orders-search">
         <input
@@ -336,7 +337,7 @@
             <div class="pending-order-summary">Total: {{ formatPrice(orden.total) }}</div>
             <div class="pending-order-actions">
               <app-button text="Editar" color="secondary" size="small" (buttonClick)="onEditPendingOrder(orden.id)" />
-              <app-button text="Pagar" size="small" (buttonClick)="onPayPendingOrder(orden.id)" />
+              <app-button text="Cobrar" size="small" (buttonClick)="onPayPendingOrder(orden.id)" />
             </div>
           </div>
         </div>
@@ -370,7 +371,7 @@
           <div class="pending-order-actions">
             <app-button text="Ver" color="secondary" size="small" (buttonClick)="openTodayOrderDetail(orden)" />
             <app-button *ngIf="orden.estado !== 'cancelado'" text="Editar" color="secondary" size="small" (buttonClick)="onEditTodayOrder(orden.id)" />
-            <app-button *ngIf="orden.estado !== 'cancelado' && orden.estado_pago !== 'completado'" text="Pagar" size="small" (buttonClick)="onPayTodayOrder(orden.id)" />
+            <app-button *ngIf="orden.estado !== 'cancelado' && orden.estado_pago !== 'completado'" text="Cobrar" size="small" (buttonClick)="onPayTodayOrder(orden.id)" />
             <app-button *ngIf="orden.estado !== 'cancelado'" text="Cancelar" color="danger" size="small" (buttonClick)="onCancelTodayOrder(orden.id)" />
           </div>
         </div>
@@ -456,7 +457,7 @@
     </div>
     <div modal-actions *ngIf="todayOrderDetail() as orden">
       <app-button text="Cerrar" color="secondary" (buttonClick)="closeTodayOrderDetail()" />
-      <app-button *ngIf="orden.estado !== 'cancelado' && orden.estado_pago !== 'completado'" text="Pagar" (buttonClick)="onPayTodayOrder(orden.id)" />
+      <app-button *ngIf="orden.estado !== 'cancelado' && orden.estado_pago !== 'completado'" text="Cobrar" (buttonClick)="onPayTodayOrder(orden.id)" />
       <app-button *ngIf="orden.estado !== 'cancelado'" text="Cancelar orden" color="danger" (buttonClick)="onCancelTodayOrder(orden.id)" />
     </div>
   </app-modal>
@@ -507,4 +508,3 @@
     </div>
   </app-modal>
 </div>
-

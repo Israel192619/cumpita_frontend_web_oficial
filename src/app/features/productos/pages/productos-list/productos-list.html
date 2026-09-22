@@ -32,7 +32,7 @@
     <div class="product-detail">
       <section class="product-overview">
         <div class="product-identity">
-          <img [src]="product.imagen_url || '/images/no-image.png'" [alt]="product.nombre">
+          <img [src]="product.imagen_url || '/images/no-image.png'" [alt]="product.nombre" (error)="$any($event.target).src = '/images/no-image.png'">
           <div><span>Producto #{{ product.id }}</span><h3>{{ product.nombre }}</h3><p>{{ product.descripcion || 'Sin descripción registrada.' }}</p></div>
           <span class="status" [class.inactive]="!product.activo">{{ product.activo ? 'Activo' : 'Inactivo' }}</span>
         </div>
@@ -57,7 +57,7 @@
           <div class="modifier-groups">
             @for (group of product.modificadores; track group.id) {
               <article class="modifier-group">
-                <header><div><h4>{{ group.nombre }}</h4><span>{{ group.cantidad_requerida ? 'Elige ' + group.cantidad_requerida : (group.requerido ? 'Obligatorio' : 'Opcional') }}</span></div><small>{{ group.tipo === 'multiple' ? 'Selección múltiple' : 'Selección única' }}</small></header>
+                <header><div><h4>{{ group.nombre }}</h4><span>{{ group.cantidad_requerida ? (group.cantidad_es_maxima ? 'Hasta ' : 'Elige ') + group.cantidad_requerida : (group.requerido ? 'Obligatorio' : 'Opcional') }}</span></div><small>{{ group.tipo === 'multiple' ? 'Selección múltiple' : 'Selección única' }}</small></header>
                 <div class="option-table">
                   <div class="option-row option-head"><span>Opción</span><span>Tipo</span><span>Precio extra</span><span>Disponibilidad</span></div>
                   @for (option of group.opciones || []; track option.id) {

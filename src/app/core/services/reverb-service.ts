@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { reverbConnection } from './reverb-connection';
 (window as any).Pusher = Pusher;
 
 @Injectable({
@@ -10,20 +10,13 @@ import { environment } from '../../../environments/environment';
 })
 export class ReverbService {
   private echo: Echo<any>;
+  private readonly suscriptoresPorCanal = new Map<string, number>();
 
   constructor() {
-    const apiHost = new URL(environment.apiUrl, window.location.origin).hostname;
-    const socketHost = typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost'
-      ? window.location.hostname
-      : apiHost;
-    const secure = window.location.protocol === 'https:';
     this.echo = new Echo({
       broadcaster: 'reverb',
       key: '6x0supev9eq3anpkyr8s',
-      wsHost: socketHost,
-      wsPort: secure ? 443 : 8080,
-      wssPort: 443,
-      forceTLS: secure,
+      ...reverbConnection(window.location),
       enabledTransports: ['ws', 'wss']
     });
 
@@ -41,19 +34,29 @@ export class ReverbService {
   // Método genérico para escuchar CUALQUIER canal y evento público
   escucharCanal(canal: string, evento: string): Observable<any> {
     return new Observable((subscriber) => {
+      const recibir = (data: any) => {
+        console.log('Event received on', canal, evento, data);
+        subscriber.next(data);
+      };
+      let escuchando = false;
       try {
         console.log('Subscribing to channel', canal, 'event', evento);
-        this.echo.channel(canal).listen(evento, (data: any) => {
-          console.log('Event received on', canal, evento, data);
-          subscriber.next(data);
-        });
+        this.echo.channel(canal).listen(evento, recibir);
+        this.suscriptoresPorCanal.set(canal, (this.suscriptoresPorCanal.get(canal) ?? 0) + 1);
+        escuchando = true;
       } catch (e) {
         console.warn('Error subscribing to channel', canal, evento, e);
       }
 
-      // Si el componente se destruye, cancelamos la suscripción automáticamente
       return () => {
-        this.echo.leaveChannel(canal);
+        if (!escuchando) return;
+        this.echo.channel(canal).stopListening(evento, recibir);
+        const restantes = (this.suscriptoresPorCanal.get(canal) ?? 1) - 1;
+        if (restantes > 0) this.suscriptoresPorCanal.set(canal, restantes);
+        else {
+          this.suscriptoresPorCanal.delete(canal);
+          this.echo.leaveChannel(canal);
+        }
       };
     });
   }

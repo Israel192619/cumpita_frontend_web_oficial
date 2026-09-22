@@ -193,16 +193,19 @@
   box-shadow:none;
 }
 .result-item{
-  border:0;
-  background:transparent;
+  border:1px solid color-mix(in srgb,var(--color-primary) 24%,var(--color-border));
+  border-radius:10px;
+  background:color-mix(in srgb,var(--color-primary) 3%,transparent);
   box-shadow:none;
 }
-.result-item:hover{
+.result-item:hover,
+.result-item--active{
+  border-color:var(--color-primary);
   background:var(--color-hover);
-  box-shadow:none;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--color-primary) 16%,transparent);
   transform:none;
 }
-.result-order{border:0;background:color-mix(in srgb,var(--color-primary) 7%,var(--color-surface))}
+.result-order{border:1px solid color-mix(in srgb,var(--color-primary) 24%,var(--color-border));background:color-mix(in srgb,var(--color-primary) 7%,var(--color-surface))}
 .result-order:hover{
   padding:.85rem 1rem;
   color:var(--color-text);

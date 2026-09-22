@@ -2,67 +2,119 @@
 .confirm-dialog-panel .mat-mdc-dialog-surface,
 .confirm-dialog-panel .mdc-dialog__surface {
   --mdc-dialog-container-color: var(--color-surface);
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent) !important;
+  border-radius: 20px !important;
   color: var(--color-text) !important;
-  background-color: var(--color-surface) !important;
+  background: var(--color-surface) !important;
+  box-shadow: 0 24px 70px rgb(0 0 0 / .42) !important;
 }
 
 .dialog-container {
-  padding: 8px 4px;
+  position: relative;
+  padding: 28px;
   color: var(--color-text);
   background: var(--color-surface);
 }
 
+.dialog-accent {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: var(--color-danger);
+}
+
+.dialog-accent.primary { background: var(--color-primary); }
+.dialog-accent.success { background: var(--color-success); }
+.dialog-accent.warning { background: #f2ad0b; }
+.dialog-accent.danger { background: var(--color-danger); }
+
 .dialog-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+}
+
+.dialog-header small {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .13em;
 }
 
 .dialog-header h2 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
   color: var(--color-text) !important;
+  font-size: clamp(19px, 3vw, 23px);
+  font-weight: 850;
+  line-height: 1.15;
 }
 
-.icon {
-  font-size: 22px;
+.dialog-icon {
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 38%, transparent);
+  border-radius: 14px;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  font-size: 24px;
+  font-weight: 900;
 }
+
+.dialog-icon.primary { color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 38%, transparent); background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+.dialog-icon.success { color: var(--color-success); border-color: color-mix(in srgb, var(--color-success) 38%, transparent); background: color-mix(in srgb, var(--color-success) 12%, transparent); }
+.dialog-icon.warning { color: #f2ad0b; border-color: color-mix(in srgb, #f2ad0b 42%, transparent); background: color-mix(in srgb, #f2ad0b 13%, transparent); }
 
 .content {
-  margin-top: 10px;
-  font-size: 14px;
+  margin: 22px 0 0;
   color: var(--color-text-secondary) !important;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .actions {
-  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
   gap: 10px;
+  margin-top: 26px;
 }
 
-.actions .btn-light {
+.actions button {
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .15s ease, filter .15s ease, border-color .15s ease;
+}
+
+.actions button:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.actions button:active { transform: translateY(0); }
+.actions button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+
+.cancel-button {
+  border: 1px solid var(--color-border);
   color: var(--color-text) !important;
-  border-color: var(--color-border);
   background: var(--color-hover);
 }
 
-.confirm-button.primary { color: #fff; background: var(--color-primary); }
-.confirm-button.success { color: #fff; background: var(--color-success); }
-.confirm-button.warning { color: #fff; background: var(--color-warning); }
-.confirm-button.danger { color: #fff; background: var(--color-danger); }
-
-:root[data-theme='dark'] .confirm-dialog-panel .dialog-container,
-:root[data-theme='dark'] .confirm-dialog-panel .dialog-header h2 {
-  color: #f5f7fb !important;
-}
-
-:root[data-theme='dark'] .confirm-dialog-panel .content {
-  color: #c6d0df !important;
-}
+.confirm-button { border: 1px solid transparent; color: #fff; }
+.confirm-button.primary { color: var(--color-on-primary, #fff); background: var(--color-primary); }
+.confirm-button.success { color: var(--color-on-success, #fff); background: var(--color-success); }
+.confirm-button.warning { color: #17120a; background: #f2ad0b; }
+.confirm-button.danger { color: var(--color-on-danger, #fff); background: var(--color-danger); }
 
 @media (max-width: 480px) {
-  .dialog-container { width: 100%; padding: 4px 0; }
-  .content { margin-top: 6px; font-size: 13px; }
-  .actions { margin-top: 14px; flex-wrap: wrap; }
-  .actions button { min-height: 42px; flex: 1 1 110px; }
+  .dialog-container { padding: 24px 20px 20px; }
+  .dialog-icon { flex-basis: 40px; width: 40px; height: 40px; border-radius: 12px; }
+  .content { margin-top: 18px; font-size: 14px; }
+  .actions { grid-template-columns: 1fr; margin-top: 22px; }
+  .confirm-button { grid-row: 1; }
 }

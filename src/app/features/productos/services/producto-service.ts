@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import { Producto, CreateProducto, UpdateProducto } from '../../../core/models/producto';
+import { resolveProductoAssetUrls } from '../../../core/utils/asset-url';
 
 export type TipoAjusteStock = 'ENTRADA' | 'SALIDA' | 'CORRECCION';
 export interface AjusteStock {
@@ -43,14 +44,14 @@ export class ProductoService {
         { params }
       )
       .pipe(
-        map(res => res.productos ?? [])
+        map(res => (res.productos ?? []).map(resolveProductoAssetUrls))
       );
   }
 
   obtenerProducto(id: number): Observable<Producto> {
     return this.http.get<{ producto: Producto }>(`${this.apiUrl}/productos/${id}`)
       .pipe(
-        map(res => res.producto)
+        map(res => resolveProductoAssetUrls(res.producto))
       );
   }
 
@@ -78,6 +79,14 @@ export class ProductoService {
   crearAjusteStock(data: { producto_id?: number; modificador_opcion_id?: number; tipo: TipoAjusteStock; cantidad: number; motivo: string }): Observable<AjusteStock> {
     return this.http.post<{ ajuste: AjusteStock }>(`${this.apiUrl}/ajustes-stock`, data)
       .pipe(map(response => response.ajuste));
+  }
+
+  crearAjustesStockLote(productoId: number, items: Array<{ modificador_opcion_id: number; cantidad: number }>, motivo: string): Observable<AjusteStock[]> {
+    return this.http.post<{ ajustes: AjusteStock[] }>(`${this.apiUrl}/ajustes-stock/lote`, {
+      producto_id: productoId,
+      items,
+      motivo,
+    }).pipe(map(response => response.ajustes ?? []));
   }
 
   revertirAjusteStock(id: number): Observable<AjusteStock> {

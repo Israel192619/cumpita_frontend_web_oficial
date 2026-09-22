@@ -35,6 +35,7 @@ export class ModificadorEdit {
   ) {
     this.form = this.fb.group({
       nombre: ['', Validators.required],
+      color_fondo: ['#e6a817', Validators.pattern(/^#[0-9a-fA-F]{6}$/)],
       tipo: ['unico', Validators.required],
       requerido: [false],
       activo: [true, Validators.required],
@@ -61,6 +62,7 @@ export class ModificadorEdit {
 
         this.form.patchValue({
           nombre: modificador.nombre,
+          color_fondo: modificador.color_fondo || '#e6a817',
           tipo: modificador.tipo,
           requerido: modificador.requerido,
           activo: modificador.activo,
@@ -76,7 +78,8 @@ export class ModificadorEdit {
                 id: [opcion.id],
                 nombre: [opcion.nombre, Validators.required],
                 precio_extra: [opcion.precio_extra, [Validators.required, Validators.min(0)]],
-                activo: [opcion.activo], maneja_stock: [opcion.maneja_stock ?? false], stock: [opcion.stock ?? null], stock_minimo: [opcion.stock_minimo ?? null]
+                activo: [opcion.activo], maneja_stock: [opcion.maneja_stock ?? false], stock: [opcion.stock ?? null], stock_minimo: [opcion.stock_minimo ?? null],
+                imagen: [null], imagen_url: [opcion.imagen_url ?? null], mostrar_imagen: [opcion.mostrar_imagen ?? false], eliminar_imagen: [false]
               })
             );
           });
@@ -94,7 +97,8 @@ export class ModificadorEdit {
     const opcionForm = this.fb.group({
       nombre: ['', Validators.required],
       precio_extra: [0, [Validators.required, Validators.min(0)]],
-      activo: [true], maneja_stock: [false], stock: [null], stock_minimo: [null]
+      activo: [true], maneja_stock: [false], stock: [null], stock_minimo: [null],
+      imagen: [null], imagen_url: [null], mostrar_imagen: [false], eliminar_imagen: [false]
     });
     this.opcionesForm.push(opcionForm);
   }
@@ -123,6 +127,22 @@ export class ModificadorEdit {
 
   getOpcionControl(index: number, controlName: string): FormControl {
     return this.opcionesForm.at(index).get(controlName) as FormControl;
+  }
+
+  getOpcionImagenUrl(index: number): string | null {
+    return this.getOpcionControl(index, 'eliminar_imagen').value
+      ? null
+      : this.getOpcionControl(index, 'imagen_url').value;
+  }
+
+  marcarImagenEliminada(index: number): void {
+    this.getOpcionControl(index, 'imagen').setValue(null);
+    this.getOpcionControl(index, 'eliminar_imagen').setValue(true);
+    this.getOpcionControl(index, 'mostrar_imagen').setValue(false);
+  }
+
+  conservarImagen(index: number): void {
+    this.getOpcionControl(index, 'eliminar_imagen').setValue(false);
   }
 
   guardarModificador(onSuccess: () => void) {

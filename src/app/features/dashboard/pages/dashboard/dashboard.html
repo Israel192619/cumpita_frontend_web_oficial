@@ -8,6 +8,7 @@
         <app-input-form label="Hasta" type="date" [value]="hasta()" [min]="desde()" (valueChange)="actualizarHasta($event)" />
         <app-button text="Aplicar" [disabled]="!periodoValido()" [loading]="cargando()" (buttonClick)="cargar()" />
       }
+      <app-button text="Actualizar" color="secondary" [loading]="cargando()" (buttonClick)="cargar()" />
     </div>
   </header>
 
@@ -32,7 +33,7 @@
       <article class="dashboard-panel">
         <div class="panel-heading"><div><h2>Productos por agotar</h2></div><span class="panel-count">{{ dashboard.productos_por_agotar.length }}</span></div>
         @if (dashboard.productos_por_agotar.length) {
-          <ul class="clean-list">@for (producto of dashboard.productos_por_agotar; track producto.id) { <li><img class="low-stock-image" [src]="producto.imagen_url || '/images/no-image.png'" [alt]="producto.nombre"><span>{{ producto.nombre }}</span><strong>{{ unidades(producto.stock) }}</strong></li> }</ul>
+          <ul class="clean-list">@for (producto of dashboard.productos_por_agotar; track producto.id) { <li><img class="low-stock-image" [src]="producto.imagen_url || '/images/no-image.png'" [alt]="producto.nombre" (error)="$any($event.target).src = '/images/no-image.png'"><span>{{ producto.nombre }}</span><strong>{{ unidades(producto.stock) }}</strong></li> }</ul>
         } @else { <div class="empty-panel">No hay productos por debajo de su stock mínimo.</div> }
       </article>
 

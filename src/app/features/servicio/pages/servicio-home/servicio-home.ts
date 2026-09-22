@@ -1,12 +1,14 @@
+import { MesasModalComponent } from '../../../pos/components/mesas-modal/mesas-modal';
+import { Mesa } from '../../../pos/services/pos-service';
 import { CommonModule } from '@angular/common';
-import { Component, computed, ElementRef, HostListener, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, untracked, ElementRef, HostListener, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../../core/services/auth-service';
 import { ReverbService } from '../../../../core/services/reverb-service';
-import { OrdenServicioDetalle, OrdenServicioResumen, ServicioFicha, ServicioService, ServicioSesion, ServicioTablero, SolicitudPreorden } from '../../services/servicio-service';
+import { OrdenServicioDetalle, OrdenServicioResumen, ServicioDetalle, ServicioFicha, ServicioService, ServicioSesion, ServicioTablero, SolicitudPreorden } from '../../services/servicio-service';
 import { Button } from '../../../../shared/components/button/button';
 import { InputForm } from '../../../../shared/components/input-form/input-form';
 import { Modal } from '../../../../shared/components/modal/modal';
@@ -17,6 +19,7 @@ import { formatCurrency } from '../../../../core/config/currency.config';
 import { ConfirmDialogService } from '../../../../shared/services/confirm-dialog-service';
 import { LocationMap, MapLocation } from '../../../../shared/components/location-map/location-map';
 import { ConfiguracionService } from '../../../../core/services/configuracion-service';
+import { modifierColorStyle } from '../../../../core/utils/modifier-color';
 
 interface Mesero { id: number; name: string; }
 interface GrupoDetalleServicio {
@@ -27,6 +30,7 @@ interface GrupoDetalleServicio {
   producto: string;
   precioUnitario: number;
   opciones: string[];
+  opcionesEstilo: { nombre: string; color_fondo?: string | null }[];
   nota?: string | null;
   listo: boolean;
   detalles: ServicioFicha['detalles'];
@@ -34,11 +38,12 @@ interface GrupoDetalleServicio {
 
 @Component({
   selector: 'app-servicio-home',
-  imports: [RouterLink, CommonModule, ReactiveFormsModule, Button, InputForm, Modal, Icon, LocationMap],
+  imports: [RouterLink, CommonModule, ReactiveFormsModule, Button, InputForm, Modal, Icon, LocationMap, MesasModalComponent],
   templateUrl: './servicio-home.html',
   styleUrls: ['./servicio-home.css', './servicio-theme.css']
 })
 export class ServicioHome implements OnInit, OnDestroy {
+  readonly modifierColorStyle = modifierColorStyle;
   menuUsuarioAbierto = signal(false);
   avatarFallido = signal(false);
   usuarioCabecera = computed(() => this.auth.usuarioActual());
@@ -104,7 +109,9 @@ export class ServicioHome implements OnInit, OnDestroy {
   mostrarIngreso = signal(false);
   loading = signal(true);
   procesando = signal<string | null>(null);
+  fichasSaliendo = signal<Set<number>>(new Set());
   confirmacionesPendientes = signal<Set<number>>(new Set());
+  entregasPendientes = new Set<number>();
   errorIngreso = signal<string | null>(null);
   confirmarCierre = signal(false);
   permiteSesionesPin = signal(false);
@@ -134,6 +141,15 @@ export class ServicioHome implements OnInit, OnDestroy {
   cantidadAdicional = signal(1);
   opcionesSeleccionadas = signal<number[]>([]);
   notaAdicional = signal('');
+  readonly reservaSesion = globalThis.crypto?.randomUUID?.() ?? 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const n = Math.floor(Math.random() * 16); return (c === 'x' ? n : (n & 3) | 8).toString(16);
+  });
+  reservando = signal(false);
+  private reservaPendiente?: { items: { producto_id: number; cantidad: number }[]; opciones: { modificador_opcion_id: number; cantidad: number }[]; token?: string };
+  private ultimaDemanda = '';
+  private reservaTimer?: ReturnType<typeof setInterval>;
+  private catalogoSecuencia = 0;
+  private destruido = false;
   readonly fechaHoy = this.fechaLocal(new Date());
   fechaTablero = signal(this.fechaHoy);
   meserosDisponibles = computed(() => {
@@ -163,6 +179,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   private consultaOrdenSub?: Subscription;
   private busquedaOrdenSecuencia = 0;
   private temporizadorBusquedaProducto?: ReturnType<typeof setTimeout>;
+  private readonly temporizadoresSalida = new Set<ReturnType<typeof setTimeout>>();
   private readonly tableroPorSesion = new Map<string, Pick<ServicioTablero, 'mis_fichas' | 'mis_entregadas'>>();
   private contextoAvisos?: AudioContext;
   private avisosSonorosHabilitados = false;
@@ -188,9 +205,56 @@ export class ServicioHome implements OnInit, OnDestroy {
     readonly themeService: ThemeService,
     private confirmDialog: ConfirmDialogService,
     readonly configuracion: ConfiguracionService,
-  ) {}
+  ) {
+    effect(() => {
+      const producto = this.selectorProductoAbierto() ? this.productoSeleccionado() : null;
+      const cantidad = this.cantidadAdicional();
+      const ids = this.opcionesSeleccionadas();
+      const token = this.sesionSeleccionada()?.token;
+      const opciones = [...new Set(ids)].map(id => ({ modificador_opcion_id: id, cantidad: ids.filter(x => x === id).length * cantidad }));
+      const demanda = { items: producto ? [{ producto_id: producto.id, cantidad }] : [], opciones: producto ? opciones : [], token };
+      const clave = JSON.stringify(demanda);
+      if (clave === this.ultimaDemanda) return;
+      this.ultimaDemanda = clave;
+      untracked(() => this.encolarReserva(demanda));
+    });
+  }
+
+  private encolarReserva(demanda: NonNullable<ServicioHome['reservaPendiente']>): void {
+    this.reservaPendiente = demanda;
+    if (this.reservando()) return;
+    this.enviarReserva();
+  }
+
+  private enviarReserva(): void {
+    const demanda = this.reservaPendiente;
+    if (!demanda) return;
+    this.reservaPendiente = undefined;
+    this.reservando.set(true);
+    const terminar = () => {
+      this.reservando.set(false);
+      if (this.reservaPendiente) this.enviarReserva();
+    };
+    this.servicio.sincronizarReservas(this.reservaSesion, demanda.items, demanda.opciones, demanda.token).subscribe({
+      next: terminar,
+      error: error => {
+        if (!this.destruido && this.selectorProductoAbierto()) {
+          this.toastr.warning(error?.error?.message || 'No se pudo reservar el stock. Vuelve a seleccionar el producto.');
+          this.productoSeleccionado.set(null);
+          this.actualizarCatalogoSelector();
+        }
+        terminar();
+      },
+    });
+  }
 
   ngOnInit(): void {
+    this.reservaTimer = setInterval(() => {
+      if (this.selectorProductoAbierto() && this.productoSeleccionado() && this.procesando() !== 'agregar-adicional') {
+        this.encolarReserva(JSON.parse(this.ultimaDemanda));
+        this.actualizarCatalogoSelector();
+      }
+    }, 60000);
     this.themeService.initialize();
     this.configuracion.cargar().subscribe({ error: () => undefined });
     document.addEventListener('pointerdown', this.habilitarAvisosSonoros, { once: true });
@@ -237,7 +301,11 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destruido = true;
+    if (this.reservaTimer) clearInterval(this.reservaTimer);
+    this.encolarReserva({ items: [], opciones: [], token: this.sesionSeleccionada()?.token });
     if (this.temporizadorBusquedaProducto) clearTimeout(this.temporizadorBusquedaProducto);
+    this.temporizadoresSalida.forEach(temporizador => clearTimeout(temporizador));
     this.consultaOrdenSub?.unsubscribe();
     this.detenerActividadAutomatica();
     document.removeEventListener('pointerdown', this.habilitarAvisosSonoros);
@@ -247,6 +315,44 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   volverAOrdenes(): void {
     this.router.navigate(['/app/pedidos']);
+  }
+
+  fichaMesa = signal<ServicioFicha | null>(null);
+  mesasDisponibles = signal<Mesa[]>([]);
+  seleccionMesaAbierta = signal(false);
+
+  abrirMesas(ficha: ServicioFicha): void {
+    const sesion = this.requerirSesion();
+    if (!sesion || this.procesando() || ficha.tipo_orden !== 'dine-in') return;
+    this.procesando.set('mesas');
+    this.servicio.listarMesas(sesion.token).subscribe({
+      next: respuesta => {
+        this.procesando.set(null);
+        this.mesasDisponibles.set(respuesta.mesas);
+        this.fichaMesa.set(ficha);
+        this.seleccionMesaAbierta.set(true);
+      },
+      error: error => { this.procesando.set(null); this.toastr.error(error?.error?.message || 'No se pudieron cargar las mesas.'); },
+    });
+  }
+
+  asignarMesa(mesa: Mesa): void {
+    const ficha = this.fichaMesa();
+    const sesion = this.requerirSesion();
+    if (!ficha || !sesion || this.procesando()) return;
+    this.procesando.set('mesa-' + ficha.id);
+    this.servicio.actualizarMesa(ficha.id, mesa.id, sesion.token).subscribe({
+      next: respuesta => {
+        for (const lista of [this.misFichas, this.todasFichas, this.disponibles, this.preordenesProgramadas]) {
+          lista.update(fichas => fichas.map(item => item.id === ficha.id ? { ...item, mesa: respuesta.mesa } : item));
+        }
+        this.procesando.set(null);
+        this.fichaMesa.set(null);
+        this.toastr.success(`Mesa ${respuesta.mesa} asignada a la ficha #${ficha.numero_orden}.`);
+        this.cargar(false);
+      },
+      error: error => { this.procesando.set(null); this.toastr.error(error?.error?.message || 'No se pudo cambiar la mesa.'); },
+    });
   }
 
   crearPreorden(): void {
@@ -420,7 +526,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.selectorProductoAbierto.set(true);
     this.productoSeleccionado.set(null);
     this.busquedaProducto.set('');
-    this.servicio.listarProductos(this.sesionSeleccionada()?.token).subscribe({
+    this.servicio.listarProductos(this.sesionSeleccionada()?.token, this.reservaSesion).subscribe({
       next: response => this.productos.set((response.productos ?? []).filter(producto => producto.activo)),
       error: error => this.toastr.error(error?.error?.message || 'No se pudieron cargar los productos.'),
     });
@@ -432,7 +538,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.cantidadAdicional.set(1);
     this.notaAdicional.set('');
     this.opcionesSeleccionadas.set((producto.modificadores ?? []).flatMap(grupo =>
-      (grupo.opciones ?? []).filter(opcion => opcion.predeterminado).map(opcion => opcion.id)));
+      (grupo.opciones ?? []).filter(opcion => opcion.predeterminado && opcion.activo !== false && (!opcion.maneja_stock || opcion.stock_disponible == null || opcion.stock_disponible > 0)).map(opcion => opcion.id)));
   }
 
   actualizarBusquedaProducto(valor: string): void {
@@ -448,40 +554,91 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   productoDisponible(producto: Producto): boolean {
-    const stock = producto.stock_disponible ?? producto.stock;
-    return producto.activo && (!producto.maneja_stock || stock == null || stock > 0);
+    const stock = this.stockProducto(producto);
+    return producto.activo && (stock == null || stock > 0);
+  }
+
+  stockProducto(producto: Producto): number | null {
+    const limites: number[] = [];
+    if (producto.maneja_stock && (producto.stock_disponible ?? producto.stock) != null) limites.push(Number(producto.stock_disponible ?? producto.stock));
+    for (const grupo of producto.modificadores ?? []) {
+      const requerida = grupo.cantidad_es_maxima ? 0 : Number(grupo.cantidad_requerida ?? (grupo.requerido ? 1 : 0));
+      if (!requerida) continue;
+      const opciones = (grupo.opciones ?? []).filter(o => o.activo !== false);
+      if (opciones.some(o => !o.maneja_stock || (o.stock_disponible ?? o.stock) == null)) continue;
+      limites.push(Math.floor(opciones.reduce((suma, o) => suma + Number(o.stock_disponible ?? o.stock ?? 0), 0) / requerida));
+    }
+    return limites.length ? Math.max(0, Math.min(...limites)) : null;
   }
 
   textoStockProducto(producto: Producto): string {
-    if (!producto.maneja_stock) return 'Disponible';
-    const stock = producto.stock_disponible ?? producto.stock ?? 0;
+    const stock = this.stockProducto(producto);
+    if (stock == null) return 'Disponible';
     return stock > 0 ? `${stock} disponibles` : 'Sin stock';
   }
 
   toggleOpcion(grupo: ModificadorEstructurado, opcion: ModificadorOpcion): void {
+    if (opcion.activo === false) return;
     const actuales = this.opcionesSeleccionadas();
-    if (actuales.includes(opcion.id)) {
+    const limite = grupo.cantidad_requerida == null ? null : Number(grupo.cantidad_requerida);
+    const idsGrupo = new Set((grupo.opciones ?? []).map(item => item.id));
+    const seleccionadas = actuales.filter(id => idsGrupo.has(id));
+    const cantidadOpcion = seleccionadas.filter(id => id === opcion.id).length;
+    if (cantidadOpcion && (grupo.cantidad_es_maxima || limite == null || limite > 2)) {
       this.opcionesSeleccionadas.set(actuales.filter(id => id !== opcion.id));
       return;
     }
-    const idsGrupo = new Set((grupo.opciones ?? []).map(item => item.id));
-    this.opcionesSeleccionadas.set(grupo.tipo === 'unico'
+    if (cantidadOpcion && (limite === 1 || cantidadOpcion >= limite!)) return;
+    if (opcion.maneja_stock && opcion.stock_disponible != null && opcion.stock_disponible < (cantidadOpcion + 1) * this.cantidadAdicional()) return;
+    if (limite != null && seleccionadas.length >= limite) {
+      if (limite > 2) return;
+      const index = actuales.findIndex(id => idsGrupo.has(id) && (!cantidadOpcion || id !== opcion.id));
+      if (index >= 0) this.opcionesSeleccionadas.set([...actuales.filter((_, position) => position !== index), opcion.id]);
+      return;
+    }
+    this.opcionesSeleccionadas.set(grupo.tipo === 'unico' && limite == null
       ? [...actuales.filter(id => !idsGrupo.has(id)), opcion.id]
       : [...actuales, opcion.id]);
   }
 
   opcionSeleccionada(id: number): boolean { return this.opcionesSeleccionadas().includes(id); }
+  cantidadOpcionSeleccionada(id: number): number { return this.opcionesSeleccionadas().filter(selected => selected === id).length; }
+  problemaSeleccionAdicional(): string | null {
+    const producto = this.productoSeleccionado();
+    if (!producto) return null;
+    const stock = this.stockProducto(producto);
+    if (stock != null && this.cantidadAdicional() > stock) return 'No hay suficiente stock disponible.';
+    for (const opcion of (producto.modificadores ?? []).flatMap(g => g.opciones ?? [])) {
+      const disponible = opcion.stock_disponible ?? opcion.stock;
+      if (opcion.maneja_stock && disponible != null && this.cantidadOpcionSeleccionada(opcion.id) * this.cantidadAdicional() > disponible) return `No hay suficientes unidades de ${opcion.nombre}.`;
+    }
+    const activasProducto = new Set((producto.modificadores ?? []).flatMap(grupo => (grupo.opciones ?? []).filter(opcion => opcion.activo !== false).map(opcion => opcion.id)));
+    if (this.opcionesSeleccionadas().some(id => !activasProducto.has(id))) return 'Una opción fue desactivada. Elige otra.';
+    for (const grupo of producto.modificadores ?? []) {
+      const activas = new Set((grupo.opciones ?? []).filter(opcion => opcion.activo !== false).map(opcion => opcion.id));
+      const elegidas = this.opcionesSeleccionadas().filter(id => (grupo.opciones ?? []).some(opcion => opcion.id === id));
+      if (elegidas.some(id => !activas.has(id))) return `Una opción de ${grupo.nombre} fue desactivada. Elige otra.`;
+      if (grupo.cantidad_requerida != null) {
+        const limite = Number(grupo.cantidad_requerida);
+        if (grupo.cantidad_es_maxima ? elegidas.length > limite : elegidas.length !== limite) return `Debes elegir ${grupo.cantidad_es_maxima ? 'hasta' : 'exactamente'} ${limite} en ${grupo.nombre}.`;
+      } else if (grupo.requerido && elegidas.length === 0) return `Elige una opción de ${grupo.nombre}.`;
+    }
+    return null;
+  }
   disminuirCantidadAdicional(): void { this.cantidadAdicional.set(Math.max(1, this.cantidadAdicional() - 1)); }
   aumentarCantidadAdicional(): void { this.cantidadAdicional.set(Math.min(20, this.cantidadAdicional() + 1)); }
 
   agregarAdicional(): void {
     const orden = this.ordenSeleccionada();
     const producto = this.productoSeleccionado();
-    if (!orden || !producto) return;
+    if (!orden || !producto || this.reservando() || this.procesando() === 'agregar-adicional') return;
     if (!producto.activo) { this.toastr.warning(producto.nombre + ' está desactivado. Selecciona otro producto.'); return; }
+    const problema = this.problemaSeleccionAdicional();
+    if (problema) { this.toastr.warning(problema); return; }
     this.procesando.set('agregar-adicional');
     this.servicio.agregarAdicional(orden.id, {
       producto_id: producto.id,
+      reserva_sesion: this.reservaSesion,
       cantidad: this.cantidadAdicional(),
       nota: this.notaAdicional().trim() || null,
       modificador_opcion_ids: this.opcionesSeleccionadas(),
@@ -506,6 +663,17 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.cargaSub?.unsubscribe();
     this.cargaSub = this.servicio.listar(sesion?.token, this.fechaTablero()).subscribe({
       next: tablero => {
+        // Una lectura iniciada antes del guardado no debe deshacer el check optimista.
+        const pendientes = new Map([...this.misFichas(), ...this.todasFichas()].flatMap(ficha => ficha.detalles)
+          .filter(detalle => this.confirmacionesPendientes().has(detalle.id)).map(detalle => [detalle.id, detalle]));
+        for (const fichas of [tablero.todas_fichas, tablero.disponibles, tablero.mis_fichas]) {
+          for (const ficha of fichas ?? []) {
+            ficha.detalles = ficha.detalles.map(detalle => pendientes.has(detalle.id)
+              ? { ...detalle, listo: pendientes.get(detalle.id)!.listo, servido: pendientes.get(detalle.id)!.servido } : detalle);
+            ficha.listos = ficha.detalles.filter(detalle => detalle.listo).length;
+            ficha.todo_listo = ficha.detalles.length > 0 && ficha.detalles.every(detalle => detalle.listo);
+          }
+        }
         this.todasFichas.set(tablero.todas_fichas ?? []);
         this.disponibles.set(this.ordenarPorLlegada(tablero.disponibles ?? []));
         this.misFichas.set(tablero.mis_fichas ?? []);
@@ -645,18 +813,33 @@ export class ServicioHome implements OnInit, OnDestroy {
     });
   }
 
-  confirmar(detalleId: number): void {
+  confirmar(detalleId: number, servidoMostrado?: boolean): void {
     const sesion = this.requerirSesion();
     if (!sesion || this.confirmacionesPendientes().has(detalleId)) return;
     const ficha = [...this.misFichas(), ...this.todasFichas()].find(item => item.detalles.some(detalle => detalle.id === detalleId));
     const detalle = ficha?.detalles.find(item => item.id === detalleId);
-    if (!ficha || !detalle || detalle.servido || ficha.estado === 'entregado') return;
+    if (!ficha || !detalle || ficha.estado === 'entregado') return;
+    if (servidoMostrado ?? detalle.servido) {
+      this.confirmDialog.confirm({
+        title: 'Desmarcar producto servido',
+        message: `¿Confirmas que deseas devolver “${detalle.producto}” a su estado anterior? Volverá a aparecer en Cocina o Parrilla si aún estaba en preparación.`,
+        confirmText: 'Sí, desmarcar',
+        cancelText: 'Cancelar',
+        confirmColor: 'warning',
+      }).subscribe(confirmado => {
+        if (confirmado) this.desconfirmarDetalle(ficha, detalle, sesion.token);
+      });
+      return;
+    }
     const estadoAnterior = { listo: detalle.listo, servido: detalle.servido };
+    this.cargaSub?.unsubscribe();
     this.registrarActualizacionLocal(ficha.id);
     this.actualizarDetalleLocal(detalleId, true, true);
     this.marcarConfirmacionPendiente(detalleId, true);
     this.servicio.confirmar(detalleId, sesion.token).subscribe({
       next: () => {
+        this.cargaSub?.unsubscribe();
+        this.actualizarDetalleLocal(detalleId, true, true);
         this.marcarConfirmacionPendiente(detalleId, false);
         const sesionActual = this.sesionSeleccionada();
         if (sesionActual) this.guardarTableroSesion(sesionActual);
@@ -668,6 +851,53 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.toastr.warning(error?.error?.message || 'No se pudo confirmar el producto.');
         this.cargar(false);
       }
+    });
+  }
+
+  private desconfirmarDetalle(ficha: ServicioFicha, detalle: ServicioDetalle, token?: string): void {
+    if (this.confirmacionesPendientes().has(detalle.id)) return;
+    this.cargaSub?.unsubscribe();
+    this.registrarActualizacionLocal(ficha.id);
+    this.marcarConfirmacionPendiente(detalle.id, true);
+    this.servicio.desconfirmar(detalle.id, token).subscribe({
+      next: estado => {
+        this.cargaSub?.unsubscribe();
+        this.actualizarDetalleLocal(detalle.id, estado.listo, false);
+        this.marcarConfirmacionPendiente(detalle.id, false);
+        const sesionActual = this.sesionSeleccionada();
+        if (sesionActual) this.guardarTableroSesion(sesionActual);
+        this.cargar(false);
+      },
+      error: error => {
+        this.descartarActualizacionLocal(ficha.id);
+        this.marcarConfirmacionPendiente(detalle.id, false);
+        this.toastr.warning(error?.error?.message || 'No se pudo desmarcar el producto servido.');
+        this.cargar(false);
+      },
+    });
+  }
+
+  alternarCubiertos(ficha: ServicioFicha): void {
+    const sesion = this.requerirSesion();
+    if (!sesion || this.procesando() === `cubiertos-${ficha.id}`) return;
+    const anterior = !!ficha.cubiertos_entregados;
+    const siguiente = !anterior;
+    this.registrarActualizacionLocal(ficha.id);
+    this.actualizarCubiertosLocal(ficha.id, siguiente);
+    this.procesando.set(`cubiertos-${ficha.id}`);
+    this.servicio.actualizarCubiertos(ficha.id, siguiente, sesion.token).subscribe({
+      next: () => {
+        this.procesando.set(null);
+        const sesionActual = this.sesionSeleccionada();
+        if (sesionActual) this.guardarTableroSesion(sesionActual);
+      },
+      error: error => {
+        this.descartarActualizacionLocal(ficha.id);
+        this.actualizarCubiertosLocal(ficha.id, anterior);
+        this.procesando.set(null);
+        this.toastr.warning(error?.error?.message || 'No se pudo actualizar el estado de los cubiertos.');
+        this.cargar(false);
+      },
     });
   }
 
@@ -758,13 +988,14 @@ export class ServicioHome implements OnInit, OnDestroy {
       const precioUnitario = Number(detalle.precio_unitario ?? 0);
       const categoria = detalle.categoria?.trim() || 'Sin categoría';
       const clave = JSON.stringify([categoria, detalle.producto.trim().toLocaleLowerCase(), precioUnitario.toFixed(2), opciones.map(opcion => opcion.toLocaleLowerCase()), nota?.toLocaleLowerCase() || '', separarPorEstado ? detalle.listo : null, separarPorEstado ? detalle.llevando_por_id : null, separarPorEstado ? detalle.servido : null, separarPorEstado ? detalle.entregado_por : null]);
-      const grupo = grupos.get(clave) || {
+      const grupo: GrupoDetalleServicio = grupos.get(clave) || {
         clave,
         categoria,
         cantidad: 0,
         producto: detalle.producto,
         precioUnitario,
         opciones,
+        opcionesEstilo: detalle.opciones_estilo || opciones.map(nombre => ({ nombre })),
         nota,
         listo: detalle.listo,
         detalles: [],
@@ -814,24 +1045,25 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   entregar(ficha: ServicioFicha): void {
     const sesion = this.requerirSesion();
-    if (!sesion || !ficha.todo_listo || this.procesando() === `entregar-${ficha.id}`) return;
-    const indiceOriginal = this.misFichas().findIndex(item => item.id === ficha.id);
+    if (this.entregasPendientes.has(ficha.id) || ficha.detalles.some(detalle => this.confirmacionesPendientes().has(detalle.id))) return;
+    if (!sesion || !ficha.todo_listo || !ficha.cubiertos_entregados || this.tieneProductosEnCamino(ficha) || this.procesando() === `entregar-${ficha.id}`) return;
     const entregada: ServicioFicha = { ...ficha, entregada_en: new Date().toISOString() };
+    this.entregasPendientes.add(ficha.id);
     this.registrarActualizacionLocal(ficha.id);
-    this.misFichas.update(fichas => fichas.filter(item => item.id !== ficha.id));
-    this.misEntregadas.update(fichas => fichas.some(item => item.id === ficha.id) ? fichas : [entregada, ...fichas]);
     this.procesando.set(`entregar-${ficha.id}`);
     this.servicio.entregar(ficha.id, sesion.token).subscribe({
-      next: () => { this.procesando.set(null); this.toastr.success(`Ficha #${ficha.numero_orden} entregada.`); this.cargar(false); },
+      next: () => this.animarSalidaFicha(ficha.id, () => {
+        this.entregasPendientes.delete(ficha.id);
+        this.misFichas.update(fichas => fichas.filter(item => item.id !== ficha.id));
+        this.todasFichas.update(fichas => fichas.filter(item => item.id !== ficha.id));
+        this.misEntregadas.update(fichas => fichas.some(item => item.id === ficha.id) ? fichas : [entregada, ...fichas]);
+        this.procesando.set(null);
+        this.toastr.success(`Ficha #${ficha.numero_orden} entregada.`);
+        this.cargar(false);
+      }),
       error: error => {
+        this.entregasPendientes.delete(ficha.id);
         this.descartarActualizacionLocal(ficha.id);
-        this.misEntregadas.update(fichas => fichas.filter(item => item.id !== ficha.id));
-        this.misFichas.update(fichas => {
-          if (fichas.some(item => item.id === ficha.id)) return fichas;
-          const restauradas = [...fichas];
-          restauradas.splice(Math.max(0, indiceOriginal), 0, ficha);
-          return restauradas;
-        });
         this.procesando.set(null);
         this.toastr.error(error?.error?.message || 'No se pudo entregar la ficha.');
       }
@@ -968,6 +1200,27 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.cargar();
   }
 
+  private actualizarCatalogoSelector(): void {
+    const secuencia = ++this.catalogoSecuencia;
+    this.servicio.listarProductos(this.sesionSeleccionada()?.token, this.reservaSesion).subscribe({
+      next: response => {
+        if (secuencia !== this.catalogoSecuencia || this.destruido) return;
+        const productos = (response.productos ?? []).filter(item => item.activo);
+        this.productos.set(productos);
+        const actual = this.productoSeleccionado();
+        const fresco = productos.find(item => item.id === actual?.id);
+        if (!actual || !fresco) return;
+        const activas = new Set((fresco.modificadores ?? []).flatMap(grupo => (grupo.opciones ?? []).filter(opcion => opcion.activo !== false).map(opcion => opcion.id)));
+        const validas = this.opcionesSeleccionadas().filter(id => activas.has(id));
+        if (validas.length !== this.opcionesSeleccionadas().length) {
+          this.opcionesSeleccionadas.set(validas);
+          this.toastr.warning('Una opción fue desactivada. Elige otra para completar el producto.');
+        }
+        this.productoSeleccionado.set(fresco);
+      },
+    });
+  }
+
   private activarTiempoReal(): void {
     if (this.subs.length) return;
     this.subs.push(
@@ -981,14 +1234,23 @@ export class ServicioHome implements OnInit, OnDestroy {
           this.productoSeleccionado.set({ ...seleccionado, ...producto });
         }
         this.productos.update(items => items.map(item => item.id === producto.id ? { ...item, ...producto } : item));
+        if (this.selectorProductoAbierto()) this.actualizarCatalogoSelector();
         if (this.selectorProductoAbierto() && !this.productos().some(item => item.id === producto.id) && producto.activo) {
-          this.servicio.listarProductos(this.sesionSeleccionada()?.token).subscribe({ next: response => this.productos.set(response.productos ?? []) });
+          this.servicio.listarProductos(this.sesionSeleccionada()?.token, this.reservaSesion).subscribe({ next: response => this.productos.set(response.productos ?? []) });
         }
+      }),
+      this.reverb.escucharCanal('canal-inventario', '.StockActualizado').subscribe(() => {
+        if (this.selectorProductoAbierto()) this.actualizarCatalogoSelector();
+      }),
+      this.reverb.escucharCanal('canal-inventario', '.ReservaStockActualizada').subscribe(() => {
+        if (this.selectorProductoAbierto()) this.actualizarCatalogoSelector();
       }),
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCreada').subscribe(() => this.cargar(false)),
       this.reverb.escucharCanal('canal-ordenes', '.ServicioFichaActualizada').subscribe((evento: { orden_id?: number; accion?: string; mesero_id?: number | null; ficha?: ServicioFicha | null; actividad?: { user_id: number; mensaje: string } | null }) => {
         const ordenId = Number(evento.orden_id || 0);
         if (!ordenId) return;
+        // La respuesta HTTP controla la animación de nuestra propia entrega.
+        if (evento.accion === 'entregada' && this.entregasPendientes.has(ordenId)) return;
         const sesion = this.sesionSeleccionada();
         if (evento.actividad && sesion && sesion.user.id === evento.mesero_id && evento.actividad.user_id !== sesion.user.id) {
           this.toastr.info(evento.actividad.mensaje);
@@ -1002,7 +1264,11 @@ export class ServicioHome implements OnInit, OnDestroy {
         }
         if (evento.accion === 'entregada') {
           this.disponibles.update(fichas => fichas.filter(ficha => ficha.id !== ordenId));
-          this.misFichas.update(fichas => fichas.filter(ficha => ficha.id !== ordenId));
+          if (this.misFichas().some(ficha => ficha.id === ordenId)) {
+            this.animarSalidaFicha(ordenId, () => this.misFichas.update(fichas => fichas.filter(ficha => ficha.id !== ordenId)));
+          } else {
+            this.misFichas.update(fichas => fichas.filter(ficha => ficha.id !== ordenId));
+          }
           return;
         }
         if (evento.accion === 'liberada' && evento.ficha) {
@@ -1016,10 +1282,13 @@ export class ServicioHome implements OnInit, OnDestroy {
         // También sirve de respaldo si una versión antigua del servidor no envía la ficha.
         this.cargar(false);
       }),
-      this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((evento: { orden_id?: number; origen?: string | null }) => {
+      this.reverb.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe((evento: { orden_id?: number; origen?: string | null; detalles?: { id: number; listo: boolean; servido: boolean }[] }) => {
         // Los cambios de Servicio llegan por el evento liviano anterior. Evita una
         // segunda descarga completa del tablero en cada toma de ficha.
         if (evento.origen === 'servicio') return;
+        for (const detalle of evento.detalles ?? []) {
+          this.actualizarDetalleLocal(detalle.id, detalle.listo, detalle.servido);
+        }
         this.cargar(false);
       }),
       this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe((evento: { tipo?: string }) => {
@@ -1081,6 +1350,30 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.misFichas.update(actualizarFichas);
     this.todasFichas.update(actualizarFichas);
     this.disponibles.update(actualizarFichas);
+  }
+
+  private actualizarCubiertosLocal(ordenId: number, entregados: boolean): void {
+    const actualizar = (fichas: ServicioFicha[]): ServicioFicha[] => fichas.map(ficha =>
+      ficha.id === ordenId ? { ...ficha, cubiertos_entregados: entregados } : ficha);
+    this.misFichas.update(actualizar);
+    this.misEntregadas.update(actualizar);
+    this.todasFichas.update(actualizar);
+    this.disponibles.update(actualizar);
+  }
+
+  private animarSalidaFicha(ordenId: number, finalizar: () => void): void {
+    if (this.fichasSaliendo().has(ordenId)) return;
+    this.fichasSaliendo.update(actuales => new Set(actuales).add(ordenId));
+    const temporizador = setTimeout(() => {
+      finalizar();
+      this.fichasSaliendo.update(actuales => {
+        const siguientes = new Set(actuales);
+        siguientes.delete(ordenId);
+        return siguientes;
+      });
+      this.temporizadoresSalida.delete(temporizador);
+    }, 680);
+    this.temporizadoresSalida.add(temporizador);
   }
 
   private consumirActualizacionLocal(ordenId: number): boolean {

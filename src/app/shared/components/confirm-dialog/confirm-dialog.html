@@ -1,29 +1,34 @@
 <div class="dialog-container">
+  <div class="dialog-accent"
+    [class.primary]="data.confirmColor === 'primary'"
+    [class.success]="data.confirmColor === 'success'"
+    [class.warning]="data.confirmColor === 'warning'"
+    [class.danger]="!data.confirmColor || data.confirmColor === 'danger'"></div>
 
-  <!-- Header -->
   <div class="dialog-header">
-    <span class="icon"></span>
-    <h2 mat-dialog-title>{{ data.title }}</h2>
+    <span class="dialog-icon"
+      [class.primary]="data.confirmColor === 'primary'"
+      [class.success]="data.confirmColor === 'success'"
+      [class.warning]="data.confirmColor === 'warning'"
+      [class.danger]="!data.confirmColor || data.confirmColor === 'danger'">!</span>
+    <div>
+      <small>CONFIRMACIÓN</small>
+      <h2>{{ data.title }}</h2>
+    </div>
   </div>
 
-  <!-- Content -->
-  <mat-dialog-content class="content">
-    <p>{{ data.message }}</p>
-  </mat-dialog-content>
+  <p class="content">{{ data.message }}</p>
 
-  <!-- Actions -->
-  <mat-dialog-actions align="end" class="actions">
-    <button mat-stroked-button (click)="onCancel()" class="btn btn-light">
+  <div class="actions">
+    <button type="button" class="cancel-button" (click)="onCancel()">
       {{ data.cancelText || 'Cancelar' }}
     </button>
-
-    <button mat-flat-button (click)="onConfirm()" class="btn confirm-button"
+    <button type="button" class="confirm-button" (click)="onConfirm()"
       [class.primary]="data.confirmColor === 'primary'"
       [class.success]="data.confirmColor === 'success'"
       [class.warning]="data.confirmColor === 'warning'"
       [class.danger]="!data.confirmColor || data.confirmColor === 'danger'">
-      {{ data.confirmText || 'Eliminar' }}
+      {{ data.confirmText || 'Confirmar' }}
     </button>
-  </mat-dialog-actions>
-
+  </div>
 </div>

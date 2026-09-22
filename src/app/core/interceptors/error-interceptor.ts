@@ -40,6 +40,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
           );
           break;
 
+        case 409:
+          // El componente resuelve el conflicto y muestra su mensaje específico.
+          break;
+
         case 422:
           const errors = err.error?.errors;
 

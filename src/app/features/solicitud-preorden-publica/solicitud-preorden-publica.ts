@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../environments/environment';
+import { resolveProductoAssetUrls } from '../../core/utils/asset-url';
 import { ModificadorEstructurado, Producto } from '../../core/models/producto';
 import { ReverbService } from '../../core/services/reverb-service';
 import { Subscription } from 'rxjs';
@@ -48,6 +49,8 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
   private seguimiento?: ReturnType<typeof setInterval>;
   private ultimoTelefonoConsultado = '';
   private inventarioSub?: Subscription;
+  private catalogoSub?: Subscription;
+  private stockSub?: Subscription;
   categorias = computed(() => {
     const mapa = new Map<number, string>();
     this.productos().forEach(p => mapa.set(p.categoria_id, p.categoria?.nombre || 'Otros'));
@@ -72,6 +75,8 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
     this.actualizarHoraMinima();
     this.cargarCatalogo();
     this.inventarioSub = this.reverb.escucharCanal('canal-inventario', '.ReservaStockActualizada').subscribe(() => this.cargarCatalogo(false));
+    this.catalogoSub = this.reverb.escucharCanal('canal-inventario', '.ProductoActualizado').subscribe(() => this.cargarCatalogo(false));
+    this.stockSub = this.reverb.escucharCanal('canal-inventario', '.StockActualizado').subscribe(() => this.cargarCatalogo(false));
     const codigoUrl = this.route.snapshot.queryParamMap.get('codigo');
     const codigoGuardado = localStorage.getItem(this.codigoStorageKey);
     const codigo = codigoUrl || codigoGuardado;
@@ -82,7 +87,28 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
     if (mostrarCarga) this.cargando.set(true);
     this.http.get<{ productos: Producto[] }>(`${environment.apiUrl}/publico/catalogo-preorden`).subscribe({
       next: r => {
-        this.productos.set(r.productos);
+        const productos = r.productos.map(resolveProductoAssetUrls);
+        this.productos.set(productos);
+        const configurando = this.productoConfigurando();
+        if (configurando) {
+          const fresco = productos.find(producto => producto.id === configurando.id);
+          if (!fresco) this.productoConfigurando.set(null);
+          else {
+            const activas = new Set((fresco.modificadores ?? []).flatMap(grupo => (grupo.opciones ?? []).map(opcion => opcion.id)));
+            const validas = this.opcionesTemporales().filter(id => activas.has(id));
+            if (validas.length !== this.opcionesTemporales().length) {
+              this.opcionesTemporales.set(validas);
+              this.error.set('Una opción fue desactivada. Elige otra para completar el producto.');
+            }
+            this.productoConfigurando.set(fresco);
+          }
+        }
+        this.carrito.update(items => items.map(item => {
+          const fresco = r.productos.find(producto => producto.id === item.producto.id);
+          return fresco ? { ...item, producto: fresco } : item;
+        }));
+        const opcionesInvalidas = this.carrito().map(item => this.problemaOpcionesCarrito(item)).find(Boolean);
+        if (opcionesInvalidas) this.error.set(opcionesInvalidas);
         if (this.carrito().some((_, index) => this.excesoStock(index))) {
           this.error.set('La disponibilidad cambió. Reduce los productos marcados antes de enviar.');
         }
@@ -92,7 +118,7 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void { if (this.seguimiento) clearInterval(this.seguimiento); this.inventarioSub?.unsubscribe(); }
+  ngOnDestroy(): void { if (this.seguimiento) clearInterval(this.seguimiento); this.inventarioSub?.unsubscribe(); this.catalogoSub?.unsubscribe(); this.stockSub?.unsubscribe(); }
 
   telefonoIngresado(evento: Event): void {
     const input = evento.target as HTMLInputElement;
@@ -120,7 +146,7 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
   agregar(producto: Producto): void {
     if (producto.modificadores?.length) {
       this.productoConfigurando.set(producto);
-      this.opcionesTemporales.set(producto.modificadores.flatMap(g => (g.opciones ?? []).filter(o => o.predeterminado).map(o => o.id)));
+      this.opcionesTemporales.set(producto.modificadores.flatMap(g => (g.opciones ?? []).filter(o => o.predeterminado && o.activo !== false).map(o => o.id)));
       this.notaTemporal = '';
       return;
     }
@@ -130,33 +156,49 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
   toggle(grupo: ModificadorEstructurado, id: number): void {
     const actuales = this.opcionesTemporales();
     const idsGrupo = new Set((grupo.opciones ?? []).map(o => o.id));
-    if (actuales.includes(id)) this.opcionesTemporales.set(actuales.filter(x => x !== id));
-    else if (grupo.tipo === 'unico') this.opcionesTemporales.set([...actuales.filter(x => !idsGrupo.has(x)), id]);
-    else {
-      const cantidadActual = actuales.filter(x => idsGrupo.has(x)).length;
-      const limite = grupo.cantidad_requerida == null ? null : Number(grupo.cantidad_requerida);
-      if (limite !== null && cantidadActual >= limite) return;
-      this.opcionesTemporales.set([...actuales, id]);
+    const seleccionadas = actuales.filter(x => idsGrupo.has(x));
+    const cantidadOpcion = seleccionadas.filter(x => x === id).length;
+    const limite = grupo.cantidad_requerida == null ? null : Number(grupo.cantidad_requerida);
+    if (cantidadOpcion && (grupo.cantidad_es_maxima || limite == null || limite > 2)) {
+      this.opcionesTemporales.set(actuales.filter(x => x !== id));
+      return;
     }
+    if (cantidadOpcion && (limite === 1 || cantidadOpcion >= limite!)) return;
+    if (this.opcionSinStock(grupo, id)) return;
+    if (limite != null && seleccionadas.length >= limite) {
+      if (limite > 2) return;
+      const index = actuales.findIndex(x => idsGrupo.has(x) && (!cantidadOpcion || x !== id));
+      if (index >= 0) this.opcionesTemporales.set([...actuales.filter((_, position) => position !== index), id]);
+      return;
+    }
+    this.opcionesTemporales.set(grupo.tipo === 'unico' && limite == null ? [...actuales.filter(x => !idsGrupo.has(x)), id] : [...actuales, id]);
+  }
+
+  cantidadOpcion(id: number): number { return this.opcionesTemporales().filter(x => x === id).length; }
+  private opcionSinStock(grupo: ModificadorEstructurado, id: number): boolean {
+    const opcion = (grupo.opciones ?? []).find(item => item.id === id);
+    return !!opcion?.maneja_stock && opcion.stock_disponible != null
+      && this.consumo({ tipo: 'opcion', id }) + this.cantidadOpcion(id) + 1 > opcion.stock_disponible;
   }
 
   seleccionValida(): boolean {
     const p = this.productoConfigurando();
     if (!p) return false;
     return (p.modificadores ?? []).every(g => {
-      const cantidad = (g.opciones ?? []).filter(o => this.opcionesTemporales().includes(o.id)).length;
-      return g.cantidad_requerida != null ? cantidad === Number(g.cantidad_requerida) : (!g.requerido || cantidad > 0) && (g.tipo !== 'unico' || cantidad <= 1);
+      const ids = new Set((g.opciones ?? []).filter(o => o.activo !== false).map(o => o.id));
+      const cantidad = this.opcionesTemporales().filter(id => ids.has(id)).length;
+      return g.cantidad_requerida != null ? (g.cantidad_es_maxima ? cantidad <= Number(g.cantidad_requerida) : cantidad === Number(g.cantidad_requerida)) : (!g.requerido || cantidad > 0) && (g.tipo !== 'unico' || cantidad <= 1);
     });
   }
 
   opcionBloqueada(grupo: ModificadorEstructurado, id: number): boolean {
-    if (this.opcionesTemporales().includes(id)) return false;
-    const opcion = (grupo.opciones ?? []).find(item => item.id === id);
-    if (opcion?.maneja_stock && opcion.stock_disponible != null
-      && this.consumo({ tipo: 'opcion', id }) >= opcion.stock_disponible) return true;
+    const cantidadOpcion = this.cantidadOpcion(id);
+    if (cantidadOpcion && (grupo.cantidad_es_maxima || grupo.cantidad_requerida == null || Number(grupo.cantidad_requerida) > 2)) return false;
+    if (grupo.cantidad_requerida != null && cantidadOpcion >= Number(grupo.cantidad_requerida)) return true;
+    if (this.opcionSinStock(grupo, id)) return true;
     if (grupo.cantidad_requerida == null) return false;
     const idsGrupo = new Set((grupo.opciones ?? []).map(o => o.id));
-    return this.opcionesTemporales().filter(x => idsGrupo.has(x)).length >= Number(grupo.cantidad_requerida);
+    return Number(grupo.cantidad_requerida) > 2 && this.opcionesTemporales().filter(x => idsGrupo.has(x)).length >= Number(grupo.cantidad_requerida);
   }
 
   confirmarProducto(): void {
@@ -201,10 +243,12 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
   }
   quitar(index: number): void { this.carrito.update(items => items.filter((_, i) => i !== index)); }
   nombresOpciones(item: ItemSolicitud): string {
-    return (item.producto.modificadores ?? []).flatMap(g => g.opciones ?? []).filter(o => item.opcionIds.includes(o.id)).map(o => o.nombre).join(' · ');
+    return (item.producto.modificadores ?? []).flatMap(g => g.opciones ?? []).filter(o => item.opcionIds.includes(o.id))
+      .map(o => `${o.nombre} ×${item.opcionIds.filter(id => id === o.id).length}`).join(' · ');
   }
   precioItem(item: ItemSolicitud): number {
-    const extra = (item.producto.modificadores ?? []).flatMap(g => g.opciones ?? []).filter(o => item.opcionIds.includes(o.id)).reduce((s, o) => s + Number(o.precio_extra || 0), 0);
+    const opciones = (item.producto.modificadores ?? []).flatMap(g => g.opciones ?? []);
+    const extra = item.opcionIds.reduce((s, id) => s + Number(opciones.find(o => o.id === id)?.precio_extra || 0), 0);
     return Number(item.producto.precio) + extra;
   }
   puedeAumentar(index: number): boolean {
@@ -266,9 +310,23 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
   }
   private consumo(recurso: { tipo: 'producto' | 'opcion'; id: number }): number {
     return this.carrito().reduce((total, item) => {
-      const usa = recurso.tipo === 'producto' ? item.producto.id === recurso.id : item.opcionIds.includes(recurso.id);
-      return total + (usa ? item.cantidad : 0);
+      const usos = recurso.tipo === 'producto' ? Number(item.producto.id === recurso.id) : item.opcionIds.filter(id => id === recurso.id).length;
+      return total + usos * item.cantidad;
     }, 0);
+  }
+  private problemaOpcionesCarrito(item: ItemSolicitud): string | null {
+    const fresco = this.productos().find(producto => producto.id === item.producto.id);
+    if (!fresco) return `${item.producto.nombre} ya no está disponible. Quítalo del pedido.`;
+    const activas = new Set((fresco.modificadores ?? []).flatMap(grupo => (grupo.opciones ?? []).map(opcion => opcion.id)));
+    if (item.opcionIds.some(id => !activas.has(id))) return `${fresco.nombre}: una opción fue desactivada. Quita el producto y agrégalo nuevamente.`;
+    for (const grupo of fresco.modificadores ?? []) {
+      const ids = new Set((grupo.opciones ?? []).map(opcion => opcion.id));
+      const cantidad = item.opcionIds.filter(id => ids.has(id)).length;
+      if (grupo.cantidad_requerida != null && (grupo.cantidad_es_maxima ? cantidad > Number(grupo.cantidad_requerida) : cantidad !== Number(grupo.cantidad_requerida))) {
+        return `${fresco.nombre}: revisa las opciones de ${grupo.nombre}. Quita el producto y agrégalo con opciones disponibles.`;
+      }
+    }
+    return null;
   }
   moneda(valor: number): string { return `Bs ${valor.toFixed(2).replace('.', ',')}`; }
 
@@ -284,6 +342,8 @@ export class SolicitudPreordenPublica implements OnInit, OnDestroy {
     if (this.carrito().some((_, index) => this.excesoStock(index))) {
       this.error.set('La cantidad solicitada supera el stock disponible. Reduce los productos marcados.'); return;
     }
+    const opcionesInvalidas = this.carrito().map(item => this.problemaOpcionesCarrito(item)).find(Boolean);
+    if (opcionesInvalidas) { this.error.set(opcionesInvalidas); return; }
     const programada = new Date(`${this.fecha}T${this.hora}:00`);
     const minima = new Date(Date.now() + 20 * 60 * 1000);
     if (programada < minima) { this.error.set('Selecciona una hora con al menos 20 minutos de anticipación.'); return; }

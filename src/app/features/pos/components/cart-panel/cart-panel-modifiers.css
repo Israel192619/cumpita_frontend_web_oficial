@@ -32,6 +32,13 @@
 .modifier-option-btn small { flex: 0 0 auto; font-weight: 700; white-space: nowrap; }
 .modifier-option-btn .modifier-option-quantity { min-width: 1.35rem; padding: .08rem .32rem; border-radius: 999px; color: var(--color-surface); background: var(--color-primary); text-align: center; }
 .modifier-option-btn:disabled { opacity: .52; cursor: not-allowed; }
+.modifier-option-with-restock:has(.modifier-option-image-card) { flex: 0 1 160px; align-items: stretch; }
+.modifier-option-btn.modifier-option-image-card { display: grid; min-width: 140px; min-height: 154px; grid-template-columns: auto 1fr; grid-template-rows: 96px auto auto; justify-items: center; align-content: start; gap: .3rem .25rem; padding: .45rem; border-radius: 14px; text-align: center; }
+.modifier-option-btn.modifier-option-image-card::before { grid-column: 1; grid-row: 2; align-self: center; }
+.modifier-option-btn.modifier-option-image-card .modifier-option-image { width: 100%; height: 96px; grid-column: 1 / -1; grid-row: 1; border-radius: 9px; object-fit: cover; background: var(--color-bg); }
+.modifier-option-btn.modifier-option-image-card > span { grid-column: 2; grid-row: 2; white-space: normal; }
+.modifier-option-btn.modifier-option-image-card > small { grid-column: 1 / -1; grid-row: auto; white-space: normal; }
+.modifier-option-btn.modifier-option-image-card:not(.active) > span { grid-column: 1 / -1; }
 .modifier-selection-error { flex: 1 1 100%; margin: 0; color: var(--color-danger); font-size: .78rem; font-weight: 700; }
 .modifier-progress-message { flex: 1 1 100%; margin: 0; padding: .45rem .65rem; border: 1px solid color-mix(in srgb, #22c55e 48%, var(--color-border)); border-radius: 8px; color: #22c55e; background: color-mix(in srgb, #22c55e 10%, var(--color-surface)); font-size: .78rem; font-weight: 750; animation: modifier-confirmation-in .16s ease-out; }
 @keyframes modifier-confirmation-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -65,6 +72,8 @@
   .modifier-group-header app-button { align-self: flex-start; }
   .modifier-option-btn { flex: 1 1 calc(50% - 0.4rem); justify-content: center; }
   .modifier-option-btn.modifier-option-stock { flex-basis: 100%; }
+  .modifier-option-with-restock:has(.modifier-option-image-card) { flex: 1 1 calc(50% - .4rem); }
+  .modifier-option-btn.modifier-option-image-card { width: 100%; min-width: 0; }
   .modifier-modal-actions { align-items: stretch; flex-direction: column; }
   .modifier-batch-controls { justify-content: space-between; }
   .modifier-modal-actions-right, .modifier-modal-actions-right app-button { width: 100%; }
@@ -101,3 +110,10 @@
 :host-context(:root[data-theme='dark']) .modifier-option-btn.active .modifier-option-quantity{
   color:#fff;
 }
+.modifier-option-with-restock{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.modifier-restock-btn{border:1px solid var(--color-primary);border-radius:8px;padding:7px 12px;background:transparent;color:var(--color-primary);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+.modifier-restock-btn:hover{background:color-mix(in srgb,var(--color-primary) 12%,transparent)}
+.modifier-restock-form{display:flex;flex-direction:column;gap:12px}
+.modifier-restock-form p{margin:0;color:var(--color-text-secondary)}
+.modifier-restock-form input{width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);color:var(--color-text);font:inherit}
+.modifier-restock-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:8px}

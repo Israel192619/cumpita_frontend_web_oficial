@@ -11,6 +11,9 @@ import { formatCurrency } from '@app/core/config/currency.config';
 import { ThemeService } from '@app/core/services/theme-service';
 import { Icon } from '@app/shared/components/icon/icon';
 import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
+import { modifierColorStyle } from '@app/core/utils/modifier-color';
+
+interface ActualizacionKds { id: number; nueva?: boolean; cambios: KdsCambioOrden[]; }
 
 interface KdsDetalleEstadoAgrupado {
   clave: string;
@@ -27,7 +30,7 @@ interface KdsDetalleAgrupado {
   producto: KdsDetalle['producto'];
   precioUnitario: number;
   nota?: string | null;
-  opciones: string[];
+  opciones: Array<{ nombre: string; color_fondo?: string | null }>;
   estados: KdsDetalleEstadoAgrupado[];
   tieneListos: boolean;
   todosBloqueados: boolean;
@@ -40,6 +43,7 @@ interface KdsDetalleAgrupado {
   styleUrls: ['./cocina-home.css', './cocina-states.css', './cocina-theme.css'],
 })
 export class CocinaHome implements OnInit, OnDestroy {
+  readonly modifierColorStyle = modifierColorStyle;
   menuUsuarioAbierto = signal(false);
   avatarFallido = signal(false);
 
@@ -57,6 +61,9 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   ordenes = signal<KdsOrden[]>([]);
+  ordenesSaliendo = signal<KdsOrden[]>([]);
+  private tableroDuranteSalida = signal<KdsOrden[]>([]);
+  idsOrdenesSaliendo = computed(() => new Set(this.ordenesSaliendo().map(orden => orden.id)));
   preordenesProgramadas = signal<KdsOrden[]>([]);
   categoriaSeleccionada = signal<string>('todos');
   fechaSeleccionada = signal<string>(this.fechaDeHoy());
@@ -69,6 +76,14 @@ export class CocinaHome implements OnInit, OnDestroy {
   private sesionHeartbeat?: ReturnType<typeof setInterval>;
   private actualizacionPreordenTimer?: ReturnType<typeof setInterval>;
   private sincronizacionTableroTimer?: ReturnType<typeof setInterval>;
+  private cargaPedidosEnCurso = false;
+  private eventosPendientes = new Map<number, ActualizacionKds>();
+  private sincronizacionCompletaPendiente = false;
+  private eventosTimer?: ReturnType<typeof setTimeout>;
+  private destruido = false;
+  private recargaPedidosPendiente?: () => void;
+  readonly identificarOrden = (_: number, orden: KdsOrden): number => orden.id;
+  private readonly temporizadoresSalida = new Set<ReturnType<typeof setTimeout>>();
   private estacionSesionId: number | null = null;
   private readonly claveAlertasPreorden = 'tonito-kds-preordenes-alertadas';
   private preordenesAlertadas = new Set<string>();
@@ -91,6 +106,19 @@ export class CocinaHome implements OnInit, OnDestroy {
   };
   estacionId = signal<number | null>(null);
   estacionActual = signal<KdsEstacion | null>(null);
+  sinInteraccion = signal(this.leerSinInteraccion());
+  soloLecturaCocina = computed(() => this.estacionActual()?.codigo === 'COCINA' && this.sinInteraccion());
+
+  private leerSinInteraccion(): boolean {
+    try { return localStorage.getItem('kds-cocina-sin-interaccion') === 'true'; }
+    catch { return false; }
+  }
+
+  toggleSinInteraccion(): void {
+    this.sinInteraccion.update(valor => !valor);
+    try { localStorage.setItem('kds-cocina-sin-interaccion', String(this.sinInteraccion())); }
+    catch { /* La preferencia sigue vigente durante esta sesión. */ }
+  }
   estacionesDisponibles = signal<KdsEstacion[]>([]);
   estacionSolicitada = signal<string | null>(null);
   mobileFiltersOpen = signal(false);
@@ -210,9 +238,14 @@ export class CocinaHome implements OnInit, OnDestroy {
     }));
   });
 
-  ordenesTablero = computed(() => this.verServidos()
-    ? this.ordenesCompletadas()
-    : [...this.ordenesVisibles(), ...this.preordenesProgramadasVisibles()]);
+  ordenesTablero = computed(() => {
+    const base = this.verServidos()
+      ? this.ordenesCompletadas()
+      : [...this.ordenesVisibles(), ...this.preordenesProgramadasVisibles()];
+    if (this.verServidos()) return base;
+    if (!this.ordenesSaliendo().length) return base;
+    return conservarPosicionesSalida(base, this.tableroDuranteSalida(), this.ordenesSaliendo());
+  });
 
   ordenEnServicio = computed(() => {
     return this.ordenes().find((orden) =>
@@ -274,6 +307,8 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destruido = true;
+    if (this.eventosTimer) clearTimeout(this.eventosTimer);
     this.document.removeEventListener('fullscreenchange', this.syncFullscreenState);
     this.document.removeEventListener('pointerdown', this.habilitarAlertasSonoras);
     this.document.removeEventListener('keydown', this.habilitarAlertasSonoras);
@@ -281,6 +316,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     if (this.sesionHeartbeat) clearInterval(this.sesionHeartbeat);
     if (this.actualizacionPreordenTimer) clearInterval(this.actualizacionPreordenTimer);
     if (this.sincronizacionTableroTimer) clearInterval(this.sincronizacionTableroTimer);
+    this.temporizadoresSalida.forEach(temporizador => clearTimeout(temporizador));
     this.temporizadoresCambios.forEach(temporizador => clearTimeout(temporizador));
     this.temporizadoresCambios.clear();
     void this.contextoAlertas?.close();
@@ -313,7 +349,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.reverb.escucharCanal('canal-ordenes', '.OrdenCreada').subscribe((data: { tipo?: string; orden_id?: number }) => {
         if (data.orden_id) {
-          this.cargarPedidos(false, false, data.orden_id);
+          this.programarActualizacion({ id: data.orden_id, nueva: true, cambios: [] });
           this.registrarActividadKds();
         }
       }),
@@ -326,15 +362,41 @@ export class CocinaHome implements OnInit, OnDestroy {
             return;
           }
           if (data.origen !== 'kds') this.actualizacionesLocales.delete(data.orden_id);
-          this.cargarPedidos(false, true, undefined, data.orden_id, data.cambios || []);
+          this.programarActualizacion({ id: data.orden_id, cambios: data.cambios || [] });
         }
       }),
       this.reverb.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(() => {
-        this.cargarPedidos(false);
+        this.programarActualizacion();
         this.registrarActividadKds();
       }),
-      this.reverb.escucharCanal('canal-ordenes', '.KdsColaActualizada').subscribe(() => this.cargarPedidos(false)),
+      this.reverb.escucharCanal('canal-ordenes', '.KdsColaActualizada').subscribe(() => this.programarActualizacion()),
     );
+  }
+
+  private programarActualizacion(evento?: ActualizacionKds): void {
+    if (this.destruido) return;
+    if (evento) {
+      const anterior = this.eventosPendientes.get(evento.id);
+      this.eventosPendientes.set(evento.id, {
+        ...evento, nueva: evento.nueva || anterior?.nueva,
+        cambios: [...(anterior?.cambios || []), ...evento.cambios],
+      });
+    } else this.sincronizacionCompletaPendiente = true;
+    this.programarLote();
+  }
+
+  private programarLote(): void {
+    if (this.destruido || this.eventosTimer) return;
+    this.eventosTimer = setTimeout(() => {
+      this.eventosTimer = undefined;
+      if (this.cargaPedidosEnCurso) { this.programarLote(); return; }
+      const eventos = [...this.eventosPendientes.values()];
+      const completa = this.sincronizacionCompletaPendiente || !this.estacionActual() || eventos.length > 100;
+      this.eventosPendientes.clear();
+      this.sincronizacionCompletaPendiente = false;
+      this.cargarPedidos(false, true, undefined, undefined, [],
+        completa ? undefined : eventos.map(evento => evento.id), eventos);
+    }, 80);
   }
 
   cargarPedidos(
@@ -343,34 +405,61 @@ export class CocinaHome implements OnInit, OnDestroy {
     alertarNuevaOrdenId?: number,
     ordenConCambiosId?: number,
     cambiosNuevos: KdsCambioOrden[] = [],
+    ids?: number[],
+    eventos: ActualizacionKds[] = [],
   ): void {
+    if (this.cargaPedidosEnCurso) {
+      // El sondeo periódico no invalida ni acumula consultas lentas.
+      if (mostrarCarga || detectarDesbloqueos || alertarNuevaOrdenId || ordenConCambiosId) {
+        this.recargaPedidosPendiente = () => this.cargarPedidos(mostrarCarga, detectarDesbloqueos, alertarNuevaOrdenId, ordenConCambiosId, cambiosNuevos);
+      }
+      return;
+    }
+    this.cargaPedidosEnCurso = true;
     if (mostrarCarga) this.isLoading.set(true);
     const bloqueadosAntes = new Set(this.ordenes().flatMap(orden =>
       orden.detalles.filter(detalle => detalle.bloqueado).map(detalle => detalle.id)
     ));
-    this.cocinaService.obtenerPedidos(this.fechaSeleccionada(), this.estacionSolicitada()).subscribe({
+    const fechaConsulta = this.fechaSeleccionada();
+    const estacionConsulta = this.estacionSolicitada();
+    if (alertarNuevaOrdenId) eventos.push({ id: alertarNuevaOrdenId, nueva: true, cambios: [] });
+    if (ordenConCambiosId) eventos.push({ id: ordenConCambiosId, cambios: cambiosNuevos });
+    const peticion = this.cocinaService.obtenerPedidos(fechaConsulta, estacionConsulta, ids).subscribe({
       next: (res) => {
+        if (this.destruido) return;
+        if (fechaConsulta !== this.fechaSeleccionada() || estacionConsulta !== this.estacionSolicitada()) {
+          this.finalizarCargaPedidos();
+          return;
+        }
+        const tableroAntes = this.ordenesTablero();
+        const visiblesAntes = mostrarCarga || this.verServidos() ? [] : this.ordenesVisibles();
         const cambiosVisibles = new Map(this.ordenes()
           .filter(orden => this.tieneCambiosRecientes(orden))
           .map(orden => [orden.id, orden.cambios_recientes || []]));
-        if (ordenConCambiosId && cambiosNuevos.length) {
-          cambiosVisibles.set(ordenConCambiosId, [
-            ...(cambiosVisibles.get(ordenConCambiosId) || []),
-            ...cambiosNuevos,
+        for (const evento of eventos) {
+          if (evento.cambios.length) cambiosVisibles.set(evento.id, [
+            ...(cambiosVisibles.get(evento.id) || []), ...evento.cambios,
           ]);
         }
-        const ordenes = (res.ordenes || []).map(orden => ({
+        // Si un servidor anterior no devuelve orden_ids, tratar la respuesta como completa.
+        const parciales = res.orden_ids ?? undefined;
+        const ordenes = fusionarPedidosKds(this.ordenes(), res.ordenes || [], parciales).map(orden => ({
           ...orden,
+          asignacion: res.asignaciones ? res.asignaciones[orden.id] ?? null : orden.asignacion,
           cambios_recientes: cambiosVisibles.get(orden.id) || orden.cambios_recientes || [],
         }));
         this.estacionActual.set(res.estacion);
         this.estacionId.set(res.estacion.id);
         this.estacionesDisponibles.set(res.estaciones_disponibles || []);
         this.ordenes.set(ordenes);
-        if (ordenConCambiosId && cambiosNuevos.length) this.programarOcultarCambios(ordenConCambiosId);
-        this.preordenesProgramadas.set(res.preordenes_programadas || []);
+        if (visiblesAntes.length) {
+          const idsVisiblesAhora = new Set(this.ordenesVisibles().map(orden => orden.id));
+          visiblesAntes.filter(orden => !idsVisiblesAhora.has(orden.id)).forEach(orden => this.animarSalidaOrden(orden, tableroAntes));
+        }
+        eventos.filter(evento => evento.cambios.length).forEach(evento => this.programarOcultarCambios(evento.id));
+        this.preordenesProgramadas.set(fusionarPedidosKds(this.preordenesProgramadas(), res.preordenes_programadas || [], parciales, true));
         if (res.estacion.codigo === 'PARRILLA') this.avisarPreordenesTempranas(ordenes);
-        if (alertarNuevaOrdenId) this.avisarNuevaOrden(ordenes, alertarNuevaOrdenId, res.estacion);
+        eventos.filter(evento => evento.nueva).forEach(evento => this.avisarNuevaOrden(ordenes, evento.id, res.estacion));
         this.iniciarSesionKds(res.estacion.id);
         if (detectarDesbloqueos && res.estacion.codigo === 'COCINA') {
           const desbloqueados = ordenes.flatMap(orden => orden.detalles)
@@ -385,9 +474,19 @@ export class CocinaHome implements OnInit, OnDestroy {
           });
         }
         this.isLoading.set(false);
+        this.finalizarCargaPedidos();
       },
-      error: () => this.isLoading.set(false),
+      error: () => { this.isLoading.set(false); this.finalizarCargaPedidos(); },
     });
+    this.subscriptions.push(peticion);
+    this.subscriptions = this.subscriptions.filter(subscription => !subscription.closed);
+  }
+
+  private finalizarCargaPedidos(): void {
+    this.cargaPedidosEnCurso = false;
+    const recargar = this.recargaPedidosPendiente;
+    this.recargaPedidosPendiente = undefined;
+    recargar?.();
   }
 
   seleccionarEstacion(estacion: KdsEstacion): void {
@@ -511,7 +610,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.reproducirTono([784, 1046]);
   }
 
-  private reproducirTono(frecuencias: number[]): void {
+  private reproducirTono(frecuencias: number[], intensidad = .13): void {
     if (!this.alertasSonorasHabilitadas || this.contextoAlertas?.state !== 'running') return;
 
     try {
@@ -525,7 +624,7 @@ export class CocinaHome implements OnInit, OnDestroy {
         tono.type = 'sine';
         tono.frequency.value = frecuencia;
         volumen.gain.setValueAtTime(.0001, inicio + retraso);
-        volumen.gain.exponentialRampToValueAtTime(.13, inicio + retraso + .02);
+        volumen.gain.exponentialRampToValueAtTime(intensidad, inicio + retraso + .02);
         volumen.gain.exponentialRampToValueAtTime(.0001, inicio + retraso + .16);
         tono.connect(volumen).connect(contexto.destination);
         tono.start(inicio + retraso);
@@ -601,7 +700,10 @@ export class CocinaHome implements OnInit, OnDestroy {
         producto: detalle.producto,
         precioUnitario: Number(detalle.precio_unitario ?? 0),
         nota: detalle.nota,
-        opciones: opciones.map(opcion => opcion.nombre),
+        opciones: opciones.map(opcion => ({
+          nombre: opcion.nombre,
+          color_fondo: opcion.modificador?.color_fondo,
+        })),
         estados: [],
         tieneListos: false,
         todosBloqueados: true,
@@ -652,6 +754,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   marcarServido(detalle: KdsDetalle, servido: boolean): void {
+    if (this.soloLecturaCocina()) return;
     if (detalle.bloqueado || this.estaDetalleActualizando(detalle.id)) return;
     const estacionId = this.estacionActual()?.id;
     if (!estacionId) return;
@@ -662,6 +765,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     const estadoNuevo = servido ? 'servido' : 'pendiente';
     const actualizacionesOrden = this.actualizacionesLocales.get(orden.id)?.cantidad ?? 0;
     this.actualizacionesLocales.set(orden.id, { cantidad: actualizacionesOrden + 1, fecha: Date.now() });
+    this.prepararSalidaOrden(orden, [detalle.id], servido);
     this.establecerEstadoDetalleLocal(orden.id, detalle.id, estadoNuevo);
     this.marcarDetallesActualizando([detalle.id], true);
     this.cocinaService.actualizarEstadoDetalle(detalle.id, estacionId, estadoNuevo).subscribe({
@@ -726,6 +830,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   private marcarServidosMasivo(orden: KdsOrden, detalles: KdsDetalle[], servido: boolean, clave: string): void {
+    if (this.soloLecturaCocina()) return;
     const estacionId = this.estacionActual()?.id;
     const disponibles = detalles.filter(detalle => !this.estaDetalleActualizando(detalle.id));
     if (!estacionId || disponibles.length < 2 || this.operacionMasivaActualizando()) return;
@@ -737,6 +842,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.actualizacionesLocales.set(orden.id, { cantidad: actualizacionesOrden + 1, fecha: Date.now() });
     this.operacionMasivaActualizando.set(clave);
     this.marcarDetallesActualizando(ids, true);
+    this.prepararSalidaOrden(orden, ids, servido);
     this.establecerEstadosDetallesLocales(orden.id, ids, estadoNuevo);
 
     this.cocinaService.actualizarEstadoDetalles(ids, estacionId, servido ? 'servido' : 'pendiente').subscribe({
@@ -769,6 +875,26 @@ export class CocinaHome implements OnInit, OnDestroy {
       ids.forEach(id => activo ? siguientes.add(id) : siguientes.delete(id));
       return siguientes;
     });
+  }
+
+  private prepararSalidaOrden(orden: KdsOrden, detalleIds: number[], servido: boolean): void {
+    if (!servido || this.verServidos()) return;
+    const ids = new Set(detalleIds);
+    const quedaraCompleta = orden.detalles.every(detalle => this.esDetalleCompletado(detalle) || ids.has(detalle.id));
+    if (quedaraCompleta) this.animarSalidaOrden(orden);
+  }
+
+  private animarSalidaOrden(orden: KdsOrden, tablero = this.ordenesTablero()): void {
+    if (this.idsOrdenesSaliendo().has(orden.id)) return;
+    if (!this.ordenesSaliendo().length) this.tableroDuranteSalida.set(tablero);
+    this.ordenesSaliendo.update(actuales => [...actuales, orden]);
+    this.reproducirTono([660, 880, 1175], .32);
+    const temporizador = setTimeout(() => {
+      this.ordenesSaliendo.update(actuales => actuales.filter(item => item.id !== orden.id));
+      if (!this.ordenesSaliendo().length) this.tableroDuranteSalida.set([]);
+      this.temporizadoresSalida.delete(temporizador);
+    }, 680);
+    this.temporizadoresSalida.add(temporizador);
   }
 
   private establecerEstadoDetalleLocal(
@@ -1038,4 +1164,27 @@ export class CocinaHome implements OnInit, OnDestroy {
     return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   }
 
+}
+
+export function conservarPosicionesSalida(base: KdsOrden[], congelado: KdsOrden[], saliendo: KdsOrden[]): KdsOrden[] {
+  const ids = new Set(congelado.map(orden => orden.id));
+  return [
+    ...congelado.map(orden => saliendo.find(item => item.id === orden.id)
+      ?? base.find(item => item.id === orden.id) ?? orden),
+    ...base.filter(orden => !ids.has(orden.id)),
+  ];
+}
+
+// Una ficha ausente en la respuesta parcial ya no pertenece a este tablero.
+export function fusionarPedidosKds(actuales: KdsOrden[], recibidas: KdsOrden[], ids?: number[], programadas = false): KdsOrden[] {
+  if (!ids) return recibidas;
+  const reemplazadas = new Set(ids);
+  return [...actuales.filter(orden => !reemplazadas.has(orden.id)), ...recibidas].sort((a, b) => {
+    if (programadas) return (a.fecha_programada || '').localeCompare(b.fecha_programada || '') || a.id - b.id;
+    const prioridad = (orden: KdsOrden) => orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada' ? 0
+      : orden.preorden_temprana ? 2 : 1;
+    return prioridad(a) - prioridad(b)
+      || (a.preorden_temprana ? a.fecha_programada || '' : a.created_at).localeCompare(b.preorden_temprana ? b.fecha_programada || '' : b.created_at)
+      || a.id - b.id;
+  });
 }

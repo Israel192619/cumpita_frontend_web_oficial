@@ -28,6 +28,11 @@
           <p>{{ verServidos() ? ordenesCompletadas().length + ' pedidos servidos' : ordenesVisibles().length + ' pedidos activos' }}</p>
         </div>
         <div class="kds-quick-actions">
+          <button *ngIf="estacionActual()?.codigo === 'COCINA'" type="button" class="kds-served-toggle"
+            [class.is-active]="sinInteraccion()" [attr.aria-pressed]="sinInteraccion()" (click)="toggleSinInteraccion()"
+            title="Ocultar o mostrar controles de servido solo en este navegador">
+            <span>Sin interacción: {{ sinInteraccion() ? 'activado' : 'desactivado' }}</span>
+          </button>
           <button type="button" class="kds-quick-action" (click)="toggleFullscreen()" [attr.aria-label]="isFullscreen() ? 'Reducir pantalla' : 'Ampliar pantalla'" [attr.aria-pressed]="isFullscreen()">
             <app-icon [name]="isFullscreen() ? 'minimize' : 'maximize'" [size]="17" />
           </button>
@@ -127,7 +132,8 @@
       <p>{{ verServidos() ? 'No hay pedidos completamente servidos con estos filtros.' : 'Los nuevos pedidos aparecerán aquí automáticamente.' }}</p>
     </div>
 
-    <article *ngFor="let orden of ordenesTablero()" class="kds-ticket" [class.kds-ticket--cancelled]="orden.estado === 'cancelado'"
+    <article *ngFor="let orden of ordenesTablero(); trackBy: identificarOrden" class="kds-ticket" [class.kds-ticket--cancelled]="orden.estado === 'cancelado'"
+      [class.ticket-black-hole-exit]="idsOrdenesSaliendo().has(orden.id)"
       [class.kds-ticket--mesa]="orden.tipo_orden === 'dine-in'"
       [class.kds-ticket--llevar]="orden.tipo_orden === 'to-go'"
       [class.kds-ticket--delivery]="orden.tipo_orden === 'delivery'"
@@ -138,6 +144,7 @@
       [class.kds-ticket--asignada-salmon]="orden.asignacion?.color === 'salmon'"
       [class.kds-ticket--asignada-verde]="orden.asignacion?.color === 'verde'"
       [class.kds-ticket--ready-attention]="orden.detalles.some(detalle => detalle.listo_para_atender)">
+      <div *ngIf="idsOrdenesSaliendo().has(orden.id)" class="ticket-completion-overlay" aria-hidden="true"><span>✓</span></div>
       <div *ngIf="orden.estado === 'cancelado'" class="cancelled-stamp">CANCELADO</div>
       <header class="ticket-header">
         <div class="ticket-client">
@@ -169,18 +176,26 @@
       <section *ngIf="!verServidos() && detallesCompletados(orden).length" class="ticket-completed">
         <button type="button" class="ticket-completed__toggle" (click)="toggleDetallesCompletados(orden.id)"
           [attr.aria-expanded]="detallesCompletadosAbiertosPara(orden.id)">
-          <span>✓</span>
+          <span *ngIf="!soloLecturaCocina()">✓</span>
           <strong>{{ detallesCompletados(orden).length }} producto{{ detallesCompletados(orden).length === 1 ? '' : 's' }} servido{{ detallesCompletados(orden).length === 1 ? '' : 's' }}</strong>
           <small>{{ detallesCompletadosAbiertosPara(orden.id) ? 'Ocultar' : 'Revisar' }}</small>
         </button>
         <div *ngIf="detallesCompletadosAbiertosPara(orden.id)" class="ticket-completed__details">
           <div *ngFor="let grupo of gruposCompletados(orden)" class="ticket-completed__product">
-            <div><strong>{{ grupo.cantidad }} {{ grupo.producto.nombre }}</strong><small *ngIf="grupo.opciones.length">{{ grupo.opciones.join(' · ') }}</small></div>
+            <div>
+              <strong>{{ grupo.cantidad }} {{ grupo.producto.nombre }}</strong>
+              <small *ngIf="grupo.opciones.length" class="ticket-options-inline">
+                <span *ngFor="let opcion of grupo.opciones" class="ticket-option-chip"
+                  [ngStyle]="modifierColorStyle(opcion.color_fondo)">{{ opcion.nombre }}</span>
+              </small>
+            </div>
+            <ng-container *ngIf="!soloLecturaCocina()">
             <label *ngFor="let detalle of detallesDelGrupo(grupo)" class="serve-switch">
               <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'"
                 [disabled]="estaDetalleActualizando(detalle.id) || esPreordenProgramada(orden)" (change)="marcarServido(detalle, $any($event.target).checked)">
               <span></span><b>{{ esPreordenProgramada(orden) ? 'Aún no activa' : 'Servido' }}</b>
             </label>
+            </ng-container>
           </div>
         </div>
       </section>
@@ -188,7 +203,7 @@
       <section *ngFor="let grupo of gruposPorCategoria(orden)" class="ticket-category">
         <div class="ticket-category__header">
           <h3>{{ grupo.categoria }}</h3>
-          <label *ngIf="puedeMarcarCategoria(grupo)" class="bulk-serve-check">
+          <label *ngIf="!soloLecturaCocina() && puedeMarcarCategoria(grupo)" class="bulk-serve-check">
             <input type="checkbox" [checked]="todosServidos(detallesDeCategoria(grupo))"
               [disabled]="!!operacionMasivaActualizando() || esPreordenProgramada(orden)"
               (change)="confirmarCategoriaCompleta(orden, grupo, $any($event.target))">
@@ -204,7 +219,7 @@
               {{ detalleGrupo.producto.nombre }}
               <em *ngIf="detalleGrupo.precioUnitario > 0" class="ticket-item__price">{{ formatearPrecio(detalleGrupo.precioUnitario) }}</em>
             </strong>
-            <label *ngIf="detallesMarcablesProducto(detalleGrupo).length > 1" class="bulk-serve-check bulk-serve-check--product">
+            <label *ngIf="!soloLecturaCocina() && detallesMarcablesProducto(detalleGrupo).length > 1" class="bulk-serve-check bulk-serve-check--product">
               <input type="checkbox" [checked]="todosServidos(detallesMarcablesProducto(detalleGrupo))"
                 [disabled]="!!operacionMasivaActualizando()"
                 (change)="marcarProductoCompleto(orden, detalleGrupo, $any($event.target).checked)">
@@ -215,15 +230,17 @@
             </small>
             <span *ngIf="detalleGrupo.opciones.length" class="ticket-options-inline"
               [class.ticket-options-inline--kitchen]="estacionActual()?.codigo === 'COCINA'">
-              <span *ngFor="let opcion of detalleGrupo.opciones" class="ticket-option-chip">{{ opcion }}</span>
+              <span *ngFor="let opcion of detalleGrupo.opciones" class="ticket-option-chip"
+                [ngStyle]="modifierColorStyle(opcion.color_fondo)">{{ opcion.nombre }}</span>
             </span>
           </div>
-          <div class="ticket-item__states">
-            <div *ngFor="let estado of detalleGrupo.estados" class="ticket-item__state"
+          <div *ngIf="!soloLecturaCocina() || detalleGrupo.estados.some(estado => estado.bloqueado) || esPreordenProgramada(orden)" class="ticket-item__states">
+            <ng-container *ngFor="let estado of detalleGrupo.estados">
+            <div *ngIf="!soloLecturaCocina() || estado.bloqueado || esPreordenProgramada(orden)" class="ticket-item__state"
               [class.ticket-item__state--locked]="estado.bloqueado"
               [class.ticket-item__state--ready]="estado.listoParaAtender">
               <span *ngIf="estado.bloqueado || esPreordenProgramada(orden)" class="waiting-station-indicator">{{ etiquetaBloqueo(orden) }}</span>
-              <div *ngIf="!estado.bloqueado && !esPreordenProgramada(orden)" class="ticket-item__state-controls">
+              <div *ngIf="!soloLecturaCocina() && !estado.bloqueado && !esPreordenProgramada(orden)" class="ticket-item__state-controls">
                 <label *ngFor="let detalle of estado.detalles" class="serve-switch" [class.serve-switch--loading]="estaDetalleActualizando(detalle.id)">
                   <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'" [disabled]="estaDetalleActualizando(detalle.id) || detalle.bloqueado" (change)="marcarServido(detalle, $any($event.target).checked)">
                   <span></span>
@@ -231,6 +248,7 @@
                 </label>
               </div>
             </div>
+            </ng-container>
           </div>
         </div>
       </section>

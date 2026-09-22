@@ -17,8 +17,10 @@
       @if (preview) { <img [src]="preview" class="avatar-preview" alt="Vista previa"> } @else { <div class="avatar-placeholder">Sin imagen</div> }
       <div class="file-actions">
         <input #fileInput [id]="id" type="file" accept="image/*" (change)="onFileChange($event)" class="file-input-hidden" [disabled]="disabled || !!control?.disabled">
-        <button type="button" (click)="fileInput.click()" class="file-button" [disabled]="disabled || !!control?.disabled">Seleccionar</button>
-        @if (preview) { <button type="button" (click)="clearImage(fileInput)" class="file-button danger" [disabled]="disabled || !!control?.disabled">Quitar</button> }
+        <input #cameraInput type="file" accept="image/*" capture="environment" (change)="onFileChange($event)" class="file-input-hidden" [disabled]="disabled || !!control?.disabled">
+        @if (enableCamera) { <button type="button" (click)="cameraInput.click()" class="file-button camera" [disabled]="disabled || !!control?.disabled"><span aria-hidden="true">📷</span> Tomar foto</button> }
+        <button type="button" (click)="fileInput.click()" class="file-button" [disabled]="disabled || !!control?.disabled">Elegir de galería</button>
+        @if (preview) { <button type="button" (click)="clearImage(fileInput, cameraInput)" class="file-button danger" [disabled]="disabled || !!control?.disabled">Quitar</button> }
       </div>
     </div>
   }

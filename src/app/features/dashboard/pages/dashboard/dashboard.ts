@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Subject, Subscription, debounceTime } from 'rxjs';
 import { AppCurrencyPipe } from '@app/shared/pipes/app-currency.pipe';
 import { Icon } from '@app/shared/components/icon/icon';
 import { Button } from '@app/shared/components/button/button';
@@ -7,6 +8,7 @@ import { Select, SelectOption } from '@app/shared/components/select/select';
 import { DashboardData, DashboardService } from '../../services/dashboard-service';
 import { CategoriaService } from '../../../categorias/services/categoria-service';
 import { Categoria } from '../../../../core/models/categoria';
+import { ReverbService } from '../../../../core/services/reverb-service';
 
 type Periodo = 'hoy' | 'ayer' | 'ultimos_7' | 'mes' | 'personalizado';
 
@@ -16,7 +18,7 @@ type Periodo = 'hoy' | 'ayer' | 'ultimos_7' | 'mes' | 'personalizado';
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, OnDestroy {
   readonly periodOptions: SelectOption[] = [
     { label: 'Hoy', value: 'hoy' }, { label: 'Ayer', value: 'ayer' },
     { label: 'Últimos 7 días', value: 'ultimos_7' }, { label: 'Este mes', value: 'mes' },
@@ -38,10 +40,38 @@ export class Dashboard implements OnInit {
   );
   readonly periodoValido = computed(() => !!this.desde() && !!this.hasta() && this.desde() <= this.hasta());
 
-  constructor(private dashboardService: DashboardService, private categoriaService: CategoriaService) {}
+  private readonly refrescarTiempoReal = new Subject<void>();
+  private readonly subscriptions: Subscription[] = [];
+
+  constructor(
+    private dashboardService: DashboardService,
+    private categoriaService: CategoriaService,
+    private reverbService: ReverbService
+  ) {}
+
   ngOnInit(): void {
+    this.activarActualizacionTiempoReal();
     this.categoriaService.listarCategorias().subscribe({ next: categorias => this.categorias.set(categorias) });
     this.cargar();
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.forEach(subscription => subscription.unsubscribe());
+    this.refrescarTiempoReal.complete();
+  }
+
+  private activarActualizacionTiempoReal(): void {
+    const solicitarActualizacion = () => this.refrescarTiempoReal.next();
+
+    this.subscriptions.push(
+      this.refrescarTiempoReal.pipe(debounceTime(180)).subscribe(() => this.cargar()),
+      this.reverbService.escucharCanal('canal-caja', '.CajaActualizada').subscribe(solicitarActualizacion),
+      this.reverbService.escucharCanal('canal-ordenes', '.OrdenCreada').subscribe(solicitarActualizacion),
+      this.reverbService.escucharCanal('canal-ordenes', '.OrdenCocinaActualizada').subscribe(solicitarActualizacion),
+      this.reverbService.escucharCanal('canal-ordenes', '.PreordenActualizada').subscribe(solicitarActualizacion),
+      this.reverbService.escucharCanal('canal-inventario', '.StockActualizado').subscribe(solicitarActualizacion),
+      this.reverbService.escucharCanal('canal-inventario', '.ProductoActualizado').subscribe(solicitarActualizacion)
+    );
   }
 
   cambiarCategoria(value: unknown): void {
