@@ -124,41 +124,6 @@
     </button>
   </section>
 
-  <section *ngIf="!verServidos()" class="station-assistant" aria-label="Asistente de estación">
-    <div class="station-assistant__eyebrow">
-      <span>Asistente · {{ estacionActual()?.nombre || 'Estación' }}</span>
-      <button *ngIf="tareaAsistenteActual()" type="button" class="station-assistant__listen" (click)="escucharTareaAsistente()">🔊 Escuchar</button>
-    </div>
-
-    <div *ngIf="tareaAsistenteActual() as tarea; else asistenteSinTareas" class="station-assistant__main">
-      <article class="station-assistant__current">
-        <div class="station-assistant__identity">
-          <div><span>Completar ahora</span><h2>Ficha #{{ tarea.orden.numero_orden }}</h2></div>
-          <div class="station-assistant__wait"><strong>{{ tarea.esperaMinutos }} min</strong><small>esperando</small></div>
-        </div>
-        <div class="station-assistant__products">
-          <span *ngFor="let producto of tarea.productos">{{ producto.cantidad }}× {{ producto.nombre }}</span>
-        </div>
-        <p class="station-assistant__reason">{{ tarea.motivo }}</p>
-        <button *ngIf="!soloLecturaCocina()" type="button" class="station-assistant__confirm"
-          [disabled]="!!operacionMasivaActualizando()" (click)="confirmarTareaAsistente()">
-          {{ operacionMasivaActualizando() === 'asistente:' + tarea.orden.id ? 'GUARDANDO…' : 'CONFIRMAR TODO LISTO' }}
-        </button>
-      </article>
-
-      <aside class="station-assistant__next">
-        <h3>Próximas 3</h3>
-        <article *ngFor="let siguiente of proximasTareasAsistente()">
-          <strong>#{{ siguiente.orden.numero_orden }}</strong>
-          <span>{{ siguiente.cantidad }} producto{{ siguiente.cantidad === 1 ? '' : 's' }}</span>
-          <small>{{ siguiente.productos[0].cantidad }}× {{ siguiente.productos[0].nombre }}</small>
-        </article>
-      </aside>
-    </div>
-
-    <ng-template #asistenteSinTareas><p class="station-assistant__empty">✓ No hay tareas pendientes para esta estación.</p></ng-template>
-  </section>
-
   <div *ngIf="resumenProduccionAbierto()" class="production-modal-backdrop" (click)="cerrarResumenProduccion()">
     <section class="production-modal" role="dialog" aria-modal="true" aria-labelledby="production-modal-title"
       (click)="$event.stopPropagation()">

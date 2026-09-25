@@ -73,42 +73,6 @@
 
   @if (loading()) { <div class="loading">Actualizando fichas…</div> }
 
-  @if (tareaAsistenteServicioActual(); as tarea) {
-    <section class="service-assistant" aria-label="Asistente de Servicio">
-      <div class="service-assistant__eyebrow">
-        <span>ASISTENTE · HACER AHORA</span>
-        <button type="button" class="service-assistant__listen" (click)="escucharTareaAsistenteServicio()">🔊 Escuchar</button>
-      </div>
-      <div class="service-assistant__layout">
-        <div class="service-assistant__current">
-          <div class="service-assistant__identity">
-            <div><small>FICHA</small><strong>#{{ tarea.ficha.numero_orden }}</strong></div>
-            <div><small>DESTINO</small><strong>{{ tarea.ficha.mesa ? 'Mesa ' + tarea.ficha.mesa : etiquetaTipo(tarea.ficha) }}</strong></div>
-            <div class="service-assistant__wait"><strong>{{ formatearEspera(tarea.ficha.tiempo_espera_minutos) }}</strong><small>esperando</small></div>
-          </div>
-          <h2>{{ tarea.titulo }}</h2>
-          <p>{{ tarea.motivo }}</p>
-          <button type="button" class="service-assistant__action" [disabled]="!!procesando()" (click)="ejecutarTareaAsistenteServicio()">
-            @switch (tarea.accion) {
-              @case ('entregar') { CONFIRMAR ENTREGA }
-              @case ('cubiertos') { MARCAR CUBIERTOS }
-              @case ('confirmar') { CONFIRMAR PRODUCTO }
-              @default { TOMAR ESTA FICHA }
-            }
-          </button>
-        </div>
-        @if (proximasTareasAsistenteServicio().length) {
-          <div class="service-assistant__next">
-            <h3>Después</h3>
-            @for (siguiente of proximasTareasAsistenteServicio(); track siguiente.accion + '-' + siguiente.ficha.id + '-' + (siguiente.detalleId || 0)) {
-              <article><strong>#{{ siguiente.ficha.numero_orden }}</strong><span>{{ siguiente.titulo }}</span><small>{{ siguiente.ficha.mesa ? 'Mesa ' + siguiente.ficha.mesa : etiquetaTipo(siguiente.ficha) }} · {{ formatearEspera(siguiente.ficha.tiempo_espera_minutos) }}</small></article>
-            }
-          </div>
-        }
-      </div>
-    </section>
-  }
-
   <ng-template #fichaServicio let-ficha>
           <article class="work-ticket"
             [class.ticket-black-hole-exit]="fichasSaliendo().has(ficha.id)"
