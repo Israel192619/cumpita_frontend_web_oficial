@@ -38,7 +38,7 @@ interface GrupoDetalleServicio {
   detalles: ServicioFicha['detalles'];
 }
 
-export type AccionAsistenteServicio = 'entregar' | 'cubiertos' | 'confirmar' | 'tomar';
+export type AccionAsistenteServicio = 'entregar' | 'cubiertos' | 'tomar';
 
 export interface TareaAsistenteServicio {
   ficha: ServicioFicha;
@@ -47,9 +47,6 @@ export interface TareaAsistenteServicio {
   motivo: string;
   prioridad: number;
   puntaje: number;
-  detalleId?: number;
-  detalleIds?: number[];
-  producto?: string;
 }
 
 export function construirColaAsistenteServicio(
@@ -68,26 +65,11 @@ export function construirColaAsistenteServicio(
   };
   const propias = vigentes(misFichas).flatMap<TareaAsistenteServicio>(ficha => {
     const { puntos } = extras(ficha);
-    const listos = ficha.detalles.filter(detalle => detalle.listo && !detalle.servido && !detalle.llevando_por_id);
     if (ficha.todo_listo && ficha.cubiertos_entregados && !ficha.detalles.some(detalle => !!detalle.llevando_por_id)) {
       return [{ ficha, accion: 'entregar', titulo: 'LLEVAR PEDIDO COMPLETO', motivo: 'Todos los productos y cubiertos están listos.', prioridad: 1, puntaje: puntos + 100 }];
     }
     if (ficha.todo_listo && !ficha.cubiertos_entregados) {
       return [{ ficha, accion: 'cubiertos', titulo: 'Llevar cubiertos', motivo: 'La comida está lista; faltan los cubiertos para entregar.', prioridad: 2, puntaje: puntos + 100 }];
-    }
-    const detalle = listos.find(item => !esProductoSalidaInmediata(item.categoria, item.producto));
-    if (detalle) {
-      return [{
-        ficha,
-        accion: 'confirmar',
-        titulo: `LLEVAR AHORA · ${detalle.producto}`,
-        motivo: 'Este producto ya está listo y debe salir antes de enfriarse.',
-        prioridad: 3,
-        puntaje: puntos + 90,
-        detalleId: detalle.id,
-        detalleIds: [detalle.id],
-        producto: detalle.producto,
-      }];
     }
     return [];
   });

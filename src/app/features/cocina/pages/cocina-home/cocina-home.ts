@@ -74,7 +74,12 @@ export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now(
   return ordenes
     .filter(orden => orden.estado !== 'cancelado' && !orden.preorden_temprana)
     .map(orden => {
-      const detalles = orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido' && !detalle.bloqueado);
+      const principalesPendientes = orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido'
+        && !esProductoSalidaInmediata(detalle.producto.categoria?.nombre, detalle.producto.nombre));
+      // Sopas y bebidas se atienden por separado. Una ficha principal no debe
+      // adelantarse mientras pescado, pollo u otro plato siga esperando estación.
+      if (principalesPendientes.some(detalle => detalle.bloqueado)) return null;
+      const detalles = principalesPendientes.filter(detalle => !detalle.bloqueado);
       if (!detalles.length) return null;
       const productos = new Map<string, number>();
       detalles.forEach(detalle => productos.set(detalle.producto.nombre, (productos.get(detalle.producto.nombre) ?? 0) + Number(detalle.cantidad || 1)));

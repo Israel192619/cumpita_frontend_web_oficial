@@ -32,15 +32,26 @@ describe('Asistente de Cocina y Parrilla', () => {
     const sopa = orden(2, '2026-09-25T11:20:00');
     sopa.detalles[0].producto = { id: 2, nombre: 'Sopa de pollo', categoria: { id: 4, nombre: 'Sopas' } };
     const cola = construirColaAsistenteKds([antigua, sopa], new Date('2026-09-25T11:30:00').getTime());
-    expect(cola.map(tarea => tarea.orden.id)).toEqual([1, 2]);
-    expect(cola[1].puntaje).toBe(20);
+    expect(cola.map(tarea => tarea.orden.id)).toEqual([1]);
     expect([antigua, sopa].sort(compararLlegadaKds).map(item => item.id)).toEqual([1, 2]);
   });
 
   it('mantiene las subcategorias locales de bebidas fuera de la prioridad de ficha', () => {
     const gaseosa = orden(1, '2026-09-25T11:00:00');
     gaseosa.detalles[0].producto = { id: 1, nombre: 'Coca Cola', categoria: { id: 2, nombre: 'Gaseosas' } };
-    expect(construirColaAsistenteKds([gaseosa], new Date('2026-09-25T11:01:00').getTime())[0].puntaje).toBe(2);
+    expect(construirColaAsistenteKds([gaseosa], new Date('2026-09-25T11:01:00').getTime())).toEqual([]);
+  });
+
+  it('espera a Parrilla antes de priorizar una ficha con pollo y pescado', () => {
+    const mixta = orden(1, '2026-09-25T11:00:00');
+    mixta.detalles = [
+      { id: 11, cantidad: 1, estado_cocina: 'pendiente', bloqueado: false, producto: { id: 1, nombre: 'Pollo', categoria: { id: 1, nombre: 'Pollos' } } },
+      { id: 12, cantidad: 1, estado_cocina: 'pendiente', bloqueado: true, producto: { id: 2, nombre: 'Pescado', categoria: { id: 2, nombre: 'Pescados' } } },
+    ];
+    expect(construirColaAsistenteKds([mixta])).toEqual([]);
+    mixta.detalles[1].bloqueado = false;
+    mixta.detalles[1].listo_para_atender = true;
+    expect(construirColaAsistenteKds([mixta])[0].tipo).toBe('dependencia');
   });
 });
 
