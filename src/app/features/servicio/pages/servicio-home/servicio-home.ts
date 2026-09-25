@@ -147,8 +147,17 @@ export class ServicioHome implements OnInit, OnDestroy {
   colaAsistenteServicio = computed(() => this.sesionSeleccionada()
     ? construirColaAsistenteServicio(this.misFichas(), this.disponibles())
     : []);
-  tareaAsistenteServicioActual = computed(() => this.colaAsistenteServicio()[0] ?? null);
-  proximasTareasAsistenteServicio = computed(() => this.colaAsistenteServicio().slice(1, 4));
+  prioridadesAsistenteServicio = computed(() => new Map(
+    this.colaAsistenteServicio().slice(0, 4).map((tarea, indice) => [tarea.ficha.id, { prioridad: indice + 1, tarea }]),
+  ));
+
+  prioridadAsistenteServicio(fichaId: number): number {
+    return this.prioridadesAsistenteServicio().get(fichaId)?.prioridad ?? 0;
+  }
+
+  tareaAsistenteParaFicha(fichaId: number): TareaAsistenteServicio | null {
+    return this.prioridadesAsistenteServicio().get(fichaId)?.tarea ?? null;
+  }
   misEntregadas = signal<ServicioFicha[]>([]);
   viendoEntregadas = signal(false);
   viendoTodas = signal(false);
@@ -929,26 +938,6 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.pin.reset();
       }
     });
-  }
-
-  ejecutarTareaAsistenteServicio(): void {
-    const tarea = this.tareaAsistenteServicioActual();
-    if (!tarea || this.procesando()) return;
-    if (tarea.accion === 'entregar') this.entregar(tarea.ficha);
-    else if (tarea.accion === 'cubiertos') this.alternarCubiertos(tarea.ficha);
-    else if (tarea.accion === 'confirmar' && tarea.detalleId) this.confirmar(tarea.detalleId, false);
-    else if (tarea.accion === 'tomar') this.tomar(tarea.ficha);
-  }
-
-  escucharTareaAsistenteServicio(): void {
-    const tarea = this.tareaAsistenteServicioActual();
-    if (!tarea || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
-    const destino = tarea.ficha.mesa ? `mesa ${tarea.ficha.mesa}` : this.etiquetaTipo(tarea.ficha);
-    speechSynthesis.cancel();
-    const mensaje = new SpeechSynthesisUtterance(`Mesero. ${tarea.titulo}. Ficha ${tarea.ficha.numero_orden}, ${destino}.`);
-    mensaje.lang = 'es-BO';
-    mensaje.rate = 1.05;
-    speechSynthesis.speak(mensaje);
   }
 
   tomar(ficha: ServicioFicha): void {

@@ -218,8 +218,13 @@ export class CocinaHome implements OnInit, OnDestroy {
   verServidos = signal(false);
   detallesCompletadosAbiertos = signal<Record<number, boolean>>({});
   colaAsistente = computed(() => construirColaAsistenteKds(this.ordenes()));
-  tareaAsistenteActual = computed(() => this.colaAsistente()[0] ?? null);
-  proximasTareasAsistente = computed(() => this.colaAsistente().slice(1, 4));
+  prioridadesAsistente = computed(() => new Map(
+    this.colaAsistente().slice(0, 4).map((tarea, indice) => [tarea.orden.id, indice + 1]),
+  ));
+
+  prioridadAsistente(ordenId: number): number {
+    return this.prioridadesAsistente().get(ordenId) ?? 0;
+  }
 
   puedeCambiarEstacion = computed(() => this.estacionesDisponibles().length > 1);
   esAdministrador = computed(() => {
@@ -288,28 +293,6 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   cerrarResumenProduccion(): void {
     this.resumenProduccionAbierto.set(false);
-  }
-
-  confirmarTareaAsistente(): void {
-    const tarea = this.tareaAsistenteActual();
-    if (!tarea || this.soloLecturaCocina() || this.operacionMasivaActualizando()) return;
-    if (tarea.detalles.length === 1) {
-      this.marcarServido(tarea.detalles[0], true);
-      return;
-    }
-    this.marcarServidosMasivo(tarea.orden, tarea.detalles, true, `asistente:${tarea.orden.id}`);
-  }
-
-  escucharTareaAsistente(): void {
-    const tarea = this.tareaAsistenteActual();
-    if (!tarea || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
-    const estacion = this.estacionActual()?.nombre || 'Estación';
-    const productos = tarea.productos.map(producto => `${producto.cantidad} ${producto.nombre}`).join(', ');
-    speechSynthesis.cancel();
-    const mensaje = new SpeechSynthesisUtterance(`${estacion}. Ahora ficha ${tarea.orden.numero_orden}. ${productos}.`);
-    mensaje.lang = 'es-BO';
-    mensaje.rate = 1.05;
-    speechSynthesis.speak(mensaje);
   }
 
   categorias = computed(() => {

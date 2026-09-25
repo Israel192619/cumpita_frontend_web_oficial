@@ -73,49 +73,16 @@
 
   @if (loading()) { <div class="loading">Actualizando fichas…</div> }
 
-  @if (tareaAsistenteServicioActual(); as tarea) {
-    <section class="service-assistant" aria-label="Asistente de Servicio">
-      <div class="service-assistant__eyebrow">
-        <span>ASISTENTE · HACER AHORA</span>
-        <button type="button" class="service-assistant__listen" (click)="escucharTareaAsistenteServicio()">🔊 Escuchar</button>
-      </div>
-      <div class="service-assistant__layout">
-        <div class="service-assistant__current">
-          <div class="service-assistant__identity">
-            <div><small>FICHA</small><strong>#{{ tarea.ficha.numero_orden }}</strong></div>
-            <div><small>DESTINO</small><strong>{{ tarea.ficha.mesa ? 'Mesa ' + tarea.ficha.mesa : etiquetaTipo(tarea.ficha) }}</strong></div>
-            <div class="service-assistant__wait"><strong>{{ formatearEspera(tarea.ficha.tiempo_espera_minutos) }}</strong><small>esperando</small></div>
-          </div>
-          <h2>{{ tarea.titulo }}</h2>
-          <p>{{ tarea.motivo }}</p>
-          <button type="button" class="service-assistant__action" [disabled]="!!procesando()" (click)="ejecutarTareaAsistenteServicio()">
-            @switch (tarea.accion) {
-              @case ('entregar') { CONFIRMAR ENTREGA }
-              @case ('cubiertos') { MARCAR CUBIERTOS }
-              @case ('confirmar') { CONFIRMAR PRODUCTO }
-              @default { TOMAR ESTA FICHA }
-            }
-          </button>
-        </div>
-        @if (proximasTareasAsistenteServicio().length) {
-          <div class="service-assistant__next">
-            <h3>Después</h3>
-            @for (siguiente of proximasTareasAsistenteServicio(); track siguiente.accion + '-' + siguiente.ficha.id + '-' + (siguiente.detalleId || 0)) {
-              <article><strong>#{{ siguiente.ficha.numero_orden }}</strong><span>{{ siguiente.titulo }}</span><small>{{ siguiente.ficha.mesa ? 'Mesa ' + siguiente.ficha.mesa : etiquetaTipo(siguiente.ficha) }} · {{ formatearEspera(siguiente.ficha.tiempo_espera_minutos) }}</small></article>
-            }
-          </div>
-        }
-      </div>
-    </section>
-  }
-
   <ng-template #fichaServicio let-ficha>
           <article class="work-ticket"
             [class.ticket-black-hole-exit]="fichasSaliendo().has(ficha.id)"
             [class.work-ticket--mesa]="ficha.tipo_orden === 'dine-in'"
             [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go' || ficha.tipo_orden === 'delivery'"
-            [class.work-ticket--preorden]="ficha.tipo_flujo === 'preorden'">
+            [class.work-ticket--preorden]="ficha.tipo_flujo === 'preorden'"
+            [class.work-ticket--assistant-now]="prioridadAsistenteServicio(ficha.id) === 1"
+            [class.work-ticket--assistant-next]="prioridadAsistenteServicio(ficha.id) > 1">
             @if (fichasSaliendo().has(ficha.id)) { <div class="ticket-completion-overlay" aria-hidden="true"><span>✓</span></div> }
+            @if (prioridadAsistenteServicio(ficha.id); as prioridad) { <div class="service-assistant-badge" [class.service-assistant-badge--now]="prioridad === 1">{{ prioridad === 1 ? 'HACER AHORA · ' + tareaAsistenteParaFicha(ficha.id)?.titulo : 'SIGUE #' + prioridad }}</div> }
             <div class="ticket-head"><div><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3><small class="ticket-table">{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="ticket-head-actions">@if (ficha.tipo_orden === 'dine-in' && ficha.estado !== 'cancelado' && ficha.estado !== 'entregado') { <button type="button" class="service-table-action" [disabled]="!sesionSeleccionada() || asignandoMesaId() === ficha.id" (click)="abrirMesas(ficha)">{{ ficha.mesa ? 'Cambiar mesa' : 'Asignar mesa' }}</button> }<button type="button" class="cutlery-check" [class.checked]="ficha.cubiertos_entregados" [disabled]="!sesionSeleccionada() || ficha.estado === 'cancelado' || procesando() === 'cubiertos-' + ficha.id" [attr.aria-pressed]="!!ficha.cubiertos_entregados" [attr.aria-label]="ficha.cubiertos_entregados ? 'Marcar cubiertos como pendientes' : 'Marcar cubiertos como entregados'" [title]="ficha.cubiertos_entregados ? 'Cubiertos entregados; presiona para desmarcar' : 'Cubiertos pendientes; presiona para marcar'" (click)="alternarCubiertos(ficha)"><app-icon name="restaurant" [size]="19" /><span>Cubiertos</span><b>{{ ficha.cubiertos_entregados ? '✓' : '' }}</b></button><div class="progress" [class.complete]="ficha.todo_listo"><b>{{ ficha.listos }}/{{ ficha.total_items }}</b><small>listos</small></div></div></div>
             <div class="ticket-detail-meta"><span class="ticket-client-name"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ etiquetaTipo(ficha) }}</span><span>Responsable: {{ ficha.mesero || 'Sin asignar' }}</span><span>{{ ficha.hora }}</span><span [class.wait-alert]="ficha.tiempo_espera_minutos >= 15">{{ formatearEspera(ficha.tiempo_espera_minutos) }} esperando</span></div>
             @if (ficha.observaciones) { <aside class="order-general-comment"><strong>Comentario general</strong><p>{{ ficha.observaciones }}</p></aside> }
@@ -209,7 +176,8 @@
     <div class="section-heading"><div><span>COLA COMÚN</span><h2>Disponibles</h2></div><strong>{{ disponibles().length }}</strong></div>
     <div class="available-grid">
       @for (ficha of disponibles(); track ficha.id) {
-        <article class="available-ticket" [class.has-ready-items]="ficha.listos > 0" [class.all-ready-items]="ficha.todo_listo">
+        <article class="available-ticket" [class.has-ready-items]="ficha.listos > 0" [class.all-ready-items]="ficha.todo_listo" [class.available-ticket--assistant-now]="prioridadAsistenteServicio(ficha.id) === 1" [class.available-ticket--assistant-next]="prioridadAsistenteServicio(ficha.id) > 1">
+          @if (prioridadAsistenteServicio(ficha.id); as prioridad) { <div class="service-assistant-badge" [class.service-assistant-badge--now]="prioridad === 1">{{ prioridad === 1 ? 'HACER AHORA · TOMAR FICHA' : 'SIGUE #' + prioridad }}</div> }
           <div class="available-ticket-copy"><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3>@if (ficha.tipo_orden === 'dine-in' && ficha.estado !== 'cancelado' && ficha.estado !== 'entregado') { <button type="button" class="service-table-action" [disabled]="!sesionSeleccionada() || asignandoMesaId() === ficha.id" (click)="abrirMesas(ficha)">{{ ficha.mesa ? 'Cambiar mesa' : 'Asignar mesa' }}</button> }<div class="available-customer"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b><strong>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</strong></div><p>{{ ficha.total_items }} producto{{ ficha.total_items === 1 ? '' : 's' }}</p>@if (ficha.observaciones) { <small class="available-order-comment">{{ ficha.observaciones }}</small> }@if (ficha.listos > 0) { <small class="available-ready-state">{{ ficha.todo_listo ? 'Todo listo para recoger' : ficha.listos + ' de ' + ficha.total_items + ' listos' }}</small> }</div>
           <app-button text="TOMAR" size="large" [disabled]="procesando() === 'tomar-' + ficha.id" (buttonClick)="tomar(ficha)" />
         </article>
