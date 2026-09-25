@@ -176,10 +176,14 @@
     <div class="section-heading"><div><span>COLA COMÚN</span><h2>Disponibles</h2></div><strong>{{ disponibles().length }}</strong></div>
     <div class="available-grid">
       @for (ficha of disponibles(); track ficha.id) {
-        <article class="available-ticket" [class.has-ready-items]="ficha.listos > 0" [class.all-ready-items]="ficha.todo_listo" [class.available-ticket--assistant-now]="prioridadAsistenteServicio(ficha.id) === 1" [class.available-ticket--assistant-next]="prioridadAsistenteServicio(ficha.id) > 1">
+        <article class="available-ticket" [class.has-ready-items]="ficha.listos > 0" [class.all-ready-items]="ficha.todo_listo" [class.available-ticket--urgent-support]="ficha.todo_listo && !ficha.apoyo_por_id" [class.available-ticket--assistant-now]="prioridadAsistenteServicio(ficha.id) === 1" [class.available-ticket--assistant-next]="prioridadAsistenteServicio(ficha.id) > 1">
           @if (prioridadAsistenteServicio(ficha.id); as prioridad) { <div class="service-assistant-badge" [class.service-assistant-badge--now]="prioridad === 1">{{ prioridad === 1 ? tareaAsistenteParaFicha(ficha.id)?.titulo : 'DESPUÉS #' + prioridad }}</div> }
-          <div class="available-ticket-copy"><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3>@if (ficha.tipo_orden === 'dine-in' && ficha.estado !== 'cancelado' && ficha.estado !== 'entregado') { <button type="button" class="service-table-action" [disabled]="!sesionSeleccionada() || asignandoMesaId() === ficha.id" (click)="abrirMesas(ficha)">{{ ficha.mesa ? 'Cambiar mesa' : 'Asignar mesa' }}</button> }<div class="available-customer"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b><strong>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</strong></div><p>{{ ficha.total_items }} producto{{ ficha.total_items === 1 ? '' : 's' }}</p>@if (tieneSalidaInmediataServicio(ficha)) { <small class="immediate-ready-state">SOPA O BEBIDA · SERVIR PRIMERO</small> }@if (ficha.observaciones) { <small class="available-order-comment">{{ ficha.observaciones }}</small> }@if (ficha.listos > 0) { <small class="available-ready-state">{{ ficha.todo_listo ? 'Todo listo para recoger' : ficha.listos + ' de ' + ficha.total_items + ' listos' }}</small> }</div>
-          <app-button text="TOMAR" size="large" [disabled]="procesando() === 'tomar-' + ficha.id" (buttonClick)="tomar(ficha)" />
+          <div class="available-ticket-copy"><span>FICHA</span>@if (ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada') { <mark class="preorder-priority">PREORDEN</mark> }<h3>#{{ ficha.numero_orden }}</h3>@if (ficha.tipo_orden === 'dine-in' && ficha.estado !== 'cancelado' && ficha.estado !== 'entregado') { <button type="button" class="service-table-action" [disabled]="!sesionSeleccionada() || asignandoMesaId() === ficha.id" (click)="abrirMesas(ficha)">{{ ficha.mesa ? 'Cambiar mesa' : 'Asignar mesa' }}</button> }<div class="available-customer"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b><strong>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</strong></div><p>{{ ficha.total_items }} producto{{ ficha.total_items === 1 ? '' : 's' }}</p>@if (tieneSalidaInmediataServicio(ficha)) { <small class="immediate-ready-state">SOPA O BEBIDA · SERVIR PRIMERO</small> }@if (ficha.observaciones) { <small class="available-order-comment">{{ ficha.observaciones }}</small> }@if (ficha.apoyo_por) { <small class="support-carrying-state">{{ ficha.apoyo_por }} está llevando esta ficha</small> } @else if (ficha.todo_listo) { <small class="urgent-unassigned-state">URGENTE · SIN MESERO</small> } @else if (ficha.listos > 0) { <small class="available-ready-state">{{ ficha.listos }} de {{ ficha.total_items }} listos</small> }</div>
+          @if (alcanzoLimiteFichas() && ficha.todo_listo && !ficha.apoyo_por_id) {
+            <app-button text="SERVIR COMO APOYO" size="large" [disabled]="!!procesando()" (buttonClick)="procesarApoyo(ficha, 'llevar')" />
+          } @else {
+            <app-button [text]="alcanzoLimiteFichas() ? 'LÍMITE 2 FICHAS' : 'TOMAR'" size="large" [disabled]="alcanzoLimiteFichas() || procesando() === 'tomar-' + ficha.id || !!ficha.apoyo_por_id" (buttonClick)="tomar(ficha)" />
+          }
         </article>
       } @empty { <div class="empty-card">No hay fichas disponibles.</div> }
     </div>
@@ -332,6 +336,29 @@
     <h3>Tienes {{ misFichas().length }} ficha(s)</h3><p>Al cerrar, solamente tus fichas volverán a la cola. Los estados y el historial se conservarán.</p>
     <div modal-actions><app-button text="Seguir atendiendo" color="secondary" (buttonClick)="confirmarCierre.set(false)" /><app-button text="Liberar y cerrar" color="danger" (buttonClick)="cerrarYLiberar()" /></div>
   </app-modal>
+
+  @if (ofertaAsistenteMesero(); as oferta) {
+    <app-modal [open]="true"
+      [title]="oferta.tipo === 'apoyo_reservado' ? 'Pedido reservado para ti' : oferta.tipo === 'apoyo' ? 'Ayuda urgente' : 'Siguiente ficha recomendada'"
+      size="small" (closed)="pasarOfertaAsistente(oferta)">
+      <div class="waiter-offer" [class.waiter-offer--urgent]="oferta.tipo !== 'asignacion'">
+        <strong>Ficha #{{ oferta.ficha.numero_orden }}</strong>
+        <span>{{ oferta.ficha.mesa ? 'Mesa ' + oferta.ficha.mesa : etiquetaTipo(oferta.ficha) }} · {{ oferta.ficha.cliente || 'Cliente no registrado' }}</span>
+        <p>{{ resumenOferta(oferta.ficha) }}</p>
+        @if (oferta.tipo === 'asignacion') {
+          <small>Tienes {{ misFichas().length }} de 2 fichas. El asistente recomienda atender esta ahora.</small>
+        } @else if (oferta.tipo === 'apoyo') {
+          <small>Ya tienes dos fichas, pero este pedido está completo. Puedes llevarlo como ayuda sin añadir una tercera ficha.</small>
+        } @else {
+          <small>La ficha está reservada únicamente para ti. Confirma cuando la entregues al cliente.</small>
+        }
+      </div>
+      <div modal-actions>
+        <app-button [text]="oferta.tipo === 'apoyo_reservado' ? 'Liberar ayuda' : 'Pasar a otro'" color="secondary" [disabled]="!!procesando()" (buttonClick)="pasarOfertaAsistente(oferta)" />
+        <app-button [text]="oferta.tipo === 'asignacion' ? 'ACEPTAR FICHA' : oferta.tipo === 'apoyo' ? 'SERVIR COMO APOYO' : 'CONFIRMAR ENTREGA'" [disabled]="!!procesando()" (buttonClick)="aceptarOfertaAsistente(oferta)" />
+      </div>
+    </app-modal>
+  }
 </main>
 
 <app-mesas-modal [isOpen]="seleccionMesaAbierta()" [mesas]="mesasDisponibles()" [loading]="cargandoMesas()"

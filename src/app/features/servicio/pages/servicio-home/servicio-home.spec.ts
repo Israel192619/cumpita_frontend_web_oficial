@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { Producto } from '../../../../core/models/producto';
-import { construirColaAsistenteServicio, ServicioHome } from './servicio-home';
+import { construirColaAsistenteServicio, seleccionarOfertaAsistenteMesero, ServicioHome } from './servicio-home';
 
 describe('Asistente de Servicio', () => {
   const ficha = (cambios: any = {}) => ({
@@ -56,6 +56,31 @@ describe('Asistente de Servicio', () => {
     expect(component.esGrupoSalidaInmediataServicio({
       categoria: 'Sopas', producto: 'Sopa', listo: false, detalles: [propia.detalles[1]],
     } as any)).toBe(true);
+  });
+
+  it('ofrece una ficha normal hasta completar dos responsabilidades', () => {
+    const oferta = seleccionarOfertaAsistenteMesero([ficha({ id: 1 })], [ficha({ id: 2 })], 7, {}, 1000);
+    expect(oferta?.tipo).toBe('asignacion');
+    expect(oferta?.ficha.id).toBe(2);
+  });
+
+  it('ofrece apoyo urgente sin añadir una tercera ficha y respeta pasar a otro', () => {
+    const propias = [ficha({ id: 1 }), ficha({ id: 2 })];
+    const lista = ficha({ id: 3, todo_listo: true });
+    expect(seleccionarOfertaAsistenteMesero(propias, [lista], 7, {}, 1000)?.tipo).toBe('apoyo');
+    expect(seleccionarOfertaAsistenteMesero(propias, [lista], 7, { '7:3': 2000 }, 1000)).toBeNull();
+  });
+
+  it('prioriza el trabajo propio urgente antes de ofrecer ayuda', () => {
+    const propias = [ficha({ id: 1, todo_listo: true }), ficha({ id: 2 })];
+    const lista = ficha({ id: 3, todo_listo: true });
+    expect(seleccionarOfertaAsistenteMesero(propias, [lista], 7, {}, 1000)).toBeNull();
+  });
+
+  it('mantiene la confirmación de una ayuda ya reservada por el mesero', () => {
+    const reservada = ficha({ id: 3, todo_listo: true, apoyo_por_id: 7, apoyo_por: 'Mesero A' });
+    const oferta = seleccionarOfertaAsistenteMesero([ficha({ id: 1 }), ficha({ id: 2 })], [reservada], 7, {}, 1000);
+    expect(oferta?.tipo).toBe('apoyo_reservado');
   });
 });
 

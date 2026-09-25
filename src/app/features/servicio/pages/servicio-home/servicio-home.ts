@@ -49,6 +49,11 @@ export interface TareaAsistenteServicio {
   puntaje: number;
 }
 
+export interface OfertaAsistenteMesero {
+  ficha: ServicioFicha;
+  tipo: 'asignacion' | 'apoyo' | 'apoyo_reservado';
+}
+
 export function construirColaAsistenteServicio(
   misFichas: ServicioFicha[],
   disponibles: ServicioFicha[],
@@ -99,6 +104,28 @@ export function construirColaAsistenteServicio(
       || a.prioridad - b.prioridad
       || a.ficha.numero_orden - b.ficha.numero_orden;
   });
+}
+
+export function seleccionarOfertaAsistenteMesero(
+  misFichas: ServicioFicha[],
+  disponibles: ServicioFicha[],
+  meseroId: number,
+  ofertasPasadas: Record<string, number>,
+  ahora = Date.now(),
+): OfertaAsistenteMesero | null {
+  const omitida = (ficha: ServicioFicha) => (ofertasPasadas[`${meseroId}:${ficha.id}`] ?? 0) > ahora;
+  const apoyoReservado = disponibles.find(ficha => ficha.apoyo_por_id === meseroId);
+  if (apoyoReservado) return { ficha: apoyoReservado, tipo: 'apoyo_reservado' };
+  if (misFichas.length >= 2) {
+    const tieneTrabajoPropioUrgente = misFichas.some(ficha => ficha.todo_listo || ficha.detalles.some(detalle =>
+      !detalle.servido && !detalle.llevando_por_id && esProductoSalidaInmediata(detalle.categoria, detalle.producto)));
+    if (tieneTrabajoPropioUrgente) return null;
+    const apoyo = disponibles.find(ficha => ficha.todo_listo && !ficha.apoyo_por_id && !omitida(ficha));
+    return apoyo ? { ficha: apoyo, tipo: 'apoyo' } : null;
+  }
+  const tarea = construirColaAsistenteServicio(misFichas, disponibles).find(item => item.accion === 'tomar'
+    && !item.ficha.apoyo_por_id && !omitida(item.ficha));
+  return tarea ? { ficha: tarea.ficha, tipo: 'asignacion' } : null;
 }
 
 @Component({
@@ -157,6 +184,21 @@ export class ServicioHome implements OnInit, OnDestroy {
   prioridadesAsistenteServicio = computed(() => new Map(
     this.colaAsistenteServicio().slice(0, 3).map((tarea, indice) => [tarea.ficha.id, { prioridad: indice + 1, tarea }]),
   ));
+  private readonly maxFichasPorMesero = 2;
+  private readonly pausaOfertaMs = 120000;
+  ofertasPasadas = signal<Record<string, number>>(this.leerOfertasPasadas());
+  relojOfertas = signal(Date.now());
+  alcanzoLimiteFichas = computed(() => this.misFichas().length >= this.maxFichasPorMesero);
+  ofertaAsistenteMesero = computed<OfertaAsistenteMesero | null>(() => {
+    const sesion = this.sesionSeleccionada();
+    const interfazOcupada = this.mostrarIngreso() || this.preordenesAbiertas() || this.solicitudesAbiertas()
+      || this.buscarOrdenAbierto() || this.selectorProductoAbierto() || this.confirmarCierre()
+      || !!this.fichaALiberar() || !!this.fichaUbicacion() || this.seleccionMesaAbierta();
+    if (!this.esMesero() || !sesion || this.fechaTablero() !== this.fechaHoy || this.loading() || interfazOcupada) return null;
+    return seleccionarOfertaAsistenteMesero(
+      this.misFichas(), this.disponibles(), sesion.user.id, this.ofertasPasadas(), this.relojOfertas(),
+    );
+  });
 
   prioridadAsistenteServicio(fichaId: number): number {
     return this.prioridadesAsistenteServicio().get(fichaId)?.prioridad ?? 0;
@@ -248,6 +290,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   private reservaPendiente?: { items: { producto_id: number; cantidad: number }[]; opciones: { modificador_opcion_id: number; cantidad: number }[]; token?: string };
   private ultimaDemanda = '';
   private reservaTimer?: ReturnType<typeof setInterval>;
+  private ofertaTimer?: ReturnType<typeof setInterval>;
   private catalogoSecuencia = 0;
   private destruido = false;
   readonly fechaHoy = this.fechaLocal(new Date());
@@ -356,6 +399,11 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.ofertaTimer = setInterval(() => {
+      const ahora = Date.now();
+      this.relojOfertas.set(ahora);
+      if (this.disponibles().some(ficha => ficha.apoyo_hasta && new Date(ficha.apoyo_hasta).getTime() <= ahora)) this.cargar(false);
+    }, 5000);
     this.reservaTimer = setInterval(() => {
       if (this.selectorProductoAbierto() && this.productoSeleccionado() && this.procesando() !== 'agregar-adicional') {
         this.encolarReserva(JSON.parse(this.ultimaDemanda));
@@ -420,6 +468,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destruido = true;
     if (this.reservaTimer) clearInterval(this.reservaTimer);
+    if (this.ofertaTimer) clearInterval(this.ofertaTimer);
     this.encolarReserva({ items: [], opciones: [], token: this.sesionSeleccionada()?.token });
     if (this.temporizadorBusquedaProducto) clearTimeout(this.temporizadorBusquedaProducto);
     this.temporizadoresSalida.forEach(temporizador => clearTimeout(temporizador));
@@ -984,6 +1033,54 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.cargar(false);
       }
     });
+  }
+
+  aceptarOfertaAsistente(oferta: OfertaAsistenteMesero): void {
+    if (oferta.tipo === 'asignacion') {
+      this.tomar(oferta.ficha);
+      return;
+    }
+    this.procesarApoyo(oferta.ficha, oferta.tipo === 'apoyo' ? 'llevar' : 'entregar');
+  }
+
+  pasarOfertaAsistente(oferta: OfertaAsistenteMesero): void {
+    if (oferta.tipo === 'apoyo_reservado') {
+      this.procesarApoyo(oferta.ficha, 'cancelar');
+      return;
+    }
+    const sesion = this.sesionSeleccionada();
+    if (!sesion) return;
+    const clave = `${sesion.user.id}:${oferta.ficha.id}`;
+    const siguientes = { ...this.ofertasPasadas(), [clave]: Date.now() + this.pausaOfertaMs };
+    this.ofertasPasadas.set(siguientes);
+    this.guardarOfertasPasadas(siguientes);
+    this.relojOfertas.set(Date.now());
+    this.toastr.info('La ficha se ofrecerá a otro mesero. Volverá a consultarte en 2 minutos si sigue libre.');
+  }
+
+  procesarApoyo(ficha: ServicioFicha, accion: 'llevar' | 'cancelar' | 'entregar'): void {
+    const sesion = this.requerirSesion();
+    const claveProceso = `apoyo-${accion}-${ficha.id}`;
+    if (!sesion || this.procesando() === claveProceso) return;
+    this.procesando.set(claveProceso);
+    this.servicio.apoyar(ficha.id, accion, sesion.token).subscribe({
+      next: () => {
+        this.procesando.set(null);
+        this.toastr.success(accion === 'llevar'
+          ? `Ficha #${ficha.numero_orden} reservada. Llévala completa.`
+          : accion === 'cancelar' ? 'La ficha volvió a quedar disponible.' : 'Pedido entregado.');
+        this.cargar(false);
+      },
+      error: error => {
+        this.procesando.set(null);
+        this.toastr.warning(error?.error?.message || 'No se pudo actualizar la ayuda.');
+        this.cargar(false);
+      },
+    });
+  }
+
+  resumenOferta(ficha: ServicioFicha): string {
+    return ficha.detalles.map(detalle => `${detalle.cantidad}× ${detalle.producto}`).join(' · ');
   }
 
   confirmar(detalleId: number, servidoMostrado?: boolean): void {
@@ -1602,6 +1699,18 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.loading.set(false);
     this.confirmarCierre.set(false);
     this.fichaALiberar.set(null);
+  }
+
+  private leerOfertasPasadas(): Record<string, number> {
+    try {
+      const guardadas = JSON.parse(localStorage.getItem('servicio_ofertas_pasadas') ?? '{}') as Record<string, number>;
+      const ahora = Date.now();
+      return Object.fromEntries(Object.entries(guardadas).filter(([, hasta]) => Number(hasta) > ahora));
+    } catch { return {}; }
+  }
+
+  private guardarOfertasPasadas(ofertas: Record<string, number>): void {
+    try { localStorage.setItem('servicio_ofertas_pasadas', JSON.stringify(ofertas)); } catch { /* La pausa sigue activa durante esta sesión. */ }
   }
 
   private fechaLocal(fecha: Date): string {
