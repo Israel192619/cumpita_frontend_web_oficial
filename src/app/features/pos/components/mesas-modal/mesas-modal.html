@@ -1,6 +1,7 @@
 <app-modal [open]="isOpen()" title="Seleccionar mesa" size="full" (closed)="close()">
-  <div class="floor-help"><span class="entrance-dot"></span> Entrada principal <span>Selecciona una mesa</span></div>
+  <div class="floor-help"><span class="entrance-dot"></span> Entrada principal <span>{{ loading() ? 'Actualizando mesas…' : 'Selecciona una mesa' }}</span></div>
   <div class="restaurant-floor" aria-label="Plano del restaurante">
+    <div *ngIf="loading()" class="floor-loading" role="status">Cargando mesas…</div>
     <div class="entrance"><span>ENTRADA</span><b>↓</b></div><div class="inner-wall" aria-hidden="true"></div><div class="cashier">CAJA</div>
       <button
         *ngFor="let mesa of mesas()"
@@ -9,6 +10,7 @@
         [class]="'mesa-btn estado-' + mesa.estado"
         [style.left.%]="mesa.posicion_x ?? posicionPredeterminada(mesa).x"
         [style.top.%]="mesa.posicion_y ?? posicionPredeterminada(mesa).y"
+        [disabled]="loading()"
         (click)="selectMesa(mesa)"
         [title]="'Mesa ' + mesa.numero + ' - Cap: ' + mesa.capacidad"
       >

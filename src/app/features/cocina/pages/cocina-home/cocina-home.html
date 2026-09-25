@@ -80,26 +80,39 @@
   </header>
 
   <section class="production-summary" aria-label="Producción pendiente">
-    <strong class="production-summary__title">Producción pendiente</strong>
+    <button type="button" class="production-summary__content" (click)="abrirResumenProduccion()"
+      [disabled]="!tieneProduccionPendiente()" aria-haspopup="dialog"
+      [attr.aria-label]="tieneProduccionPendiente() ? 'Abrir cantidades de producción pendiente' : 'Sin producción pendiente'">
+      <strong class="production-summary__title">Producción pendiente</strong>
 
-    <div *ngIf="estacionActual()?.codigo === 'PARRILLA'" class="production-list production-list--grill">
-      <div *ngFor="let item of produccionParrilla()" class="production-item production-item--grill">
-        <span class="production-item__product">{{ item.etiqueta }} <b>×{{ item.cantidad }}</b></span>
-        <span *ngIf="item.terminos.length" class="production-item__terms">
-          <ng-container *ngFor="let termino of item.terminos; let ultimo = last">
-            {{ termino.nombre }} {{ termino.cantidad }}<span *ngIf="!ultimo"> · </span>
-          </ng-container>
+      <div *ngIf="estacionActual()?.codigo === 'PARRILLA'" class="production-list production-list--grill">
+        <div *ngFor="let item of produccionParrilla()" class="production-item production-item--grill">
+          <span class="production-item__product">{{ item.etiqueta }} <b>×{{ item.cantidad }}</b></span>
+          <span *ngIf="item.terminos.length" class="production-item__terms">
+            <ng-container *ngFor="let termino of item.terminos; let ultimo = last">
+              {{ termino.nombre }} {{ termino.cantidad }}<span *ngIf="!ultimo"> · </span>
+            </ng-container>
+          </span>
+        </div>
+      </div>
+
+      <div *ngIf="estacionActual()?.codigo !== 'PARRILLA'" class="production-list production-list--kitchen">
+        <span *ngFor="let item of produccionCocina(); let ultimo = last" class="production-token">
+          {{ item.nombre }} <b>×{{ item.cantidad }}</b><i *ngIf="!ultimo">|</i>
         </span>
       </div>
-    </div>
 
-    <div *ngIf="estacionActual()?.codigo !== 'PARRILLA'" class="production-list production-list--kitchen">
-      <span *ngFor="let item of produccionCocina(); let ultimo = last" class="production-token">
-        {{ item.nombre }} <b>×{{ item.cantidad }}</b><i *ngIf="!ultimo">|</i>
-      </span>
-    </div>
+      <span *ngIf="!isLoading() && !tieneProduccionPendiente()" class="production-summary__empty">Sin producción pendiente</span>
+    </button>
 
-    <span *ngIf="!isLoading() && !tieneProduccionPendiente()" class="production-summary__empty">Sin producción pendiente</span>
+    <button *ngIf="estacionActual()?.codigo === 'PARRILLA'" type="button" class="push-notification-toggle"
+      [class.is-active]="notificacionesParrillaActivas()" [class.is-blocked]="permisoNotificaciones() === 'denied'"
+      [disabled]="notificacionesParrillaProcesando() || notificacionesParrillaActivas()"
+      (click)="activarNotificacionesParrilla()" [attr.aria-pressed]="notificacionesParrillaActivas()"
+      [title]="textoNotificacionesParrilla()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+      <span>{{ textoNotificacionesParrilla() }}</span>
+    </button>
 
     <button type="button" class="kds-controls-toggle" (click)="toggleControles()"
       [attr.aria-label]="controlesOcultos() ? 'Mostrar controles del monitor' : 'Ocultar controles del monitor'"
@@ -110,6 +123,61 @@
       </svg>
     </button>
   </section>
+
+  <div *ngIf="resumenProduccionAbierto()" class="production-modal-backdrop" (click)="cerrarResumenProduccion()">
+    <section class="production-modal" role="dialog" aria-modal="true" aria-labelledby="production-modal-title"
+      (click)="$event.stopPropagation()">
+      <header class="production-modal__header">
+        <div>
+          <span>Conteo actual</span>
+          <h2 id="production-modal-title">Producción pendiente</h2>
+          <p>{{ estacionActual()?.nombre || 'Estación' }}</p>
+        </div>
+        <button type="button" class="production-modal__close" (click)="cerrarResumenProduccion()" aria-label="Cerrar conteo">×</button>
+      </header>
+
+      <div class="production-modal__grid" *ngIf="estacionActual()?.codigo === 'PARRILLA'; else resumenCocina">
+        <article *ngFor="let item of produccionParrilla()" class="production-count-card">
+          <strong>{{ item.cantidad }}</strong>
+          <h3>{{ item.etiqueta }}</h3>
+          <p *ngIf="item.terminos.length">
+            <ng-container *ngFor="let termino of item.terminos; let ultimo = last">
+              {{ termino.nombre }}: {{ termino.cantidad }}<span *ngIf="!ultimo"> · </span>
+            </ng-container>
+          </p>
+        </article>
+      </div>
+
+      <ng-template #resumenCocina>
+        <div class="production-modal__grid">
+          <article *ngFor="let item of produccionCocina()" class="production-count-card">
+            <strong>{{ item.cantidad }}</strong>
+            <h3>{{ item.nombre }}</h3>
+          </article>
+        </div>
+      </ng-template>
+    </section>
+  </div>
+
+  <div *ngIf="alertaParrillaActual() as alerta" class="grill-alert-backdrop">
+    <section class="grill-alert" role="alertdialog" aria-modal="true" aria-labelledby="grill-alert-title">
+      <div class="grill-alert__countdown" aria-label="Tiempo restante">
+        <span [style.width.%]="segundosAlertaParrilla() * 5"></span>
+      </div>
+      <header>
+        <span>Nuevo pedido en Parrilla</span>
+        <h2 id="grill-alert-title">Poner a cocer</h2>
+        <small>Este aviso continuará en {{ segundosAlertaParrilla() }} s</small>
+      </header>
+      <div class="grill-alert__products">
+        <article *ngFor="let producto of alerta.productos">
+          <strong>{{ producto.cantidad }}</strong>
+          <h3>{{ producto.nombre }} <span>{{ formatearPrecio(producto.precio) }}</span></h3>
+        </article>
+      </div>
+      <button type="button" (click)="aceptarAlertaParrilla()" autofocus>Aceptar</button>
+    </section>
+  </div>
 
   <aside class="kds-service-panel" *ngIf="ordenEnServicio() as ordenEnServicio">
     <div class="service-panel__label">En servicio</div>
@@ -164,6 +232,11 @@
         <span *ngIf="orden.estado !== 'preparando' && orden.estado !== 'pendiente'" class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
       </div>
 
+      <aside *ngIf="orden.observaciones" class="order-general-comment">
+        <strong>Comentario general</strong>
+        <p>{{ orden.observaciones }}</p>
+      </aside>
+
       <section *ngIf="tieneCambiosRecientes(orden)" class="ticket-changes">
         <strong>Cambio en POS</strong>
         <span class="change-summary" [ngClass]="claseCambio(orden.cambios_recientes![0])">
@@ -184,7 +257,13 @@
           <div *ngFor="let grupo of gruposCompletados(orden)" class="ticket-completed__product">
             <div>
               <strong>{{ grupo.cantidad }} {{ grupo.producto.nombre }}</strong>
-              <small *ngIf="grupo.opciones.length" class="ticket-options-inline">
+              <small *ngIf="estacionActual()?.codigo === 'COCINA' && (grupo.combinacionNombre || grupo.combinacionResumen)" class="ticket-options-inline ticket-options-inline--kitchen">
+                <span *ngIf="grupo.combinacionResumen" class="ticket-option-chip">{{ grupo.combinacionResumen }}</span>
+                <span *ngIf="!grupo.combinacionResumen" class="ticket-option-chip">{{ grupo.combinacionNombre }}</span>
+                <span *ngFor="let ajuste of (grupo.combinacionResumen ? [] : grupo.combinacionAjustes)" class="ticket-option-chip"
+                  [ngStyle]="modifierColorStyle(ajuste.color_fondo)">{{ ajuste.nombre }}</span>
+              </small>
+              <small *ngIf="(!grupo.combinacionNombre || estacionActual()?.codigo !== 'COCINA') && grupo.opciones.length" class="ticket-options-inline">
                 <span *ngFor="let opcion of grupo.opciones" class="ticket-option-chip"
                   [ngStyle]="modifierColorStyle(opcion.color_fondo)">{{ opcion.nombre }}</span>
               </small>
@@ -228,7 +307,13 @@
             <small *ngIf="detalleGrupo.nota" class="product-comment">
               {{ detalleGrupo.nota }}
             </small>
-            <span *ngIf="detalleGrupo.opciones.length" class="ticket-options-inline"
+            <span *ngIf="estacionActual()?.codigo === 'COCINA' && (detalleGrupo.combinacionNombre || detalleGrupo.combinacionResumen)" class="ticket-options-inline ticket-options-inline--kitchen">
+              <span *ngIf="detalleGrupo.combinacionResumen" class="ticket-option-chip">{{ detalleGrupo.combinacionResumen }}</span>
+              <span *ngIf="!detalleGrupo.combinacionResumen" class="ticket-option-chip">{{ detalleGrupo.combinacionNombre }}</span>
+              <span *ngFor="let ajuste of (detalleGrupo.combinacionResumen ? [] : detalleGrupo.combinacionAjustes)" class="ticket-option-chip"
+                [ngStyle]="modifierColorStyle(ajuste.color_fondo)">{{ ajuste.nombre }}</span>
+            </span>
+            <span *ngIf="(!detalleGrupo.combinacionNombre || estacionActual()?.codigo !== 'COCINA') && detalleGrupo.opciones.length" class="ticket-options-inline"
               [class.ticket-options-inline--kitchen]="estacionActual()?.codigo === 'COCINA'">
               <span *ngFor="let opcion of detalleGrupo.opciones" class="ticket-option-chip"
                 [ngStyle]="modifierColorStyle(opcion.color_fondo)">{{ opcion.nombre }}</span>

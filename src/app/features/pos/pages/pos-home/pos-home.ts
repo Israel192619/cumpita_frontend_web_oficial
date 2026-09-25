@@ -4,7 +4,7 @@ import { Component, signal, computed, effect, OnInit, OnDestroy, ViewChild, Host
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, Observable, shareReplay, Subscription } from 'rxjs';
-import { CancelacionInfo, CartItem, CartItemModificador, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen, CajaUsuario } from '../../services';
+import { CancelacionInfo, CartItem, CartItemModificador, DeliveryChangeState, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen, CajaUsuario, normalizeOrderComment } from '../../services';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
 import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, PosToolbarComponent, ProductGridComponent } from '../../components';
@@ -22,6 +22,18 @@ import { ThemeService } from '../../../../core/services/theme-service';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { resolveProductoAssetUrls } from '../../../../core/utils/asset-url';
 import { PosSearchFocus } from '../../directives/pos-search-focus';
+
+interface SavedPosDraft {
+  version: 1;
+  savedAt: number;
+  cart: CartItem[];
+  client: ClienteSearch | null;
+  table: Mesa | null;
+  orderType: 'dine-in' | 'to-go' | 'delivery';
+  orderDate: string | null;
+  preorderDate: string | null;
+  comment: string;
+}
 
 @Component({
   selector: 'app-pos-home',
@@ -74,6 +86,8 @@ export class PosHome implements OnInit, OnDestroy {
   private reservationIdentityChannel?: BroadcastChannel;
   private reservationIdentityTimer?: ReturnType<typeof setTimeout>;
   private readonly reservationInstanceId = this.createClientUuid();
+  private readonly draftMaxAgeMs = 24 * 60 * 60 * 1000;
+  private draftPersistenceReady = signal(false);
   categorias = signal<Categoria[]>([]);
   productos = signal<Producto[]>([]);
   allProductos = signal<Producto[]>([]);
@@ -151,6 +165,7 @@ export class PosHome implements OnInit, OnDestroy {
   selectedMesa = signal<Mesa | null>(null);
   orderDate = signal<string | null>(null);
   preorderDate = signal<string | null>(null);
+  orderComment = signal('');
   editingOrder = signal<Order | null>(null);
   isFullyPaid = computed(() => this.isEditingOrder() && this.remainingAmount() === 0);
   showHistoryButton = computed(() => this.hasPaymentHistory() && this.isFullyPaid());
@@ -161,6 +176,10 @@ export class PosHome implements OnInit, OnDestroy {
   preordersSearch = signal<string>('');
   todayOrdersSearch = signal<string>('');
   isPendingOrdersModalOpen = signal<boolean>(false);
+  isDeliveryCashModalOpen = signal(false);
+  deliveryCashSearch = signal('');
+  deliveryAmountDrafts = signal<Record<number, string>>({});
+  deliveryProcessingId = signal<number | null>(null);
   isTodayOrdersModalOpen = signal<boolean>(false);
   todayOrderDetail = signal<Order | null>(null);
   todayOrderDetailLoading = signal(false);
@@ -183,6 +202,16 @@ export class PosHome implements OnInit, OnDestroy {
   isCajero = signal(false);
 
   pendingOrdersCount = computed(() => this.pendingOrders().length);
+  deliveryOrders = computed(() => {
+    const query = this.deliveryCashSearch().trim().toLowerCase();
+    const today = this.getTodayDateString();
+    return this.orders().filter(orden => {
+      if (orden.tipo_orden !== 'delivery' || orden.estado === 'cancelado' || this.getOrderLocalDateString(orden) !== today) return false;
+      const text = [orden.numero_orden ?? orden.id, orden.cliente_nombre ?? '', orden.estado ?? '', orden.estado_pago ?? ''].join(' ').toLowerCase();
+      return !query || text.includes(query);
+    });
+  });
+  deliveryPendingCount = computed(() => this.deliveryOrders().filter(orden => this.getPendingOrderRemainingAmount(orden) > 0).length);
   todayPreorders = computed(() => {
     const today = this.getTodayDateString();
     return this.preorders().filter(orden => this.normalizeOrderDate(orden.fecha_programada)?.slice(0, 10) === today);
@@ -368,12 +397,16 @@ export class PosHome implements OnInit, OnDestroy {
       }
       this.reservationHadDemand = hasDemand;
     });
+    effect(() => {
+      if (!this.draftPersistenceReady() || this.isEditingOrder()) return;
+      this.persistCurrentDraft();
+    });
   }
 
   private beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     if (this.hasUnsavedChanges()) {
       event.preventDefault();
-      event.returnValue = 'Si sales se perderán todos los cambios.';
+      event.returnValue = 'El pedido en proceso quedará guardado en este dispositivo.';
       return event.returnValue;
     }
     return undefined;
@@ -383,6 +416,8 @@ export class PosHome implements OnInit, OnDestroy {
     this.themeService.initialize();
     window.addEventListener('beforeunload', this.beforeUnloadHandler);
     this.initializeReservationTabIdentity();
+    this.restoreSavedDraft();
+    this.draftPersistenceReady.set(true);
     this.reservationKeepAliveTimer = setInterval(() => {
       if (!this.reservationIdentityReady() || this.isEditingOrder()) return;
       const reservation = this.reservationItems();
@@ -710,6 +745,7 @@ export class PosHome implements OnInit, OnDestroy {
     // Construir payload según OrderPayload
     const itemsPayload = this.carrito().map((item) => ({
       producto_id: item.producto.id,
+      combinacion_id: item.combinacion_id,
       cantidad: item.cantidad,
       precio_unitario: item.precio_unitario,
       nota: item.nota?.trim() || null,
@@ -732,6 +768,7 @@ export class PosHome implements OnInit, OnDestroy {
       fecha_orden: this.orderDate() ?? null,
       fecha_programada: this.preorderDate() ?? null,
       tipo_flujo: this.preorderDate() ? 'preorden' : 'normal',
+      observaciones: this.orderComment().trim() || null,
     };
 
     const payload = this.posService.mapOrderToPayload(order);
@@ -785,6 +822,7 @@ export class PosHome implements OnInit, OnDestroy {
       this.orderType.set((orden.tipo_orden as any) || 'dine-in');
       this.orderDate.set(this.normalizeOrderDate(orden.fecha_orden));
       this.preorderDate.set(this.normalizeOrderDate(orden.fecha_programada));
+      this.orderComment.set(normalizeOrderComment(orden.observaciones, orden.cliente_nombre ?? orden.cliente?.nombre));
       
       // Cargar cliente y mesa si existen
       const clienteSeleccionado: ClienteSearch | null = orden.cliente
@@ -847,6 +885,8 @@ export class PosHome implements OnInit, OnDestroy {
           subtotal: subtotalLinea,
           modificadores: modificadoresMapeados,
           orden_detalle_id: item.id,
+          combinacion_id: item.producto_combinacion_id ?? undefined,
+          combinacion_nombre: item.combinacion_nombre ?? undefined,
           nota: item.nota || ''
         };
       });
@@ -989,6 +1029,7 @@ export class PosHome implements OnInit, OnDestroy {
           precio_unitario: precio,
           subtotal: (precio + extras) * cantidad,
           modificadores,
+          ...this.combinationFields(producto, modificadores),
           isModifierVariant: !!modifierProblem,
           requiresModifierSelection: !!modifierProblem,
         };
@@ -1018,9 +1059,14 @@ export class PosHome implements OnInit, OnDestroy {
 
   private getDefaultModifiers(producto: Producto): CartItemModificador[] {
     const modificadores: CartItemModificador[] = [];
+    const combinacionPredeterminada = (producto.combinaciones ?? []).find(combinacion => combinacion.activo && combinacion.predeterminada);
+    const idsCombinacion = combinacionPredeterminada
+      ? new Set((combinacionPredeterminada.opciones ?? []).map(opcion => opcion.id))
+      : null;
     (producto.modificadores || []).forEach(grupo => {
+      const usaCombinacion = idsCombinacion && grupo.nombre.trim().toLowerCase() === 'guarniciones';
       grupo.opciones?.forEach(opcion => {
-        if (opcion.predeterminado && opcion.activo !== false) {
+        if ((usaCombinacion ? idsCombinacion.has(opcion.id) : opcion.predeterminado) && opcion.activo !== false) {
           modificadores.push({
             modificador_id: grupo.id,
             opcion_id: opcion.id,
@@ -1056,7 +1102,8 @@ export class PosHome implements OnInit, OnDestroy {
 
   private getDefaultModifierStockProblem(producto: Producto, pendingQuantity: number): string | null {
     const counts = new Map<number, number>();
-    this.getDefaultModifiers(producto).forEach(mod => counts.set(mod.opcion_id, (counts.get(mod.opcion_id) || 0) + 1));
+    const predeterminados = this.getDefaultModifiers(producto);
+    predeterminados.forEach(mod => counts.set(mod.opcion_id, (counts.get(mod.opcion_id) || 0) + 1));
     for (const [opcionId, count] of counts) {
       const option = this.modifierOption(producto, opcionId);
       if (!option || option.stock_disponible == null) continue;
@@ -1065,7 +1112,7 @@ export class PosHome implements OnInit, OnDestroy {
       if (projected > effectiveStock) return `No puedes agregar más ${producto.nombre}: esta orden puede usar hasta ${effectiveStock} unidades de ${option.nombre} y el carrito usaría ${projected}.`;
     }
     for (const group of producto.modificadores || []) {
-      const defaults = (group.opciones || []).filter(option => option.predeterminado && option.activo !== false);
+      const defaults = predeterminados.filter(mod => mod.modificador_id === group.id);
       if (group.cantidad_requerida != null && !group.cantidad_es_maxima && defaults.length !== Number(group.cantidad_requerida)) {
         return `${producto.nombre} necesita exactamente ${group.cantidad_requerida} en “${group.nombre}”. Elige las opciones disponibles.`;
       }
@@ -1215,7 +1262,7 @@ export class PosHome implements OnInit, OnDestroy {
     }
   }
 
-  onItemModifiersChanged(data: { itemId: number; modificadores: CartItemModificador[] }): void {
+  onItemModifiersChanged(data: { itemId: number; modificadores: CartItemModificador[]; combinacion_id?: number; combinacion_nombre?: string }): void {
     const carrito = this.carrito();
     const item = carrito.find((i) => i.id === data.itemId);
 
@@ -1228,13 +1275,15 @@ export class PosHome implements OnInit, OnDestroy {
         ...mod,
         precio_extra: parseFloat(mod.precio_extra.toString())
       }));
+      item.combinacion_id = data.combinacion_id;
+      item.combinacion_nombre = data.combinacion_nombre;
       const precioBase = parseFloat(item.precio_unitario.toString());
       item.subtotal = (precioBase + modificadoresExtra) * item.cantidad;
       this.carrito.set(this.mergeDuplicateCartItems(carrito));
     }
   }
 
-  onModifierBatchApplied(data: { itemId: number; quantity: number; modificadores: CartItemModificador[] }): void {
+  onModifierBatchApplied(data: { itemId: number; quantity: number; modificadores: CartItemModificador[]; combinacion_id?: number; combinacion_nombre?: string }): void {
     const carrito = this.carrito();
     const parentItem = carrito.find((item) => item.id === data.itemId);
 
@@ -1265,6 +1314,8 @@ export class PosHome implements OnInit, OnDestroy {
         ...mod,
         precio_extra: parseFloat(mod.precio_extra.toString()),
       })),
+      combinacion_id: data.combinacion_id,
+      combinacion_nombre: data.combinacion_nombre,
       nota: parentItem.nota || '',
       isModifierVariant: true,
       parentItemId: parentItem.id,
@@ -1308,6 +1359,8 @@ export class PosHome implements OnInit, OnDestroy {
         item.producto?.id,
         Number(item.precio_unitario ?? 0).toFixed(2),
         item.nota?.trim() || '',
+        item.combinacion_id ?? '',
+        item.combinacion_nombre ?? '',
         (item.modificadores || [])
           .map((mod) => `${mod.modificador_id}:${mod.opcion_id}:${Number(mod.precio_extra ?? 0).toFixed(2)}`)
           .sort()
@@ -1353,10 +1406,12 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   private resetCurrentOrderState(): void {
+    this.discardSavedDraft();
     this.carrito.set([]);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
     this.preorderDate.set(null);
+    this.orderComment.set('');
     this.orderType.set('dine-in');
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
@@ -1410,6 +1465,7 @@ export class PosHome implements OnInit, OnDestroy {
       || (this.selectedMesa()?.id ?? null) !== originalMesaId
       || this.orderDate() !== this.normalizeOrderDate(original.fecha_orden)
       || this.preorderDate() !== this.normalizeOrderDate(original.fecha_programada)
+      || this.orderComment().trim() !== normalizeOrderComment(original.observaciones, original.cliente_nombre)
       || this.cartFingerprint(this.carrito()) !== this.cartFingerprint(this.originalCarrito());
   }
 
@@ -1419,10 +1475,26 @@ export class PosHome implements OnInit, OnDestroy {
       cantidad: item.cantidad,
       precio: Number(item.precio_unitario),
       nota: item.nota?.trim() || '',
+      combinacion: item.combinacion_id ?? null,
       modificadores: (item.modificadores || [])
         .map(mod => [mod.modificador_id, mod.opcion_id, Number(mod.precio_extra)])
         .sort((a, b) => a.join(':').localeCompare(b.join(':'))),
     })));
+  }
+
+  private combinationFields(producto: Producto, modificadores: CartItemModificador[]): Pick<CartItem, 'combinacion_id' | 'combinacion_nombre'> {
+    const combinacion = (producto.combinaciones ?? []).find(item => {
+      if (!item.activo) return false;
+      const esperadas = (item.opciones ?? []).map(opcion => opcion.id).sort((a, b) => a - b);
+      const grupos = new Set((producto.modificadores ?? [])
+        .filter(grupo => (grupo.opciones ?? []).some(opcion => esperadas.includes(opcion.id)))
+        .map(grupo => grupo.id));
+      const seleccionadas = modificadores.filter(mod => grupos.has(mod.modificador_id)).map(mod => mod.opcion_id).sort((a, b) => a - b);
+      return esperadas.length === seleccionadas.length && esperadas.every((id, index) => id === seleccionadas[index]);
+    });
+    return combinacion
+      ? { combinacion_id: combinacion.id, combinacion_nombre: combinacion.nombre }
+      : { combinacion_id: undefined, combinacion_nombre: undefined };
   }
 
   onCheckoutRequested(): void {
@@ -1466,6 +1538,7 @@ export class PosHome implements OnInit, OnDestroy {
       fecha_orden: this.orderDate() ?? null,
       fecha_programada: this.preorderDate() ?? null,
       tipo_flujo: this.preorderDate() ? 'preorden' : 'normal',
+      observaciones: this.orderComment().trim() || null,
     };
 
     if (this.isEditingOrder() && this.editingOrderId()) {
@@ -1504,6 +1577,7 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onCartCleared(): void {
+    this.discardSavedDraft();
     this.carrito().forEach((item) => {
       if (item.producto?.maneja_stock) {
         this.updateProductStock(item.producto.id, item.cantidad);
@@ -1514,6 +1588,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedMesa.set(null);
     this.orderDate.set(null);
     this.preorderDate.set(this.operationMode === 'preorden' ? this.defaultPreorderDate() : null);
+    this.orderComment.set('');
     this.editingOrder.set(null);
     this.isEditingOrder.set(false);
     this.editingOrderId.set(null);
@@ -1618,6 +1693,7 @@ export class PosHome implements OnInit, OnDestroy {
         fecha_orden: this.orderDate() ?? null,
         fecha_programada: this.preorderDate() ?? null,
         tipo_flujo: this.preorderDate() ? 'preorden' : 'normal',
+        observaciones: this.orderComment().trim() || null,
       };
 
       const payload = this.posService.mapOrderToPayload(order);
@@ -1690,6 +1766,7 @@ export class PosHome implements OnInit, OnDestroy {
       fecha_orden: this.orderDate() ?? null,
       fecha_programada: this.preorderDate() ?? null,
       tipo_flujo: this.preorderDate() ? 'preorden' : 'normal',
+      observaciones: this.orderComment().trim() || null,
     };
 
     if (this.isEditingOrder() && this.editingOrderId()) {
@@ -1742,6 +1819,9 @@ export class PosHome implements OnInit, OnDestroy {
       //console.log('Creating order payload:', createPayload);
       this.posService.crearOrden(order, this.orderReservationSession()).subscribe({
         next: (response: any) => {
+          // Desde este punto la orden ya existe en el servidor. Eliminar el borrador
+          // evita duplicarla si el registro del pago falla y se recarga la pantalla.
+          this.discardSavedDraft();
           // Backend may return the created order under different keys depending on endpoint/version.
           const createdOrderId = response?.orden?.id ?? response?.order?.id ?? response?.id ?? null;
           if (createdOrderId && montoRecibido > 0) {
@@ -1801,6 +1881,8 @@ export class PosHome implements OnInit, OnDestroy {
     
     // Restaurar el carrito al estado original
     this.carrito.set(JSON.parse(JSON.stringify(this.originalCarrito())));
+    const original = this.editingOrder();
+    this.orderComment.set(normalizeOrderComment(original?.observaciones, original?.cliente_nombre));
     this.refreshCartProductCatalog([...this.allProductos(), ...this.productos()]);
     this.deletedItems.set([]);
     this.isRefundMode.set(false);
@@ -2138,7 +2220,94 @@ export class PosHome implements OnInit, OnDestroy {
     return this.reservationSessionId;
   }
 
+  private draftStorageKey(): string {
+    return `tonito-order-draft-v2:${this.operationMode}`;
+  }
+
+  private legacyDraftStorageKeys(): string[] {
+    const prefix = 'tonito-order-draft-v1:';
+    const suffix = `:${this.operationMode}`;
+    return Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+      .filter((key): key is string => !!key && key.startsWith(prefix) && key.endsWith(suffix));
+  }
+
+  private hasDraftContent(): boolean {
+    return this.carrito().length > 0
+      || !!this.selectedCliente()
+      || !!this.selectedMesa()
+      || this.orderType() !== 'dine-in'
+      || !!this.orderDate()
+      || (this.operationMode === 'pos' && !!this.preorderDate())
+      || this.orderComment().trim().length > 0;
+  }
+
+  private persistCurrentDraft(): void {
+    const storageKey = this.draftStorageKey();
+    if (!this.hasDraftContent()) {
+      this.discardSavedDraft();
+      return;
+    }
+
+    const draft: SavedPosDraft = {
+      version: 1,
+      savedAt: Date.now(),
+      cart: this.carrito(),
+      client: this.selectedCliente(),
+      table: this.selectedMesa(),
+      orderType: this.orderType(),
+      orderDate: this.orderDate(),
+      preorderDate: this.preorderDate(),
+      comment: this.orderComment(),
+    };
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      this.legacyDraftStorageKeys().forEach(key => localStorage.removeItem(key));
+    } catch {
+      // La venta sigue funcionando aunque el navegador bloquee el almacenamiento.
+    }
+  }
+
+  private restoreSavedDraft(): void {
+    // Una orden existente siempre se reconstruye desde el servidor.
+    if (this.route.snapshot.queryParamMap?.get('orderId')) return;
+
+    const storageKeys = [this.draftStorageKey(), ...this.legacyDraftStorageKeys()];
+    try {
+      const storageKey = storageKeys.find(key => localStorage.getItem(key) !== null);
+      const stored = storageKey ? localStorage.getItem(storageKey) : null;
+      if (!stored) return;
+      const draft = JSON.parse(stored) as Partial<SavedPosDraft>;
+      if (draft.version !== 1 || !draft.savedAt || Date.now() - draft.savedAt > this.draftMaxAgeMs || !Array.isArray(draft.cart)) {
+        this.discardSavedDraft();
+        return;
+      }
+
+      this.carrito.set(this.mergeDuplicateCartItems(draft.cart));
+      this.selectedCliente.set(draft.client ?? null);
+      this.selectedMesa.set(draft.table ?? null);
+      this.orderType.set(draft.orderType ?? 'dine-in');
+      this.orderDate.set(this.normalizeOrderDate(draft.orderDate ?? null));
+      this.preorderDate.set(this.normalizeOrderDate(draft.preorderDate ?? null));
+      this.orderComment.set(draft.comment ?? '');
+      this.legacyDraftStorageKeys().forEach(key => localStorage.removeItem(key));
+      this.toastr.info('Se recuperó el pedido que estaba en proceso.');
+    } catch {
+      this.discardSavedDraft();
+    }
+  }
+
+  private discardSavedDraft(): void {
+    try {
+      [this.draftStorageKey(), ...this.legacyDraftStorageKeys()]
+        .forEach(key => localStorage.removeItem(key));
+    } catch {
+      // No se debe bloquear el cierre de una venta por almacenamiento local.
+    }
+  }
+
   private finalizarVenta(refrescarDatosOperativos = true): void {
+    this.discardSavedDraft();
     this.liberarReservas();
     this.carrito.set([]);
     this.originalCarrito.set([]);
@@ -2151,6 +2320,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.orderType.set('dine-in');
     this.orderDate.set(null);
     this.preorderDate.set(null);
+    this.orderComment.set('');
     this.isEditingOrder.set(false);
     this.editingCustomerRequest.set(false);
     this.editingOrderId.set(null);
@@ -2195,16 +2365,19 @@ export class PosHome implements OnInit, OnDestroy {
       fecha_orden: this.orderDate() ?? null,
       fecha_programada: this.preorderDate(),
       tipo_flujo: 'preorden',
+      observaciones: this.orderComment().trim() || null,
     };
 
     this.isProcessingCheckout.set(true);
     this.posService.crearOrden(order, this.orderReservationSession()).subscribe({
       next: () => {
+        this.discardSavedDraft();
         this.isProcessingCheckout.set(false);
         this.carrito.set([]);
         this.selectedCliente.set(null);
         this.selectedMesa.set(null);
         this.preorderDate.set(this.defaultPreorderDate());
+        this.orderComment.set('');
         this.toastr.success('Preorden programada correctamente.');
         this.router.navigate(['/servicio']);
       },
@@ -2326,6 +2499,70 @@ export class PosHome implements OnInit, OnDestroy {
   onPendingOrdersRequested(): void {
     this.loadPendingOrders();
     this.isPendingOrdersModalOpen.set(true);
+  }
+
+  onDeliveriesRequested(): void {
+    this.loadOrders();
+    this.deliveryCashSearch.set('');
+    this.isDeliveryCashModalOpen.set(true);
+  }
+
+  closeDeliveryCashModal(): void {
+    this.isDeliveryCashModalOpen.set(false);
+    this.deliveryCashSearch.set('');
+  }
+
+  deliveryAmount(order: Order): string {
+    return this.deliveryAmountDrafts()[order.id]
+      ?? (order.delivery_monto_esperado != null ? String(Number(order.delivery_monto_esperado)) : '');
+  }
+
+  setDeliveryAmount(orderId: number, amount: number | string): void {
+    this.deliveryAmountDrafts.update(values => ({ ...values, [orderId]: String(amount) }));
+  }
+
+  deliveryChange(order: Order): number {
+    const amount = Number(this.deliveryAmount(order));
+    return Math.max(0, amount - this.getPendingOrderRemainingAmount(order));
+  }
+
+  prepareDeliveryChange(order: Order): void {
+    const amount = Number(this.deliveryAmount(order));
+    const saldo = this.getPendingOrderRemainingAmount(order);
+    if (!Number.isFinite(amount) || amount < saldo) {
+      this.toastr.warning('El monto recibido debe cubrir el saldo por cobrar.');
+      return;
+    }
+    this.deliveryProcessingId.set(order.id);
+    this.posService.prepararCambioDelivery(order.id, true, amount).pipe(finalize(() => this.deliveryProcessingId.set(null))).subscribe({
+      next: state => {
+        this.applyDeliveryChangeState(state);
+        this.toastr.success('Cambio preparado para el delivery.');
+      },
+      error: error => this.toastr.error(error?.error?.message || 'No se pudo guardar el cambio preparado.'),
+    });
+  }
+
+  clearDeliveryChange(order: Order): void {
+    this.deliveryProcessingId.set(order.id);
+    this.posService.prepararCambioDelivery(order.id, false).pipe(finalize(() => this.deliveryProcessingId.set(null))).subscribe({
+      next: state => {
+        this.applyDeliveryChangeState(state);
+        this.deliveryAmountDrafts.update(values => { const next = { ...values }; delete next[order.id]; return next; });
+      },
+      error: error => this.toastr.error(error?.error?.message || 'No se pudo anular el cambio preparado.'),
+    });
+  }
+
+  onPayDeliveryOrder(orderId: number): void {
+    this.closeDeliveryCashModal();
+    this.onPayPendingOrder(orderId);
+  }
+
+  private applyDeliveryChangeState(state: DeliveryChangeState): void {
+    const update = (orden: Order): Order => orden.id === state.orden_id ? { ...orden, ...state } : orden;
+    this.orders.update(orders => orders.map(update));
+    this.pendingOrders.update(orders => orders.map(update));
   }
 
   onTodayOrdersRequested(): void {
@@ -2554,6 +2791,7 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   private resetOrderSelection(): void {
+    this.discardSavedDraft();
     this.liberarReservas();
     this.isEditingOrder.set(false);
     this.editingCustomerRequest.set(false);
@@ -2568,6 +2806,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.orderType.set('dine-in');
     this.orderDate.set(null);
     this.preorderDate.set(this.operationMode === 'preorden' ? this.defaultPreorderDate() : null);
+    this.orderComment.set('');
     this.deletedItems.set([]);
     this.cancelacionInfo.set(null);
     this.isRefundMode.set(false);

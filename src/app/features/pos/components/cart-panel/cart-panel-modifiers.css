@@ -45,7 +45,7 @@
 
 .modifier-modal-actions { display: flex; width: 100%; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.65rem; }
 .modifier-modal-actions-right { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; }
-.modifier-batch-controls { display: flex; min-width: 0; align-items: center; gap: 0.5rem; padding: 0.3rem 0.45rem; border: 1px solid var(--color-border); border-radius: 9px; color: var(--color-text); background: var(--color-hover); }
+.modifier-batch-controls { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.3rem 0.45rem; border: 1px solid var(--color-border); border-radius: 9px; color: var(--color-text); background: var(--color-hover); }
 .modifier-batch-label { color: var(--color-text-muted); font-size: 0.68rem; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
 .modifier-batch-stepper { display: inline-flex; align-items: center; gap: 0.3rem; }
 .modifier-batch-btn { display: grid; width: 30px; height: 30px; place-items: center; padding: 0; border: 1px solid var(--color-border); border-radius: 7px; color: var(--color-text); background: var(--color-surface); font: inherit; font-size: 1rem; font-weight: 750; cursor: pointer; }
@@ -53,6 +53,10 @@
 .modifier-batch-btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 1px; }
 .modifier-batch-value { min-width: 1.2rem; text-align: center; font-weight: 750; }
 .modifier-batch-summary { color: var(--color-text-secondary); font-size: 0.75rem; white-space: nowrap; }
+.modifier-batch-all { padding: 0.42rem 0.65rem; border: 1px solid color-mix(in srgb, var(--color-primary) 65%, var(--color-border)); border-radius: 7px; color: var(--color-primary); background: var(--color-surface); font: inherit; font-size: 0.75rem; font-weight: 750; cursor: pointer; white-space: nowrap; }
+.modifier-batch-all:hover:not(:disabled) { color: var(--color-on-primary); background: var(--color-primary); }
+.modifier-batch-all:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 1px; }
+.modifier-batch-all:disabled { cursor: wait; opacity: 0.6; }
 
 /* Nota y eliminación de cada producto */
 .item-footer-row { display: flex; align-items: center; gap: 0.5rem; }
@@ -76,6 +80,7 @@
   .modifier-option-btn.modifier-option-image-card { width: 100%; min-width: 0; }
   .modifier-modal-actions { align-items: stretch; flex-direction: column; }
   .modifier-batch-controls { justify-content: space-between; }
+  .modifier-batch-all { flex: 1 1 100%; }
   .modifier-modal-actions-right, .modifier-modal-actions-right app-button { width: 100%; }
   .modifier-modal-actions-right app-button { display: block; flex: 1 1 0; min-width: 0; }
 }

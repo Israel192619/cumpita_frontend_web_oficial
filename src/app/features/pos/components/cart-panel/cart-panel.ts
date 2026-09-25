@@ -7,7 +7,7 @@ import { CommonModule } from '@angular/common';
 import { CartItem, CartItemModificador, ClienteSearch, Mesa, Order, PosService } from '@app/features/pos/services/pos-service';
 import { MesasModalComponent } from '../mesas-modal/mesas-modal';
 import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
-import { ModificadorEstructurado, ModificadorOpcion, Producto, ProductoOpcion } from '@app/core/models/producto';
+import { ModificadorEstructurado, ModificadorOpcion, Producto, ProductoCombinacion, ProductoOpcion } from '@app/core/models/producto';
 import { createDateTimeString, getCurrentTimeString, getTodayDateString, normalizeDateOnlyValue, normalizeDateTimeValue, normalizeOrderDateValue } from './date-time-utils';
 import { DatePicker } from '@app/shared/components/date-picker/date-picker';
 import { Button } from '@app/shared/components/button/button';
@@ -81,7 +81,7 @@ export class CartPanelComponent {
     takeUntilDestroyed(inject(DestroyRef))
   ).subscribe();
   private readonly toastr = inject(ToastrService);
-  private readonly hostElement = inject(ElementRef<HTMLElement>);
+  private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   items = input<CartItem[]>([]);
   itemsVisuales = computed(() => agruparCarrito(this.items()));
   private modifierGroupIds: number[] = [];
@@ -115,6 +115,7 @@ export class CartPanelComponent {
   selectedMesaInput = input<Mesa | null>(null);
   orderDateInput = input<string | null>(null);
   reservationDateInput = input<string | null>(null);
+  orderCommentInput = input<string>('');
   stockByProductId = input<Record<number, number>>({});
   modifierStockCredits = input<Record<number, number>>({});
   forcedStockShortages = input<string[]>([]);
@@ -139,6 +140,7 @@ export class CartPanelComponent {
   orderTypeChanged = output<'dine-in' | 'to-go' | 'delivery'>();
   orderDateChanged = output<string | null>();
   reservationDateChanged = output<string | null>();
+  orderCommentChanged = output<string>();
   clienteSelected = output<ClienteSearch | null>();
   mesaSelected = output<Mesa | null>();
   refundRequested = output<void>();
@@ -146,8 +148,8 @@ export class CartPanelComponent {
   viewHistoryRequested = output<void>();
   editRequested = output<void>();
   existingOrderSelected = output<number>();
-  itemModifiersChanged = output<{ itemId: number; modificadores: CartItemModificador[] }>();
-  modifierBatchApplied = output<{ itemId: number; quantity: number; modificadores: CartItemModificador[] }>();
+  itemModifiersChanged = output<{ itemId: number; modificadores: CartItemModificador[]; combinacion_id?: number; combinacion_nombre?: string }>();
+  modifierBatchApplied = output<{ itemId: number; quantity: number; modificadores: CartItemModificador[]; combinacion_id?: number; combinacion_nombre?: string }>();
   modifierModalClosed = output<{ itemId: number; completed: boolean }>();
   modifierDraftReservationChanged = output<{
     original: CartItemModificador[];
@@ -196,11 +198,13 @@ export class CartPanelComponent {
   // Mesas modal
   openMesasModal = signal<boolean>(false);
   mesas = signal<Mesa[]>([]);
+  orderCommentExpanded = signal(false);
 
   // Modificadores por item
   modifierModalOpen = signal<boolean>(false);
   modifierModalItem = signal<CartItem | null>(null);
   draftModifiers = signal<CartItemModificador[]>([]);
+  selectedCombinationId = signal<number | null>(null);
   modifierBatchSize = signal<number>(1);
   modifierRemainingUnits = signal<number>(0);
   modifierTotalUnits = signal<number>(0);
@@ -230,6 +234,7 @@ export class CartPanelComponent {
     const optimisticDraft = next.map(mod => ({ ...mod }));
     const previousDraft = this.draftModifiers();
     this.draftModifiers.set(optimisticDraft);
+    this.selectClosestCombination(optimisticDraft);
     this.modifierSelectionError.set(null);
 
     // Las opciones sin inventario son elecciones normales: no necesitan tocar
@@ -580,6 +585,32 @@ export class CartPanelComponent {
 
   onUndoChanges(): void {
     this.undoChangesRequested.emit();
+  }
+
+  toggleOrderComment(): void {
+    if (this.orderCommentExpanded()) {
+      this.orderCommentExpanded.set(false);
+      this.focusProductSearch();
+      return;
+    }
+    this.orderCommentExpanded.set(true);
+    setTimeout(() => {
+      const textarea = this.hostElement.nativeElement.querySelector<HTMLTextAreaElement>('.order-comment-field textarea');
+      textarea?.focus({ preventScroll: true });
+      textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+    });
+  }
+
+  finishOrderComment(event?: Event): void {
+    if (event instanceof FocusEvent && event.relatedTarget instanceof Element
+      && event.relatedTarget.closest('.order-comment-toggle')) return;
+    if (event instanceof KeyboardEvent) event.preventDefault();
+    this.orderCommentExpanded.set(false);
+    this.focusProductSearch();
+  }
+
+  hasOrderComment(): boolean {
+    return this.orderCommentInput().trim().length > 0;
   }
 
   onRefundRequested(): void {
@@ -957,8 +988,36 @@ export class CartPanelComponent {
 
   toggleItemNote(itemId: number): void {
     const next = new Set(this.openItemNotes());
-    next.has(itemId) ? next.delete(itemId) : next.add(itemId);
+    if (next.has(itemId)) {
+      next.delete(itemId);
+      this.openItemNotes.set(next);
+      this.focusProductSearch();
+      return;
+    }
+    next.add(itemId);
     this.openItemNotes.set(next);
+    setTimeout(() => {
+      const input = this.hostElement.nativeElement.querySelector<HTMLInputElement>(`[data-item-note-id="${itemId}"]`);
+      input?.focus({ preventScroll: true });
+      input?.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
+
+  finishItemNote(itemId: number): void {
+    const next = new Set(this.openItemNotes());
+    next.delete(itemId);
+    this.openItemNotes.set(next);
+    this.focusProductSearch();
+  }
+
+  private focusProductSearch(): void {
+    setTimeout(() => {
+      if (this.hostElement.nativeElement.ownerDocument.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      const container = this.hostElement.nativeElement.closest('.pos-container') ?? this.hostElement.nativeElement.ownerDocument;
+      const candidates = container.querySelectorAll<HTMLInputElement>('[data-pos-search="product"]');
+      const search = Array.from(candidates).find(input => !input.disabled && input.getClientRects().length > 0);
+      search?.focus({ preventScroll: true });
+    });
   }
 
   startModifierCopy(event: PointerEvent, item: CartItem): void {
@@ -1074,7 +1133,12 @@ export class CartPanelComponent {
         quantity: target.cantidad,
       },
       accept: () => {
-        for (const linea of this.lineasDelGrupo(target)) this.itemModifiersChanged.emit({ itemId: linea.id, modificadores: copied });
+        for (const linea of this.lineasDelGrupo(target)) this.itemModifiersChanged.emit({
+          itemId: linea.id,
+          modificadores: copied,
+          combinacion_id: source.combinacion_id,
+          combinacion_nombre: source.combinacion_nombre,
+        });
         this.toastr.success(`Modificadores copiados a ${target.producto.nombre}.`);
       },
       reject: message => this.toastr.warning(message),
@@ -1290,10 +1354,12 @@ export class CartPanelComponent {
     item = grupo ?? item;
     this.modifierGroupIds = (grupo?.lineas ?? [item]).map(linea => linea.id);
     this.modifierModalItem.set(item);
+    this.selectedCombinationId.set(item.combinacion_id ?? this.findMatchingCombination(item.producto, item.modificadores || [])?.id ?? null);
     this.confirmedDraftModifiers = (item.modificadores || []).map(mod => ({ ...mod }));
     this.queuedDraftModifiers = null;
     this.modifierReservationPending.set(false);
     this.draftModifiers.set(this.confirmedDraftModifiers.map(mod => ({ ...mod })));
+    this.selectClosestCombination(this.draftModifiers());
     this.modifierBatchSize.set(1);
     this.modifierRemainingUnits.set(Math.max(1, item.cantidad));
     this.modifierTotalUnits.set(Math.max(1, item.cantidad));
@@ -1331,6 +1397,7 @@ export class CartPanelComponent {
     this.modifierReservationPending.set(false);
     this.modifierModalOpen.set(false);
     this.modifierModalItem.set(null);
+    this.selectedCombinationId.set(null);
     this.draftModifiers.set([]);
     this.modifierBatchSize.set(1);
     this.modifierRemainingUnits.set(0);
@@ -1355,6 +1422,78 @@ export class CartPanelComponent {
       }))
       .filter((group) => (group.opciones || []).length > 0 || !!group.cantidad_requerida || group.requerido);
   });
+
+  modifierCombinations = computed<ProductoCombinacion[]>(() =>
+    (this.modifierModalItem()?.producto.combinaciones ?? []).filter(combinacion => combinacion.activo)
+  );
+
+  isCombinationSelected(combinacion: ProductoCombinacion): boolean {
+    return this.selectedCombinationId() === combinacion.id;
+  }
+
+  selectModifierCombination(combinacion: ProductoCombinacion): void {
+    const grupos = this.modifierGroups();
+    const seleccion = (combinacion.opciones ?? []).map(referencia => {
+      const grupo = grupos.find(item => (item.opciones ?? []).some(opcion => opcion.id === referencia.id));
+      const opcion = grupo?.opciones?.find(item => item.id === referencia.id);
+      return grupo && opcion ? { grupo, opcion } : null;
+    });
+    if (seleccion.some(item => !item || !this.isModifierOptionAvailable(item.opcion))) {
+      this.toastr.warning('Una opción de esta combinación no está disponible en este momento.');
+      return;
+    }
+    const idsGruposCombinacion = new Set(seleccion.filter((item): item is NonNullable<typeof item> => !!item).map(item => item.grupo.id));
+    const otrasSelecciones = this.draftModifiers().filter(mod => !idsGruposCombinacion.has(mod.modificador_id));
+    this.selectedCombinationId.set(combinacion.id);
+    this.requestDraftModifiers([...otrasSelecciones, ...seleccion.map(item => ({
+      modificador_id: item!.grupo.id,
+      opcion_id: item!.opcion.id,
+      opcion_nombre: item!.opcion.nombre,
+      precio_extra: item!.opcion.precio_extra,
+    }))]);
+  }
+
+  private findMatchingCombination(producto: Producto, modificadores: CartItemModificador[]): ProductoCombinacion | undefined {
+    return (producto.combinaciones ?? []).filter(item => item.activo).find(combinacion => {
+      const idsEsperados = (combinacion.opciones ?? []).map(opcion => opcion.id).sort((a, b) => a - b);
+      const grupos = new Set((producto.modificadores ?? [])
+        .filter(grupo => (grupo.opciones ?? []).some(opcion => idsEsperados.includes(opcion.id)))
+        .map(grupo => grupo.id));
+      const idsActuales = modificadores.filter(mod => grupos.has(mod.modificador_id)).map(mod => mod.opcion_id).sort((a, b) => a - b);
+      return idsActuales.length === idsEsperados.length && idsActuales.every((id, index) => id === idsEsperados[index]);
+    });
+  }
+
+  private selectClosestCombination(modificadores: CartItemModificador[]): void {
+    const item = this.modifierModalItem();
+    const combinaciones = this.modifierCombinations();
+    if (!item || combinaciones.length === 0) return;
+
+    const gruposGuarniciones = new Set((item.producto.modificadores ?? [])
+      .filter(grupo => grupo.nombre.trim().toLowerCase() === 'guarniciones')
+      .map(grupo => grupo.id));
+    const seleccionadas = new Set(modificadores
+      .filter(mod => gruposGuarniciones.has(mod.modificador_id))
+      .map(mod => mod.opcion_id));
+    if (seleccionadas.size === 0) return;
+
+    const puntuadas = combinaciones.map(combinacion => {
+      const esperadas = new Set((combinacion.opciones ?? []).map(opcion => opcion.id));
+      const coincidencias = [...seleccionadas].filter(id => esperadas.has(id)).length;
+      const distancia = [...seleccionadas].filter(id => !esperadas.has(id)).length
+        + [...esperadas].filter(id => !seleccionadas.has(id)).length;
+      return { combinacion, coincidencias, distancia };
+    }).filter(item => item.coincidencias > 0);
+    if (puntuadas.length === 0) return;
+
+    const distanciaMinima = Math.min(...puntuadas.map(item => item.distancia));
+    const masCercanas = puntuadas.filter(item => item.distancia === distanciaMinima);
+    const actual = masCercanas.find(item => item.combinacion.id === this.selectedCombinationId());
+    const elegida = actual?.combinacion ?? masCercanas.sort((a, b) =>
+      b.coincidencias - a.coincidencias || a.combinacion.orden - b.combinacion.orden
+    )[0].combinacion;
+    this.selectedCombinationId.set(elegida.id);
+  }
 
   getDefaultOptions(group: ModificadorEstructurado): ModificadorOpcion[] {
     return (group.opciones || []).filter((option) => option.predeterminado);
@@ -1384,6 +1523,12 @@ export class CartPanelComponent {
 
   decreaseModifierBatchSize(): void {
     this.modifierBatchSize.set(Math.max(1, this.modifierBatchSize() - 1));
+  }
+
+  applyModifierSelectionToAllRemaining(): void {
+    if (this.modifierReservationPending() || this.modifierRemainingUnits() <= 1) return;
+    this.modifierBatchSize.set(this.modifierRemainingUnits());
+    this.saveModifierSelection();
   }
 
   getModifierActionLabel(): string {
@@ -1569,6 +1714,7 @@ export class CartPanelComponent {
     }
 
     const selectedModifiers = this.draftModifiers().map((mod) => ({ ...mod }));
+    const selectedCombination = this.modifierCombinations().find(combinacion => combinacion.id === this.selectedCombinationId());
     const currentBatchSize = this.modifierBatchSize();
     const itemCounts = new Map<number, number>();
     (item.modificadores || []).forEach(mod => itemCounts.set(mod.opcion_id, (itemCounts.get(mod.opcion_id) || 0) + 1));
@@ -1592,7 +1738,13 @@ export class CartPanelComponent {
       if (pendientes <= 0) break;
       const cantidad = Math.min(linea.cantidad, pendientes);
       if (cantidad === linea.cantidad) this.modifierGroupIds = this.modifierGroupIds.filter(id => id !== linea.id);
-      this.modifierBatchApplied.emit({ itemId: linea.id, quantity: cantidad, modificadores: selectedModifiers });
+      this.modifierBatchApplied.emit({
+        itemId: linea.id,
+        quantity: cantidad,
+        modificadores: selectedModifiers,
+        combinacion_id: selectedCombination?.id,
+        combinacion_nombre: selectedCombination?.nombre,
+      });
       pendientes -= cantidad;
     }
 

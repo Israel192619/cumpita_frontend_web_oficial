@@ -35,6 +35,9 @@
     <button *ngIf="mode() === 'pos'" type="button" class="toolbar-button" title="Órdenes pendientes" (click)="pendingOrdersRequested.emit()" [disabled]="isLoading()">
       <app-icon name="clock" [size]="18" /><span>Pendientes</span><span class="count" *ngIf="pendingOrdersCount() > 0">{{ pendingOrdersCount() }}</span>
     </button>
+    <button *ngIf="mode() === 'pos'" type="button" class="toolbar-button" title="Preparar cambios para delivery" (click)="deliveriesRequested.emit()" [disabled]="isLoading()">
+      <app-icon name="truck" [size]="18" /><span>Delivery</span><span class="count" *ngIf="deliveryPendingCount() > 0">{{ deliveryPendingCount() }}</span>
+    </button>
     <button *ngIf="mode() === 'pos'" type="button" class="toolbar-button" title="Órdenes de hoy" (click)="todayOrdersRequested.emit()" [disabled]="isLoading()"><app-icon name="report" [size]="18" /><span>Hoy</span></button>
     <button *ngIf="mode() === 'pos'" type="button" class="toolbar-button" title="Preórdenes programadas" (click)="preordersRequested.emit()" [disabled]="isLoading()">
       <app-icon name="calendar" [size]="18" /><span>Preórdenes</span><span class="count" *ngIf="preordersCount() > 0">{{ preordersCount() }}</span>

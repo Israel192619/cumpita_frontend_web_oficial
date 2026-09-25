@@ -68,6 +68,8 @@
 /* Acabado visual compartido con Dashboard. */
 .kds { background: var(--color-bg); color: var(--color-text); }
 .kds-header { border: 0; background: var(--color-surface); box-shadow: none; }
+.kds-title h1 { color: var(--color-text); }
+.kds-title p { color: var(--color-text-secondary); }
 .kds-title__eyebrow,
 .programmed-preorder time,
 .production-item__product b,
@@ -867,6 +869,10 @@
 
 .kds-user-dropdown .profile-link{color:var(--color-text)}
 .kds-user-dropdown .profile-link app-icon{color:var(--color-text)}
+
+.order-general-comment{display:grid;gap:.2rem;margin:.65rem .85rem 0;padding:.65rem .75rem;border:1px solid color-mix(in srgb,var(--brand-mustard) 55%,var(--color-border));border-radius:10px;background:color-mix(in srgb,var(--brand-mustard) 13%,var(--color-surface));color:var(--color-text)}
+.order-general-comment strong{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-secondary)}
+.order-general-comment p{margin:0;font-size:.9rem;font-weight:750;line-height:1.35;overflow-wrap:anywhere}
 
 .kds-ticket.ticket-black-hole-exit{position:relative;z-index:4;pointer-events:none;transform-origin:center;animation:kds-ticket-black-hole .68s cubic-bezier(.55,0,.2,1) forwards}
 .kds-ticket .ticket-completion-overlay{position:absolute;z-index:60;inset:0;display:grid;place-items:center;border-radius:inherit;background:radial-gradient(circle,rgb(0 0 0/.74) 0 20%,rgb(0 0 0/.46) 42%,rgb(0 0 0/.16) 70%,transparent 100%);animation:kds-completion-flash .68s ease forwards}

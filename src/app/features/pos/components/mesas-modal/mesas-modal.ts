@@ -13,11 +13,13 @@ import { Modal } from '@app/shared/components/modal/modal';
 export class MesasModalComponent {
   isOpen = input<boolean>(false);
   mesas = input<Mesa[]>([]);
+  loading = input(false);
 
   mesaSelected = output<Mesa>();
   closed = output<void>();
 
   selectMesa(mesa: Mesa): void {
+    if (this.loading()) return;
     this.mesaSelected.emit(mesa);
     this.closed.emit();
   }

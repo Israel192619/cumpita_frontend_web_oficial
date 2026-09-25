@@ -4,6 +4,48 @@ import { Subject } from 'rxjs';
 import { CocinaHome, conservarPosicionesSalida, fusionarPedidosKds } from './cocina-home';
 
 describe('Sincronización del monitor de Cocina', () => {
+  it('abre y cierra el conteo grande cuando existe producción pendiente', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    component.resumenProduccionAbierto = signal(false);
+    component.tieneProduccionPendiente = () => true;
+
+    component.abrirResumenProduccion();
+    expect(component.resumenProduccionAbierto()).toBe(true);
+
+    component.cerrarResumenProduccion();
+    expect(component.resumenProduccionAbierto()).toBe(false);
+  });
+
+  it('muestra durante 20 segundos cada venta de pescados en el orden recibido', () => {
+    vi.useFakeTimers();
+    try {
+      const component = Object.create(CocinaHome.prototype) as any;
+      component.colaAlertasParrilla = [];
+      component.alertaParrillaActual = signal(null);
+      component.segundosAlertaParrilla = signal(20);
+      component.document = { visibilityState: 'visible' };
+      const orden = (id: number, nombre: string, cantidad: number, precio: number) => ({
+        id,
+        detalles: [{
+          cantidad,
+          precio_unitario: precio,
+          incluye_producto: true,
+          producto: { id, nombre, categoria: { id: 1, nombre: 'Pescados' } },
+        }],
+      });
+
+      expect(component.encolarAlertaParrilla(orden(1, 'Pescado grande', 2, 50))).toBe(true);
+      expect(component.encolarAlertaParrilla(orden(2, 'Pescado mediano', 3, 45))).toBe(true);
+      expect(component.alertaParrillaActual().productos).toEqual([{ nombre: 'Pescado grande', cantidad: 2, precio: 50 }]);
+
+      vi.advanceTimersByTime(20000);
+      expect(component.alertaParrillaActual().productos).toEqual([{ nombre: 'Pescado mediano', cantidad: 3, precio: 45 }]);
+
+      component.aceptarAlertaParrilla();
+      expect(component.alertaParrillaActual()).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
+
   it('acepta respuestas lentas sin acumular sondeos y anima la ficha completada', () => {
     const component = Object.create(CocinaHome.prototype) as any;
     const respuesta = new Subject<any>();

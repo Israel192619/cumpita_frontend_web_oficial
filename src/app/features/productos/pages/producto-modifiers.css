@@ -41,4 +41,17 @@
 .opcion-precio { color: var(--color-primary); }
 .no-opciones,.empty-message { color: var(--color-text-muted); background: var(--color-bg); border-color: var(--color-border); }
 .empty-message { padding: 24px; border: 1px dashed var(--color-border); border-radius: 12px; font-style: normal; }
+.combinations-section { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--color-border); }
+.combinations-heading,.combination-main { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.combinations-heading h4,.combinations-heading p { margin:0; }
+.combinations-heading p { margin-top:4px; color:var(--color-text-secondary); font-size:.8rem; }
+.btn-add-combination { min-height:40px; padding:0 14px; color:var(--color-on-primary); background:var(--color-primary); border:0; border-radius:9px; font-weight:750; }
+.combination-card { margin-top:12px; padding:14px; border:1px solid var(--color-border); border-radius:12px; background:var(--color-bg); }
+.combination-main { justify-content:flex-start; flex-wrap:wrap; }
+.combination-main>input[type="text"] { flex:1 1 220px; min-height:40px; padding:0 11px; color:var(--color-text); background:var(--color-surface); border:1px solid var(--color-border); border-radius:8px; font:inherit; }
+.combination-main label { display:flex; align-items:center; gap:6px; color:var(--color-text-secondary); font-size:.82rem; font-weight:650; }
+.combination-main input[type="checkbox"],.combination-options input { accent-color:var(--color-primary); }
+.combination-options { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.combination-options label { display:flex; align-items:center; gap:6px; min-height:36px; padding:6px 10px; color:var(--color-text-secondary); background:var(--color-surface); border:1px solid var(--color-border); border-radius:999px; cursor:pointer; }
+.combination-options label.selected { color:var(--color-text); border-color:var(--color-primary); background:color-mix(in srgb,var(--color-primary) 10%,var(--color-surface)); }
 @media(max-width:600px){.modifier-quantity{grid-template-columns:1fr}.opciones-list{grid-template-columns:1fr}.modificador-header{align-items:flex-start;gap:12px}.section-title::after{line-height:1.45}}

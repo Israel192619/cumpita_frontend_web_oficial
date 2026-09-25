@@ -23,6 +23,51 @@ function crearComponente() {
 }
 
 describe('Editor de modificadores del carrito agrupado', () => {
+  it('conserva la combinación en empate y cambia automáticamente a la más cercana', () => {
+    const fixture = crearComponente();
+    const component = fixture.componentInstance;
+    const grupo: ModificadorEstructurado = {
+      id: 4, nombre: 'Guarniciones', tipo: 'multiple', requerido: false, activo: true,
+      opciones: [
+        { id: 11, nombre: 'Papa hervida', precio_extra: 0, activo: true, predeterminado: true },
+        { id: 12, nombre: 'Ensalada', precio_extra: 0, activo: true, predeterminado: true },
+        { id: 13, nombre: 'Papas fritas', precio_extra: 0, activo: true, predeterminado: false },
+        { id: 14, nombre: 'Arroz batido', precio_extra: 0, activo: true, predeterminado: false },
+      ],
+    };
+    const terminos: ModificadorEstructurado = {
+      id: 5, nombre: 'Términos de cocción', tipo: 'unico', requerido: false, activo: true,
+      opciones: [{ id: 21, nombre: 'Bien cocido', precio_extra: 0, activo: true, predeterminado: true }],
+    };
+    const opcion1 = { id: 7, nombre: 'Opción 1', activo: true, predeterminada: true, orden: 0,
+      opciones: [{ id: 11, nombre: 'Papa hervida' }, { id: 12, nombre: 'Ensalada' }] };
+    const opcion2 = { id: 8, nombre: 'Opción 2', activo: true, predeterminada: false, orden: 1,
+      opciones: [{ id: 12, nombre: 'Ensalada' }, { id: 13, nombre: 'Papas fritas' }, { id: 14, nombre: 'Arroz batido' }] };
+    const item: CartItem = {
+      id: 1, cantidad: 1, precio_unitario: 50, subtotal: 50,
+      producto: { id: 9, categoria_id: 1, nombre: 'Pescado', precio: 50, activo: true, maneja_stock: false,
+        modificadores: [grupo, terminos], combinaciones: [opcion1, opcion2] },
+      modificadores: [{ modificador_id: 5, opcion_id: 21, opcion_nombre: 'Bien cocido', precio_extra: 0 }],
+    };
+    fixture.componentRef.setInput('items', [item]);
+    fixture.detectChanges();
+    component.openModifierModal(item);
+
+    component.selectModifierCombination(opcion1);
+
+    expect(component.draftModifiers().map(mod => mod.opcion_id)).toEqual([21, 11, 12]);
+    expect(component.isCombinationSelected(opcion1)).toBe(true);
+    component.toggleModifierOption(grupo, grupo.opciones![0]);
+    expect(component.draftModifiers().map(mod => mod.opcion_id)).toEqual([21, 12]);
+    expect(component.isCombinationSelected(opcion1)).toBe(true);
+    component.toggleModifierOption(grupo, grupo.opciones![2]);
+    expect(component.isCombinationSelected(opcion2)).toBe(true);
+    component.toggleModifierOption(grupo, grupo.opciones![3]);
+    expect(component.draftModifiers().map(mod => mod.opcion_id)).toEqual([21, 12, 13, 14]);
+    expect(component.isCombinationSelected(opcion2)).toBe(true);
+    fixture.destroy();
+  });
+
   it('cobra directamente cuando el cliente ya está seleccionado', () => {
     const fixture = crearComponente();
     const component = fixture.componentInstance;
@@ -87,6 +132,32 @@ describe('Editor de modificadores del carrito agrupado', () => {
     component.onClienteSearchKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
 
     expect(component.selectedCliente()?.id).toBe(2);
+    fixture.destroy();
+  });
+
+  it('aplica la selección actual a todas las unidades restantes en un toque', () => {
+    const fixture = crearComponente();
+    const component = fixture.componentInstance;
+    const grupo: ModificadorEstructurado = {
+      id: 4, nombre: 'Guarnición', tipo: 'unico', requerido: true, activo: true,
+      opciones: [{ id: 13, nombre: 'Papas', precio_extra: 0, activo: true, predeterminado: true }],
+    };
+    const item: CartItem = {
+      id: 1, cantidad: 3, precio_unitario: 28, subtotal: 84,
+      producto: { id: 9, categoria_id: 1, nombre: 'Pollo', precio: 28, activo: true, maneja_stock: false, modificadores: [grupo] },
+      modificadores: [{ modificador_id: 4, opcion_id: 13, opcion_nombre: 'Papas', precio_extra: 0 }],
+    };
+    const aplicaciones: Array<{ itemId: number; quantity: number }> = [];
+    component.modifierBatchApplied.subscribe(({ itemId, quantity }) => aplicaciones.push({ itemId, quantity }));
+    fixture.componentRef.setInput('items', [item]);
+    fixture.detectChanges();
+    component.openModifierModal(item);
+
+    component.applyModifierSelectionToAllRemaining();
+
+    expect(aplicaciones).toEqual([{ itemId: 1, quantity: 3 }]);
+    expect(component.modifierModalOpen()).toBe(false);
+    expect(component.modifierModalItem()).toBeNull();
     fixture.destroy();
   });
 

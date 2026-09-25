@@ -288,16 +288,17 @@
 
       <!-- Item Footer Row: Notes Input + Delete Button -->
       <div class="item-footer-row">
-        <button type="button" class="item-note-toggle" (click)="toggleItemNote(item.id)" [attr.aria-expanded]="isItemNoteOpen(item.id)">
+        <button *ngIf="!isItemNoteOpen(item.id)" type="button" class="item-note-toggle" (click)="toggleItemNote(item.id)" aria-expanded="false">
           {{ getItemNote(item.id) ? 'Nota: ' + getItemNote(item.id) : '+ Nota' }}
         </button>
         <input
           *ngIf="isItemNoteOpen(item.id)"
           type="text"
           class="order-note-input"
+          [attr.data-item-note-id]="item.id"
           [value]="getItemNote(item.id)"
           (input)="setItemNote(item.id, $any($event.target).value)"
-          (blur)="toggleItemNote(item.id)"
+          (blur)="finishItemNote(item.id)"
           (keydown.enter)="$any($event.target).blur()"
           placeholder="Nota para este producto"
           [disabled]="isProcessing()"
@@ -324,6 +325,13 @@
 
   <app-modal [open]="modifierModalOpen()" [busy]="!!restockOption()" title="Modificadores" size="large" (closed)="closeModifierModal()">
       <p class="modifier-modal-product">{{ modifierModalItem()?.producto?.nombre }}</p>
+      <div class="modifier-combinations" *ngIf="modifierCombinations().length">
+        <span>Combinación rápida</span>
+        <button type="button" *ngFor="let combinacion of modifierCombinations()"
+          [class.selected]="isCombinationSelected(combinacion)" (click)="selectModifierCombination(combinacion)">
+          {{ combinacion.nombre }}
+        </button>
+      </div>
       <div class="modifier-modal-body">
         <div class="modifier-group" *ngFor="let group of modifierGroups()">
           <div class="modifier-group-header">
@@ -437,6 +445,9 @@
             <button type="button" class="modifier-batch-btn" (click)="increaseModifierBatchSize()" aria-label="Aumentar cantidad del lote">+</button>
           </div>
           <span class="modifier-batch-summary">Restantes: {{ modifierRemainingUnits() }}</span>
+          <button type="button" class="modifier-batch-all" [disabled]="modifierReservationPending()" (click)="applyModifierSelectionToAllRemaining()">
+            Aplicar a todas las restantes
+          </button>
         </div>
         <div class="modifier-modal-actions-right">
           <app-button text="Cancelar" color="light" size="medium" [fullWidth]="true" [disabled]="modifierReservationPending()" (buttonClick)="closeModifierModal()" />
@@ -564,6 +575,21 @@
         (buttonClick)="confirmClearReservation()"
       />
       </div>
+    </div>
+    <div class="order-comment-control" [class.expanded]="orderCommentExpanded()">
+      <button type="button" class="order-comment-toggle" [disabled]="isProcessing()"
+        [attr.aria-expanded]="orderCommentExpanded()" (click)="toggleOrderComment()">
+        <span>{{ hasOrderComment() ? 'Comentario: ' + orderCommentInput() : '+ Añadir comentario' }}</span>
+        <small>{{ orderCommentExpanded() ? 'Ocultar' : hasOrderComment() ? 'Editar' : '' }}</small>
+      </button>
+      <label *ngIf="orderCommentExpanded()" class="order-comment-field">
+        <span>Comentario general del pedido</span>
+        <textarea rows="2" maxlength="500" [value]="orderCommentInput()" [disabled]="isProcessing()"
+          placeholder="Ej. Entregar todo junto, cliente espera en puerta…"
+          (input)="orderCommentChanged.emit($any($event.target).value)"
+          (blur)="finishOrderComment($event)"
+          (keydown.enter)="finishOrderComment($event)"></textarea>
+      </label>
     </div>
   </div>
 </div>

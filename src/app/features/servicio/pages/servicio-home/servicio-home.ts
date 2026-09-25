@@ -3,7 +3,7 @@ import { Mesa } from '../../../pos/services/pos-service';
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, untracked, ElementRef, HostListener, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Subject, Subscription, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../../core/services/auth-service';
@@ -20,6 +20,7 @@ import { ConfirmDialogService } from '../../../../shared/services/confirm-dialog
 import { LocationMap, MapLocation } from '../../../../shared/components/location-map/location-map';
 import { ConfiguracionService } from '../../../../core/services/configuracion-service';
 import { modifierColorStyle } from '../../../../core/utils/modifier-color';
+import { SwPush } from '@angular/service-worker';
 
 interface Mesero { id: number; name: string; }
 interface GrupoDetalleServicio {
@@ -91,11 +92,21 @@ export class ServicioHome implements OnInit, OnDestroy {
   viendoTodas = signal(false);
   todasFichas = signal<ServicioFicha[]>([]);
   filtroTodas = signal('');
+  filtroTipoTodas = signal<'todos' | 'delivery'>('todos');
+  filtroEstadoDelivery = signal<'todos' | 'pendientes' | 'entregados'>('todos');
+  filtroEntregador = signal<'todos' | 'mios'>('todos');
   todasFiltradas = computed(() => {
     const consulta = this.filtroTodas().trim().toLocaleLowerCase();
-    return this.todasFichas().filter(ficha =>
-      !consulta || [ficha.numero_orden, ficha.mesa, ficha.cliente, ficha.mesero].join(' ').toLocaleLowerCase().includes(consulta)
-    );
+    const usuarioId = this.sesionSeleccionada()?.user?.id;
+    return this.todasFichas().filter(ficha => {
+      if (this.filtroTipoTodas() === 'delivery' && ficha.tipo_orden !== 'delivery') return false;
+      if (this.filtroEstadoDelivery() === 'pendientes' && ficha.estado === 'entregado') return false;
+      if (this.filtroEstadoDelivery() === 'entregados' && ficha.estado !== 'entregado') return false;
+      if (this.filtroEntregador() === 'mios' && (!usuarioId || !(ficha.entregado_por_ids ?? []).includes(usuarioId))) return false;
+      const texto = [ficha.numero_orden, ficha.mesa, ficha.cliente, ficha.mesero, ...(ficha.entregado_por_nombres ?? [])]
+        .join(' ').toLocaleLowerCase();
+      return !consulta || texto.includes(consulta);
+    });
   });
   preordenesProgramadas = signal<ServicioFicha[]>([]);
   preordenesAbiertas = signal(false);
@@ -182,6 +193,12 @@ export class ServicioHome implements OnInit, OnDestroy {
   private readonly temporizadoresSalida = new Set<ReturnType<typeof setTimeout>>();
   private readonly tableroPorSesion = new Map<string, Pick<ServicioTablero, 'mis_fichas' | 'mis_entregadas'>>();
   private contextoAvisos?: AudioContext;
+  notificacionesServicioActivas = signal(false);
+  notificacionesServicioProcesando = signal(false);
+  permisoNotificaciones = signal<NotificationPermission>(typeof Notification === 'undefined' ? 'denied' : Notification.permission);
+  private pushSubscriptionListener?: Subscription;
+  private suscripcionPushActual: PushSubscription | null = null;
+  private endpointPushRegistrado: string | null = null;
   private avisosSonorosHabilitados = false;
   private readonly habilitarAvisosSonoros = (): void => {
     if (this.contextoAvisos) return;
@@ -205,6 +222,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     readonly themeService: ThemeService,
     private confirmDialog: ConfirmDialogService,
     readonly configuracion: ConfiguracionService,
+    private swPush: SwPush,
   ) {
     effect(() => {
       const producto = this.selectorProductoAbierto() ? this.productoSeleccionado() : null;
@@ -259,6 +277,13 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.configuracion.cargar().subscribe({ error: () => undefined });
     document.addEventListener('pointerdown', this.habilitarAvisosSonoros, { once: true });
     document.addEventListener('keydown', this.habilitarAvisosSonoros, { once: true });
+    if (this.swPush.isEnabled) {
+      this.pushSubscriptionListener = this.swPush.subscription.subscribe(subscription => {
+        this.suscripcionPushActual = subscription;
+        this.notificacionesServicioActivas.set(!!subscription);
+        if (subscription && this.esMesero()) void this.registrarSuscripcionServicio(subscription).catch(() => undefined);
+      });
+    }
     this.consultaOrdenSub = this.consultaOrdenCambios.pipe(debounceTime(180), distinctUntilChanged()).subscribe(() => this.buscarOrdenes());
     this.auth.me().subscribe({
       next: usuario => {
@@ -266,6 +291,9 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.esAdministrador.set(['admin', 'administrador', 'gerente'].includes(rol));
         this.esDespacho.set(rol === 'despacho');
         this.esMesero.set(rol === 'mesero');
+        if (rol === 'mesero' && this.suscripcionPushActual) {
+          void this.registrarSuscripcionServicio(this.suscripcionPushActual).catch(() => undefined);
+        }
         if (rol === 'mesero') {
           const principal: ServicioSesion = {
             session_id: `principal-${usuario.id}`,
@@ -307,6 +335,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     if (this.temporizadorBusquedaProducto) clearTimeout(this.temporizadorBusquedaProducto);
     this.temporizadoresSalida.forEach(temporizador => clearTimeout(temporizador));
     this.consultaOrdenSub?.unsubscribe();
+    this.pushSubscriptionListener?.unsubscribe();
     this.detenerActividadAutomatica();
     document.removeEventListener('pointerdown', this.habilitarAvisosSonoros);
     document.removeEventListener('keydown', this.habilitarAvisosSonoros);
@@ -317,41 +346,96 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.router.navigate(['/app/pedidos']);
   }
 
+  async activarNotificacionesServicio(): Promise<void> {
+    if (this.notificacionesServicioProcesando() || this.notificacionesServicioActivas()) return;
+    if (!this.swPush.isEnabled || typeof Notification === 'undefined') {
+      this.toastr.warning('Instala Toñito como aplicación desde Chrome para activar los avisos.', 'Notificaciones no disponibles');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      this.permisoNotificaciones.set('denied');
+      this.toastr.warning('Activa las notificaciones de Toñito desde los ajustes de Android o Chrome.', 'Permiso bloqueado');
+      return;
+    }
+
+    this.notificacionesServicioProcesando.set(true);
+    try {
+      const { public_key } = await firstValueFrom(this.servicio.obtenerClaveNotificaciones());
+      const subscription = await this.swPush.requestSubscription({ serverPublicKey: public_key });
+      this.suscripcionPushActual = subscription;
+      this.endpointPushRegistrado = null;
+      await this.registrarSuscripcionServicio(subscription);
+      this.permisoNotificaciones.set(Notification.permission);
+      this.notificacionesServicioActivas.set(true);
+      this.toastr.success('Recibirás avisos cuando haya una ficha nueva para tomar.', 'Avisos activados');
+    } catch {
+      this.permisoNotificaciones.set(Notification.permission);
+      if (this.permisoNotificaciones() !== 'denied') this.toastr.error('No se pudieron activar los avisos. Inténtalo nuevamente.');
+    } finally {
+      this.notificacionesServicioProcesando.set(false);
+    }
+  }
+
+  textoNotificacionesServicio(): string {
+    if (this.notificacionesServicioProcesando()) return 'Activando…';
+    if (this.notificacionesServicioActivas()) return 'Avisos activos';
+    if (this.permisoNotificaciones() === 'denied') return 'Avisos bloqueados';
+    return 'Activar avisos';
+  }
+
+  private async registrarSuscripcionServicio(subscription: PushSubscription): Promise<void> {
+    if (!this.esMesero() || this.endpointPushRegistrado === subscription.endpoint) return;
+    await firstValueFrom(this.servicio.registrarNotificaciones(subscription.toJSON()));
+    this.endpointPushRegistrado = subscription.endpoint;
+    this.notificacionesServicioActivas.set(true);
+  }
+
   fichaMesa = signal<ServicioFicha | null>(null);
   mesasDisponibles = signal<Mesa[]>([]);
   seleccionMesaAbierta = signal(false);
+  cargandoMesas = signal(false);
+  asignandoMesaId = signal<number | null>(null);
 
   abrirMesas(ficha: ServicioFicha): void {
     const sesion = this.requerirSesion();
-    if (!sesion || this.procesando() || ficha.tipo_orden !== 'dine-in') return;
-    this.procesando.set('mesas');
+    if (!sesion || ficha.tipo_orden !== 'dine-in') return;
+
+    this.fichaMesa.set(ficha);
+    this.seleccionMesaAbierta.set(true);
+    if (this.cargandoMesas()) return;
+
+    this.cargandoMesas.set(true);
     this.servicio.listarMesas(sesion.token).subscribe({
       next: respuesta => {
-        this.procesando.set(null);
         this.mesasDisponibles.set(respuesta.mesas);
-        this.fichaMesa.set(ficha);
-        this.seleccionMesaAbierta.set(true);
+        this.cargandoMesas.set(false);
       },
-      error: error => { this.procesando.set(null); this.toastr.error(error?.error?.message || 'No se pudieron cargar las mesas.'); },
+      error: error => {
+        this.cargandoMesas.set(false);
+        this.toastr.error(error?.error?.message || 'No se pudieron cargar las mesas.');
+      },
     });
   }
 
   asignarMesa(mesa: Mesa): void {
     const ficha = this.fichaMesa();
     const sesion = this.requerirSesion();
-    if (!ficha || !sesion || this.procesando()) return;
-    this.procesando.set('mesa-' + ficha.id);
+    if (!ficha || !sesion || this.asignandoMesaId() !== null) return;
+    this.asignandoMesaId.set(ficha.id);
     this.servicio.actualizarMesa(ficha.id, mesa.id, sesion.token).subscribe({
       next: respuesta => {
         for (const lista of [this.misFichas, this.todasFichas, this.disponibles, this.preordenesProgramadas]) {
           lista.update(fichas => fichas.map(item => item.id === ficha.id ? { ...item, mesa: respuesta.mesa } : item));
         }
-        this.procesando.set(null);
+        this.asignandoMesaId.set(null);
         this.fichaMesa.set(null);
         this.toastr.success(`Mesa ${respuesta.mesa} asignada a la ficha #${ficha.numero_orden}.`);
         this.cargar(false);
       },
-      error: error => { this.procesando.set(null); this.toastr.error(error?.error?.message || 'No se pudo cambiar la mesa.'); },
+      error: error => {
+        this.asignandoMesaId.set(null);
+        this.toastr.error(error?.error?.message || 'No se pudo cambiar la mesa.');
+      },
     });
   }
 

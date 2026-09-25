@@ -30,7 +30,7 @@ export const appConfig: ApplicationConfig = {
       MatDialogModule,
       MatButtonModule
     ),
-    provideServiceWorker('ngsw-worker.js', {
+    provideServiceWorker('tonito-sw.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000'
     })

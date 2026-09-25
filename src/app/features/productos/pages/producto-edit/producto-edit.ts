@@ -28,6 +28,14 @@ interface ModificadorSeleccionado {
   opciones: OpcionSeleccionada[];
 }
 
+interface CombinacionSeleccionada {
+  id?: number;
+  nombre: string;
+  activo: boolean;
+  predeterminada: boolean;
+  opcion_ids: number[];
+}
+
 @Component({
   selector: 'app-producto-edit',
   imports: [
@@ -50,6 +58,7 @@ export class ProductoEdit {
   producto = signal<Producto | null>(null);
   eliminarImagen = signal(false);
   modificadoresSeleccionados = signal<ModificadorSeleccionado[]>([]);
+  combinaciones = signal<CombinacionSeleccionada[]>([]);
   estaciones = signal<{ label: string; value: number }[]>([]);
 
   constructor(
@@ -233,6 +242,16 @@ export class ProductoEdit {
 
               this.modificadoresSeleccionados.set(modsSeleccionados);
             }
+            const idsGuarniciones = new Set(this.modificadoresSeleccionados()
+              .filter(mod => mod.nombre.trim().toLowerCase() === 'guarniciones')
+              .flatMap(mod => mod.opciones.map(opcion => opcion.id)));
+            this.combinaciones.set((producto.combinaciones ?? []).map(combinacion => ({
+              id: combinacion.id,
+              nombre: combinacion.nombre,
+              activo: combinacion.activo,
+              predeterminada: combinacion.predeterminada,
+              opcion_ids: (combinacion.opciones ?? []).map(opcion => opcion.id).filter(id => idsGuarniciones.has(id)),
+            })));
 
             this.loading.set(false);
           }
@@ -280,9 +299,41 @@ export class ProductoEdit {
   }
 
   eliminarModificador(modificadorId: number) {
+    const idsEliminados = this.modificadoresSeleccionados().find(m => m.modificador_id === modificadorId)?.opciones.map(o => o.id) ?? [];
     this.modificadoresSeleccionados.update(mods =>
       mods.filter(m => m.modificador_id !== modificadorId)
     );
+    this.combinaciones.update(items => items.map(item => ({ ...item, opcion_ids: item.opcion_ids.filter(id => !idsEliminados.includes(id)) })));
+  }
+
+  agregarCombinacion(): void {
+    this.combinaciones.update(items => [...items, { nombre: `Opción ${items.length + 1}`, activo: true, predeterminada: items.length === 0, opcion_ids: [] }]);
+  }
+
+  trackByCombinationIndex(indice: number): number {
+    return indice;
+  }
+
+  modificadoresDeCombinacion(): ModificadorSeleccionado[] {
+    return this.modificadoresSeleccionados().filter(mod => mod.nombre.trim().toLowerCase() === 'guarniciones');
+  }
+
+  eliminarCombinacion(indice: number): void {
+    this.combinaciones.update(items => items.filter((_, i) => i !== indice));
+  }
+
+  actualizarCombinacion(indice: number, campo: 'nombre' | 'activo' | 'predeterminada', valor: string | boolean): void {
+    this.combinaciones.update(items => items.map((item, i) => i !== indice ? item : { ...item, [campo]: valor }));
+    if (campo === 'predeterminada' && valor) {
+      this.combinaciones.update(items => items.map((item, i) => ({ ...item, predeterminada: i === indice })));
+    }
+  }
+
+  toggleOpcionCombinacion(indice: number, opcionId: number): void {
+    this.combinaciones.update(items => items.map((item, i) => i !== indice ? item : {
+      ...item,
+      opcion_ids: item.opcion_ids.includes(opcionId) ? item.opcion_ids.filter(id => id !== opcionId) : [...item.opcion_ids, opcionId],
+    }));
   }
 
   actualizarCantidadRequerida(modificadorId: number, valor: string) {
@@ -323,6 +374,7 @@ export class ProductoEdit {
     this.loading.set(true);
 
     const formData = new FormData();
+    formData.append('combinaciones_configuradas', '1');
     const formValue = this.form.value;
 
     const categoriaIdFinal =
@@ -344,6 +396,10 @@ export class ProductoEdit {
 
     if (formValue.imagen instanceof File) {
       formData.append('imagen', formValue.imagen);
+    }
+    if (this.combinaciones().some(item => !item.nombre.trim() || item.opcion_ids.length === 0)) {
+      this.error.set('Cada combinación necesita un nombre y al menos una opción.');
+      return;
     }
     if (this.eliminarImagen()) {
       formData.append('eliminar_imagen', '1');
@@ -370,6 +426,14 @@ export class ProductoEdit {
       formData.append(`modificadores[${index}][id]`, String(mod.modificador_id));
       if (mod.cantidad_requerida != null) formData.append(`modificadores[${index}][cantidad_requerida]`, String(mod.cantidad_requerida));
       formData.append(`modificadores[${index}][cantidad_es_maxima]`, mod.cantidad_es_maxima ? '1' : '0');
+    });
+    this.combinaciones().forEach((combinacion, index) => {
+      if (combinacion.id) formData.append(`combinaciones[${index}][id]`, String(combinacion.id));
+      formData.append(`combinaciones[${index}][nombre]`, combinacion.nombre.trim());
+      formData.append(`combinaciones[${index}][activo]`, combinacion.activo ? '1' : '0');
+      formData.append(`combinaciones[${index}][predeterminada]`, combinacion.predeterminada ? '1' : '0');
+      formData.append(`combinaciones[${index}][orden]`, String(index));
+      combinacion.opcion_ids.forEach((id, optionIndex) => formData.append(`combinaciones[${index}][opcion_ids][${optionIndex}]`, String(id)));
     });
 
     formData.append('_method', 'PUT');

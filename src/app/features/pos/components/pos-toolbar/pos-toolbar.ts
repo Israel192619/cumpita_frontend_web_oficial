@@ -19,6 +19,7 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   backLabel = input('Volver');
   theme = input<'light' | 'dark'>('light');
   pendingOrdersCount = input(0);
+  deliveryPendingCount = input(0);
   preordersCount = input(0);
   cajaAbierta = input(false);
   cajaCompartida = input(false);
@@ -34,6 +35,7 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   searchChanged = output<string>();
   backRequested = output<void>();
   pendingOrdersRequested = output<void>();
+  deliveriesRequested = output<void>();
   todayOrdersRequested = output<void>();
   preordersRequested = output<void>();
   gastoRequested = output<void>();

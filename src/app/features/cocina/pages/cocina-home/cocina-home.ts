@@ -12,8 +12,15 @@ import { ThemeService } from '@app/core/services/theme-service';
 import { Icon } from '@app/shared/components/icon/icon';
 import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-service';
 import { modifierColorStyle } from '@app/core/utils/modifier-color';
+import { SwPush } from '@angular/service-worker';
+import { firstValueFrom } from 'rxjs';
 
 interface ActualizacionKds { id: number; nueva?: boolean; cambios: KdsCambioOrden[]; }
+
+interface AlertaParrilla {
+  ordenId: number;
+  productos: Array<{ nombre: string; cantidad: number; precio: number }>;
+}
 
 interface KdsDetalleEstadoAgrupado {
   clave: string;
@@ -30,6 +37,9 @@ interface KdsDetalleAgrupado {
   producto: KdsDetalle['producto'];
   precioUnitario: number;
   nota?: string | null;
+  combinacionNombre?: string | null;
+  combinacionAjustes: Array<{ nombre: string; color_fondo?: string | null }>;
+  combinacionResumen?: string | null;
   opciones: Array<{ nombre: string; color_fondo?: string | null }>;
   estados: KdsDetalleEstadoAgrupado[];
   tieneListos: boolean;
@@ -55,6 +65,10 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   cerrarMenuUsuarioEscape(): void {
+    if (this.resumenProduccionAbierto()) {
+      this.cerrarResumenProduccion();
+      return;
+    }
     if (!this.menuUsuarioAbierto()) return;
     this.menuUsuarioAbierto.set(false);
     this.elementRef.nativeElement.querySelector<HTMLButtonElement>('.kds-user-trigger')?.focus();
@@ -90,6 +104,21 @@ export class CocinaHome implements OnInit, OnDestroy {
   private ordenesAlertadas = new Set<number>();
   private actualizacionesLocales = new Map<number, { cantidad: number; fecha: number }>();
   private temporizadoresCambios = new Map<number, ReturnType<typeof setTimeout>>();
+  private colaAlertasParrilla: AlertaParrilla[] = [];
+  private temporizadorAlertaParrilla?: ReturnType<typeof setInterval>;
+  private readonly claveParrillaOcultaDesde = 'tonito-kds-parrilla-oculta-desde';
+  private readonly manejarVisibilidad = (): void => {
+    if (this.document.visibilityState === 'hidden') {
+      this.pausarTemporizadorAlertaParrilla();
+      try { localStorage.setItem(this.claveParrillaOcultaDesde, String(Date.now())); } catch { /* continúa en memoria */ }
+      return;
+    }
+    this.iniciarTemporizadorAlertaParrilla();
+    const desde = this.consumirParrillaOcultaDesde();
+    if (this.estacionActual()?.codigo === 'PARRILLA' && desde) {
+      this.cargarPedidos(false, false, undefined, undefined, [], undefined, [], desde);
+    }
+  };
   private contextoAlertas?: AudioContext;
   private alertasSonorasHabilitadas = false;
   private readonly habilitarAlertasSonoras = (): void => {
@@ -124,6 +153,16 @@ export class CocinaHome implements OnInit, OnDestroy {
   mobileFiltersOpen = signal(false);
   isFullscreen = signal(false);
   controlesOcultos = signal(true);
+  resumenProduccionAbierto = signal(false);
+  alertaParrillaActual = signal<AlertaParrilla | null>(null);
+  segundosAlertaParrilla = signal(20);
+  notificacionesParrillaActivas = signal(false);
+  notificacionesParrillaProcesando = signal(false);
+  permisoNotificaciones = signal<NotificationPermission>(
+    typeof Notification === 'undefined' ? 'denied' : Notification.permission
+  );
+  private suscripcionPushActual: PushSubscription | null = null;
+  private endpointPushRegistrado: string | null = null;
   verServidos = signal(false);
   detallesCompletadosAbiertos = signal<Record<number, boolean>>({});
 
@@ -187,6 +226,14 @@ export class CocinaHome implements OnInit, OnDestroy {
   tieneProduccionPendiente = computed(() => this.estacionActual()?.codigo === 'PARRILLA'
     ? this.produccionParrilla().length > 0
     : this.produccionCocina().length > 0);
+
+  abrirResumenProduccion(): void {
+    if (this.tieneProduccionPendiente()) this.resumenProduccionAbierto.set(true);
+  }
+
+  cerrarResumenProduccion(): void {
+    this.resumenProduccionAbierto.set(false);
+  }
 
   categorias = computed(() => {
     const categorias = new Set<string>();
@@ -263,6 +310,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     readonly themeService: ThemeService,
     private confirmDialog: ConfirmDialogService,
+    private swPush: SwPush,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
@@ -271,9 +319,17 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.cargarAlertasPreordenMostradas();
     this.syncFullscreenState();
     this.document.addEventListener('fullscreenchange', this.syncFullscreenState);
+    this.document.addEventListener('visibilitychange', this.manejarVisibilidad);
     // Chrome solo permite iniciar audio después de un toque o tecla del usuario.
     this.document.addEventListener('pointerdown', this.habilitarAlertasSonoras, { once: true });
     this.document.addEventListener('keydown', this.habilitarAlertasSonoras, { once: true });
+    if (this.swPush.isEnabled) {
+      this.subscriptions.push(this.swPush.subscription.subscribe(subscription => {
+        this.suscripcionPushActual = subscription;
+        this.notificacionesParrillaActivas.set(!!subscription);
+        if (subscription) void this.registrarSuscripcionPush(subscription).catch(() => undefined);
+      }));
+    }
     // Solo consulta IDs de preórdenes cada minuto; el tablero completo se
     // recarga únicamente si alguna cruzó la ventana de preparación.
     this.actualizacionPreordenTimer = setInterval(() => this.revisarPreordenesProximas(), 60000);
@@ -285,12 +341,14 @@ export class CocinaHome implements OnInit, OnDestroy {
         this.usuario.set(user);
         this.estacionId.set(user.estacion_id ?? null);
         this.estacionSolicitada.set(this.route.snapshot.paramMap.get('estacion'));
-        this.cargarPedidos();
+        const alertaId = this.consumirAlertaDesdeNotificacion();
+        this.cargarPedidos(true, false, alertaId, undefined, [], undefined, [], this.consumirParrillaOcultaDesde());
         this.escucharEventosReverb();
       },
       error: () => {
         this.estacionId.set(null);
-        this.cargarPedidos();
+        const alertaId = this.consumirAlertaDesdeNotificacion();
+        this.cargarPedidos(true, false, alertaId, undefined, [], undefined, [], this.consumirParrillaOcultaDesde());
         this.escucharEventosReverb();
       }
     });
@@ -310,6 +368,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.destruido = true;
     if (this.eventosTimer) clearTimeout(this.eventosTimer);
     this.document.removeEventListener('fullscreenchange', this.syncFullscreenState);
+    this.document.removeEventListener('visibilitychange', this.manejarVisibilidad);
     this.document.removeEventListener('pointerdown', this.habilitarAlertasSonoras);
     this.document.removeEventListener('keydown', this.habilitarAlertasSonoras);
     this.subscriptions.forEach((subscription) => subscription.unsubscribe());
@@ -319,6 +378,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.temporizadoresSalida.forEach(temporizador => clearTimeout(temporizador));
     this.temporizadoresCambios.forEach(temporizador => clearTimeout(temporizador));
     this.temporizadoresCambios.clear();
+    if (this.temporizadorAlertaParrilla) clearInterval(this.temporizadorAlertaParrilla);
     void this.contextoAlertas?.close();
   }
 
@@ -370,6 +430,7 @@ export class CocinaHome implements OnInit, OnDestroy {
         this.registrarActividadKds();
       }),
       this.reverb.escucharCanal('canal-ordenes', '.KdsColaActualizada').subscribe(() => this.programarActualizacion()),
+      this.reverb.escucharCanal('canal-inventario', '.ProductoActualizado').subscribe(() => this.programarActualizacion()),
     );
   }
 
@@ -407,11 +468,12 @@ export class CocinaHome implements OnInit, OnDestroy {
     cambiosNuevos: KdsCambioOrden[] = [],
     ids?: number[],
     eventos: ActualizacionKds[] = [],
+    alertarParrillaDesde?: number,
   ): void {
     if (this.cargaPedidosEnCurso) {
       // El sondeo periódico no invalida ni acumula consultas lentas.
-      if (mostrarCarga || detectarDesbloqueos || alertarNuevaOrdenId || ordenConCambiosId) {
-        this.recargaPedidosPendiente = () => this.cargarPedidos(mostrarCarga, detectarDesbloqueos, alertarNuevaOrdenId, ordenConCambiosId, cambiosNuevos);
+      if (mostrarCarga || detectarDesbloqueos || alertarNuevaOrdenId || ordenConCambiosId || alertarParrillaDesde) {
+        this.recargaPedidosPendiente = () => this.cargarPedidos(mostrarCarga, detectarDesbloqueos, alertarNuevaOrdenId, ordenConCambiosId, cambiosNuevos, ids, eventos, alertarParrillaDesde);
       }
       return;
     }
@@ -452,6 +514,9 @@ export class CocinaHome implements OnInit, OnDestroy {
         this.estacionId.set(res.estacion.id);
         this.estacionesDisponibles.set(res.estaciones_disponibles || []);
         this.ordenes.set(ordenes);
+        if (res.estacion.codigo === 'PARRILLA' && this.suscripcionPushActual) {
+          void this.registrarSuscripcionPush(this.suscripcionPushActual).catch(() => undefined);
+        }
         if (visiblesAntes.length) {
           const idsVisiblesAhora = new Set(this.ordenesVisibles().map(orden => orden.id));
           visiblesAntes.filter(orden => !idsVisiblesAhora.has(orden.id)).forEach(orden => this.animarSalidaOrden(orden, tableroAntes));
@@ -459,6 +524,12 @@ export class CocinaHome implements OnInit, OnDestroy {
         eventos.filter(evento => evento.cambios.length).forEach(evento => this.programarOcultarCambios(evento.id));
         this.preordenesProgramadas.set(fusionarPedidosKds(this.preordenesProgramadas(), res.preordenes_programadas || [], parciales, true));
         if (res.estacion.codigo === 'PARRILLA') this.avisarPreordenesTempranas(ordenes);
+        if (res.estacion.codigo === 'PARRILLA' && alertarParrillaDesde) {
+          ordenes.filter(orden => {
+            const creada = new Date(orden.created_at).getTime();
+            return Number.isFinite(creada) && creada >= alertarParrillaDesde - 2000;
+          }).forEach(orden => this.avisarNuevaOrden(ordenes, orden.id, res.estacion));
+        }
         eventos.filter(evento => evento.nueva).forEach(evento => this.avisarNuevaOrden(ordenes, evento.id, res.estacion));
         this.iniciarSesionKds(res.estacion.id);
         if (detectarDesbloqueos && res.estacion.codigo === 'COCINA') {
@@ -490,6 +561,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   seleccionarEstacion(estacion: KdsEstacion): void {
+    this.limpiarAlertasParrilla();
     this.estacionSolicitada.set(estacion.codigo.toLowerCase());
     this.categoriaSeleccionada.set('todos');
     this.router.navigate(['/cocina', estacion.codigo.toLowerCase()]);
@@ -576,6 +648,11 @@ export class CocinaHome implements OnInit, OnDestroy {
     if (!orden) return;
 
     this.ordenesAlertadas.add(ordenId);
+    if (estacion.codigo === 'PARRILLA' && this.encolarAlertaParrilla(orden)) {
+      this.reproducirTono([784, 1046, 1318, 1046], .32);
+      if ('vibrate' in navigator) navigator.vibrate([300, 120, 300, 120, 650]);
+      return;
+    }
     const cantidad = orden.detalles.reduce((total, detalle) => total + detalle.cantidad, 0);
     this.toastr.info(
       `#${orden.numero_orden || orden.id} · ${orden.cliente?.nombre || 'Cliente pendiente'} · ${cantidad} producto${cantidad === 1 ? '' : 's'}`,
@@ -583,6 +660,134 @@ export class CocinaHome implements OnInit, OnDestroy {
       { timeOut: 7000, progressBar: true, enableHtml: false }
     );
     this.reproducirTono([523, 659, 784]);
+  }
+
+  async activarNotificacionesParrilla(): Promise<void> {
+    if (this.notificacionesParrillaProcesando() || this.notificacionesParrillaActivas()) return;
+    if (!this.swPush.isEnabled || typeof Notification === 'undefined') {
+      this.toastr.warning('Instala Toñito como aplicación desde Chrome para activar los avisos.', 'Notificaciones no disponibles');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      this.permisoNotificaciones.set('denied');
+      this.toastr.warning('Activa las notificaciones de Toñito desde los ajustes de Android o Chrome.', 'Permiso bloqueado');
+      return;
+    }
+
+    this.notificacionesParrillaProcesando.set(true);
+    try {
+      const { public_key } = await firstValueFrom(this.cocinaService.obtenerClaveNotificaciones());
+      const subscription = await this.swPush.requestSubscription({ serverPublicKey: public_key });
+      this.suscripcionPushActual = subscription;
+      this.endpointPushRegistrado = null;
+      await this.registrarSuscripcionPush(subscription);
+      this.permisoNotificaciones.set(Notification.permission);
+      this.notificacionesParrillaActivas.set(true);
+      this.toastr.success('Los pedidos de pescado llegarán aunque la pantalla esté apagada.', 'Avisos activados');
+    } catch (error) {
+      this.permisoNotificaciones.set(Notification.permission);
+      if (this.permisoNotificaciones() !== 'denied') {
+        this.toastr.error('No se pudieron activar los avisos. Verifica internet e inténtalo nuevamente.', 'Notificaciones');
+      }
+    } finally {
+      this.notificacionesParrillaProcesando.set(false);
+    }
+  }
+
+  textoNotificacionesParrilla(): string {
+    if (this.notificacionesParrillaProcesando()) return 'Activando…';
+    if (this.notificacionesParrillaActivas()) return 'Avisos activos';
+    if (this.permisoNotificaciones() === 'denied') return 'Avisos bloqueados';
+    return 'Activar avisos';
+  }
+
+  private async registrarSuscripcionPush(subscription: PushSubscription): Promise<void> {
+    if (this.estacionActual()?.codigo !== 'PARRILLA' || this.endpointPushRegistrado === subscription.endpoint) return;
+    await firstValueFrom(this.cocinaService.registrarNotificaciones(subscription.toJSON()));
+    this.endpointPushRegistrado = subscription.endpoint;
+    this.notificacionesParrillaActivas.set(true);
+  }
+
+  private encolarAlertaParrilla(orden: KdsOrden): boolean {
+    const productos = new Map<string, { nombre: string; cantidad: number; precio: number }>();
+    for (const detalle of orden.detalles) {
+      if (!detalle.producto || detalle.incluye_producto === false) continue;
+      const categoria = this.normalizar(detalle.producto.categoria?.nombre ?? '');
+      const nombre = this.normalizar(detalle.producto.nombre);
+      if (!categoria.includes('pescad') && !nombre.includes('pescad')) continue;
+      const precio = Number(detalle.precio_unitario ?? 0);
+      const clave = `${detalle.producto.id}|${precio.toFixed(2)}`;
+      const actual = productos.get(clave) ?? { nombre: detalle.producto.nombre, cantidad: 0, precio };
+      actual.cantidad += detalle.cantidad;
+      productos.set(clave, actual);
+    }
+    if (!productos.size) return false;
+
+    this.colaAlertasParrilla.push({ ordenId: orden.id, productos: [...productos.values()] });
+    this.mostrarSiguienteAlertaParrilla();
+    return true;
+  }
+
+  aceptarAlertaParrilla(): void {
+    this.finalizarAlertaParrilla();
+  }
+
+  private mostrarSiguienteAlertaParrilla(): void {
+    if (this.alertaParrillaActual() || !this.colaAlertasParrilla.length) return;
+    this.alertaParrillaActual.set(this.colaAlertasParrilla.shift()!);
+    this.segundosAlertaParrilla.set(20);
+    this.iniciarTemporizadorAlertaParrilla();
+  }
+
+  private iniciarTemporizadorAlertaParrilla(): void {
+    if (!this.alertaParrillaActual() || this.document.visibilityState === 'hidden') return;
+    this.pausarTemporizadorAlertaParrilla();
+    this.temporizadorAlertaParrilla = setInterval(() => {
+      if (this.segundosAlertaParrilla() <= 1) {
+        this.finalizarAlertaParrilla();
+        return;
+      }
+      this.segundosAlertaParrilla.update(segundos => segundos - 1);
+    }, 1000);
+  }
+
+  private pausarTemporizadorAlertaParrilla(): void {
+    if (this.temporizadorAlertaParrilla) clearInterval(this.temporizadorAlertaParrilla);
+    this.temporizadorAlertaParrilla = undefined;
+  }
+
+  private finalizarAlertaParrilla(): void {
+    this.pausarTemporizadorAlertaParrilla();
+    this.alertaParrillaActual.set(null);
+    this.mostrarSiguienteAlertaParrilla();
+  }
+
+  private limpiarAlertasParrilla(): void {
+    this.pausarTemporizadorAlertaParrilla();
+    this.colaAlertasParrilla = [];
+    this.alertaParrillaActual.set(null);
+  }
+
+  private consumirParrillaOcultaDesde(): number | undefined {
+    try {
+      const valor = Number(localStorage.getItem(this.claveParrillaOcultaDesde));
+      localStorage.removeItem(this.claveParrillaOcultaDesde);
+      return Number.isFinite(valor) && valor > 0 ? valor : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private consumirAlertaDesdeNotificacion(): number | undefined {
+    const id = Number(this.route.snapshot.queryParamMap.get('alerta'));
+    if (!Number.isInteger(id) || id <= 0) return undefined;
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { alerta: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+    return id;
   }
 
   private claveAlertaPreorden(orden: KdsOrden): string {
@@ -685,10 +890,14 @@ export class CocinaHome implements OnInit, OnDestroy {
         .map(opcion => opcion.modificador_opcion)
         .filter((opcion): opcion is NonNullable<typeof opcion> => !!opcion)
         .sort((a, b) => a.id - b.id);
+      const combinacionAjustes = detalle.combinacion_ajustes ?? [];
       const clave = [
         detalle.producto.id,
         Number(detalle.precio_unitario ?? 0).toFixed(2),
         detalle.nota?.trim() ?? '',
+        detalle.combinacion_nombre ?? '',
+        detalle.combinacion_resumen ?? '',
+        combinacionAjustes.map(ajuste => ajuste.nombre).sort().join(','),
         detalle.estacion_id ?? '',
         detalle.incluye_producto ? 'producto' : 'opcion',
         opciones.map(opcion => opcion.id).join(','),
@@ -700,6 +909,9 @@ export class CocinaHome implements OnInit, OnDestroy {
         producto: detalle.producto,
         precioUnitario: Number(detalle.precio_unitario ?? 0),
         nota: detalle.nota,
+        combinacionNombre: detalle.combinacion_nombre,
+        combinacionAjustes,
+        combinacionResumen: detalle.combinacion_resumen,
         opciones: opciones.map(opcion => ({
           nombre: opcion.nombre,
           color_fondo: opcion.modificador?.color_fondo,

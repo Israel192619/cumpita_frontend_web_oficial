@@ -78,13 +78,37 @@ describe('Stock compartido de adicionales', () => {
 });
 
 describe('Mesas de Servicio', () => {
+  it('abre el selector de inmediato aunque cubiertos siga procesandose', () => {
+    const component = Object.create(ServicioHome.prototype) as any;
+    const respuesta = new Subject<any>();
+    const ficha = { id: 8, numero_orden: 25, mesa: null, tipo_orden: 'dine-in' };
+    component.fichaMesa = signal(null);
+    component.mesasDisponibles = signal([]);
+    component.seleccionMesaAbierta = signal(false);
+    component.cargandoMesas = signal(false);
+    component.procesando = signal('cubiertos-8');
+    component.requerirSesion = () => ({ token: 'sesion-mesero' });
+    component.servicio = { listarMesas: () => respuesta };
+    component.toastr = { error: () => {} };
+
+    component.abrirMesas(ficha);
+
+    expect(component.seleccionMesaAbierta()).toBe(true);
+    expect(component.fichaMesa()).toBe(ficha);
+    expect(component.cargandoMesas()).toBe(true);
+    respuesta.next({ mesas: [{ id: 4, numero: '4' }] });
+    expect(component.mesasDisponibles()).toEqual([{ id: 4, numero: '4' }]);
+    expect(component.cargandoMesas()).toBe(false);
+  });
+
   it('usa la sesion del mesero y actualiza las fichas solo al confirmar el servidor', () => {
     const component = Object.create(ServicioHome.prototype) as any;
     const respuesta = new Subject<any>();
     const ficha = { id: 8, numero_orden: 25, mesa: null, tipo_orden: 'dine-in' };
     const llamadas: any[] = [];
     component.fichaMesa = signal(ficha);
-    component.procesando = signal(null);
+    component.asignandoMesaId = signal(null);
+    component.procesando = signal('cubiertos-8');
     component.requerirSesion = () => ({ token: 'sesion-mesero' });
     for (const nombre of ['misFichas', 'todasFichas', 'disponibles', 'preordenesProgramadas']) component[nombre] = signal([ficha]);
     component.servicio = { actualizarMesa: (...args: any[]) => { llamadas.push(args); return respuesta; } };
@@ -95,6 +119,6 @@ describe('Mesas de Servicio', () => {
     expect(component.misFichas()[0].mesa).toBeNull();
     respuesta.next({ orden_id: 8, mesa: '4' });
     for (const nombre of ['misFichas', 'todasFichas', 'disponibles', 'preordenesProgramadas']) expect(component[nombre]()[0].mesa).toBe('4');
-    expect(component.procesando()).toBeNull();
+    expect(component.asignandoMesaId()).toBeNull();
   });
 });

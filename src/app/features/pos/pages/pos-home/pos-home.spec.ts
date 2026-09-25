@@ -18,7 +18,7 @@ function crearComponente() {
         { provide: PosService, useValue: {} },
         { provide: CategoriaService, useValue: {} },
         { provide: ProductoService, useValue: {} },
-        { provide: ToastrService, useValue: { error: () => undefined } },
+        { provide: ToastrService, useValue: { error: () => undefined, info: () => undefined } },
         { provide: ActivatedRoute, useValue: { snapshot: { data: {} } } },
         { provide: Router, useValue: {} },
         { provide: ConfirmDialogService, useValue: {} },
@@ -33,6 +33,8 @@ function crearComponente() {
 }
 
 describe('Reinicio del POS después de cobrar', () => {
+  beforeEach(() => localStorage.clear());
+
   it('descarta los pagos del pedido anterior antes de empezar otra venta', () => {
     const component = crearComponente();
     component.editingOrder.set({
@@ -57,6 +59,64 @@ describe('Reinicio del POS después de cobrar', () => {
     expect(component.editingOrder()).toBeNull();
     expect(component.paidAmount()).toBe(0);
     expect(component.total()).toBe(40);
+  });
+
+  it('recupera el pedido en proceso después de recargar la pantalla', () => {
+    const original = crearComponente();
+    original.carrito.set([{
+      id: 44,
+      cantidad: 2,
+      precio_unitario: 45,
+      subtotal: 90,
+      producto: { id: 5, nombre: 'Pescado mediano', activo: true },
+      nota: 'Sin limón',
+      modificadores: [{ modificador_id: 1, opcion_id: 4, opcion_nombre: 'Ensalada', precio_extra: 0 }],
+    }] as any);
+    original.selectedCliente.set({ id: 7, nombre: 'Cliente prueba', telefono: '70000000' });
+    original.orderType.set('delivery');
+    original.orderComment.set('Entregar todo junto');
+    (original as any).persistCurrentDraft();
+
+    original.carrito.set([]);
+    original.selectedCliente.set(null);
+    original.orderType.set('dine-in');
+    original.orderComment.set('');
+    (original as any).restoreSavedDraft();
+
+    expect(original.carrito()).toHaveLength(1);
+    expect(original.carrito()[0].cantidad).toBe(2);
+    expect(original.carrito()[0].nota).toBe('Sin limón');
+    expect(original.selectedCliente()?.nombre).toBe('Cliente prueba');
+    expect(original.orderType()).toBe('delivery');
+    expect(original.orderComment()).toBe('Entregar todo junto');
+  });
+
+  it('elimina el borrador cuando la venta termina correctamente', () => {
+    const component = crearComponente();
+    component.carrito.set([{
+      id: 45,
+      cantidad: 1,
+      precio_unitario: 60,
+      subtotal: 60,
+      producto: { id: 7, nombre: 'Pescado desespinado', activo: true },
+    }] as any);
+    component.selectedCliente.set({ id: 8, nombre: 'Cliente' });
+    (component as any).persistCurrentDraft();
+
+    expect(localStorage.length).toBe(1);
+    (component as any).finalizarVenta(false);
+    expect(localStorage.length).toBe(0);
+  });
+
+  it('al cancelar elimina también las copias creadas antes de identificar al cajero', () => {
+    const component = crearComponente();
+    localStorage.setItem('tonito-order-draft-v1:current:pos', '{}');
+    localStorage.setItem('tonito-order-draft-v2:pos', '{}');
+
+    component.onCartCleared();
+
+    expect(localStorage.getItem('tonito-order-draft-v1:current:pos')).toBeNull();
+    expect(localStorage.getItem('tonito-order-draft-v2:pos')).toBeNull();
   });
 
   it('abre el selector si se desactiva una presa predeterminada de un pollo doble', () => {

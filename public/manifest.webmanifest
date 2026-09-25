@@ -1,6 +1,7 @@
 {
   "name": "Restaurante Toñito",
   "short_name": "Toñito",
+  "id": "/",
   "description": "Sistema de pedidos, cocina, parrilla, caja y servicio de Restaurante Toñito.",
   "theme_color": "#FF4500",
   "background_color": "#FF4500",

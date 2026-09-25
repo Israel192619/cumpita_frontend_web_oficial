@@ -7,6 +7,7 @@ export function agruparCarrito(items: CartItem[]): GrupoCarrito[] {
   for (const item of items) {
     const clave = JSON.stringify([
       item.producto.id, Number(item.precio_unitario).toFixed(2), item.nota?.trim() || '',
+      item.combinacion_id ?? null, item.combinacion_nombre ?? null,
       (item.modificadores ?? []).map(mod => JSON.stringify([mod.modificador_id, mod.opcion_id, Number(mod.precio_extra).toFixed(2)])).sort(),
       !!item.requiresModifierSelection,
       !item.orden_detalle_id && !item.producto.activo,

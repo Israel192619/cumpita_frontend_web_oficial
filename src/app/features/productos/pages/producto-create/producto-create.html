@@ -117,6 +117,29 @@
   <div *ngIf="modificadoresSeleccionados().length === 0" class="empty-message">
     Aún no agregaste modificadores a este producto.
   </div>
+  <section class="combinations-section" *ngIf="modificadoresDeCombinacion().length">
+    <div class="combinations-heading">
+      <div><h4>Combinaciones rápidas</h4><p>Agrupa opciones con un nombre corto para POS y Cocina.</p></div>
+      <button type="button" class="btn-add-combination" (click)="agregarCombinacion()">+ Agregar combinación</button>
+    </div>
+    <div *ngFor="let combinacion of combinaciones(); let i = index; trackBy: trackByCombinationIndex" class="combination-card">
+      <div class="combination-main">
+        <input type="text" maxlength="80" placeholder="Ej. Opción 1" [value]="combinacion.nombre" (input)="actualizarCombinacion(i, 'nombre', $any($event.target).value)">
+        <label><input type="checkbox" [checked]="combinacion.predeterminada" (change)="actualizarCombinacion(i, 'predeterminada', $any($event.target).checked)"> Predeterminada</label>
+        <label><input type="checkbox" [checked]="combinacion.activo" (change)="actualizarCombinacion(i, 'activo', $any($event.target).checked)"> Activa</label>
+        <button type="button" class="btn-remove" (click)="eliminarCombinacion(i)">✕ Quitar</button>
+      </div>
+      <div class="combination-options">
+        <ng-container *ngFor="let mod of modificadoresDeCombinacion()">
+          <label *ngFor="let opcion of mod.opciones" [class.selected]="combinacion.opcion_ids.includes(opcion.id)">
+            <input type="checkbox" [checked]="combinacion.opcion_ids.includes(opcion.id)" (change)="toggleOpcionCombinacion(i, opcion.id)">
+            <span>{{ opcion.nombre }}</span>
+          </label>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+
 </app-form-card>
 <!-- Error message -->
 <app-error-message [message]="error()"></app-error-message>

@@ -14,6 +14,8 @@ export interface CartItem {
   precio_unitario: number;
   subtotal: number;
   orden_detalle_id?: number;
+  combinacion_id?: number;
+  combinacion_nombre?: string;
   modificadores?: CartItemModificador[];
   nota?: string;
   isModifierVariant?: boolean;
@@ -75,6 +77,24 @@ export interface Order {
   reserva_sesion_id?: string;
   created_at?: string;
   ultimo_cambio_mesero_en?: string | null;
+  observaciones?: string | null;
+  delivery_monto_esperado?: number | null;
+  delivery_cambio_preparado?: boolean;
+  delivery_cambio?: number | null;
+  delivery_cambio_preparado_por?: number | null;
+  delivery_cambio_preparado_por_nombre?: string | null;
+  delivery_cambio_preparado_en?: string | null;
+}
+
+export interface DeliveryChangeState {
+  message: string;
+  orden_id: number;
+  saldo_pendiente: number;
+  delivery_monto_esperado: number | null;
+  delivery_cambio_preparado: boolean;
+  delivery_cambio: number | null;
+  delivery_cambio_preparado_por_nombre?: string | null;
+  delivery_cambio_preparado_en?: string | null;
 }
 
 export interface OrderPayload {
@@ -97,6 +117,7 @@ export interface OrderPayload {
 export interface OrderItem {
   orden_detalle_id?: number;
   producto_id: number;
+  combinacion_id?: number;
   cantidad: number;
   precio_unitario: number;
   modificadores?: OrderItemModificador[];
@@ -135,6 +156,14 @@ export interface CancelacionInfo {
   caja_actual_id: number | null;
   efectivo_disponible: number;
   faltante_efectivo: number;
+}
+
+export function normalizeOrderComment(comment?: string | null, clientName?: string | null): string {
+  const normalized = comment?.trim() ?? '';
+  const legacyDefault = clientName?.trim() ? `Cliente: ${clientName.trim()}` : '';
+  return legacyDefault && normalized.localeCompare(legacyDefault, undefined, { sensitivity: 'accent' }) === 0
+    ? ''
+    : normalized;
 }
 
 export interface CajaResumen {
@@ -289,6 +318,13 @@ export class PosService {
     return this.http.post<any>(`${this.apiUrl}/pagos-ordenes`, data);
   }
 
+  prepararCambioDelivery(id: number, preparado: boolean, montoEsperado?: number | null): Observable<DeliveryChangeState> {
+    return this.http.patch<DeliveryChangeState>(`${this.apiUrl}/ordenes/${id}/delivery-cambio`, {
+      preparado,
+      monto_esperado: preparado ? montoEsperado : null,
+    });
+  }
+
   obtenerPreordenesProgramadas(): Observable<Order[]> {
     return this.http.get<{ ordenes: Order[] }>(`${this.apiUrl}/ordenes`, {
       params: { tipo_flujo: 'preorden', estado_preorden: 'programada' },
@@ -356,13 +392,14 @@ export class PosService {
       subtotal: order.subtotal,
       descuento: order.descuento || 0,
       total: order.total,
-      observaciones: order.cliente_nombre ? `Cliente: ${order.cliente_nombre}` : undefined,
+      observaciones: normalizeOrderComment(order.observaciones, order.cliente_nombre) || undefined,
       reserva_sesion_id: order.reserva_sesion_id,
       items: order.items.map(item => ({
         // Conserva el identificador al editar: el backend compara este detalle
         // con el existente en vez de borrar y crear toda la orden nuevamente.
         orden_detalle_id: item.orden_detalle_id,
         producto_id: item.producto.id,
+        combinacion_id: item.combinacion_id,
         cantidad: item.cantidad,
         precio_unitario: item.precio_unitario,
         nota: item.nota?.trim() || null,

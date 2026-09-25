@@ -27,6 +27,15 @@ export interface ModificadorEstructurado {
   opciones?: ModificadorOpcion[];
 }
 
+export interface ProductoCombinacion {
+  id: number;
+  nombre: string;
+  activo: boolean;
+  predeterminada: boolean;
+  orden: number;
+  opciones: Array<{ id: number; nombre: string }>;
+}
+
 export interface Producto {
   id: number;
   categoria_id: number;
@@ -44,6 +53,7 @@ export interface Producto {
   imagen?: string;
   imagen_url?: string;
   modificadores?: ModificadorEstructurado[];
+  combinaciones?: ProductoCombinacion[];
   //opciones?: ProductoOpcion[];
   created_at?: string;
   updated_at?: string;

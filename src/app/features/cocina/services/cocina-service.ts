@@ -25,6 +25,9 @@ export interface KdsDetalle {
   cantidad: number;
   precio_unitario?: number | string;
   nota?: string | null;
+  combinacion_nombre?: string | null;
+  combinacion_ajustes?: Array<{ nombre: string; color_fondo?: string | null }>;
+  combinacion_resumen?: string | null;
   // Expanded states for the detail lifecycle. UI will remain backwards-compatible.
   estado_cocina: 'pendiente' | 'en_preparacion' | 'listo_para_recoger' | 'recogido' | 'servido';
   producto: KdsProducto;
@@ -74,6 +77,7 @@ export interface KdsOrden {
   preorden_temprana?: boolean;
   bloqueada?: boolean;
   asignacion?: { user_id: number; nombre: string; color: 'amarillo' | 'indigo' | 'salmon' | 'verde' } | null;
+  observaciones?: string | null;
 }
 
 export interface ActualizacionEstadoCocinaResponse {
@@ -127,5 +131,13 @@ export class CocinaService {
 
   registrarSesion(estacion_id: number): Observable<{ sesion: { id: number; color: string; ultima_actividad: string } }> {
     return this.http.post<{ sesion: { id: number; color: string; ultima_actividad: string } }>(`${this.apiUrl}/kds/sesion`, { estacion_id });
+  }
+
+  obtenerClaveNotificaciones(): Observable<{ public_key: string }> {
+    return this.http.get<{ public_key: string }>(`${this.apiUrl}/web-push/public-key`);
+  }
+
+  registrarNotificaciones(subscription: PushSubscriptionJSON): Observable<{ active: boolean; id: number }> {
+    return this.http.post<{ active: boolean; id: number }>(`${this.apiUrl}/web-push/subscriptions`, { ...subscription, channel: 'PARRILLA' });
   }
 }
