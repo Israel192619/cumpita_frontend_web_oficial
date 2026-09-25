@@ -168,13 +168,11 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   esGrupoSalidaInmediataServicio(grupo: GrupoDetalleServicio): boolean {
     return esProductoSalidaInmediata(grupo.categoria, grupo.producto)
-      && grupo.listo
       && grupo.detalles.some(detalle => !detalle.servido && !detalle.llevando_por_id);
   }
 
   tieneSalidaInmediataServicio(ficha: ServicioFicha): boolean {
-    return ficha.detalles.some(detalle => detalle.listo
-      && !detalle.servido
+    return ficha.detalles.some(detalle => !detalle.servido
       && !detalle.llevando_por_id
       && esProductoSalidaInmediata(detalle.categoria, detalle.producto));
   }

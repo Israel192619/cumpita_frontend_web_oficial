@@ -34,8 +34,8 @@ describe('Asistente de Servicio', () => {
     expect(cola[0].accion).toBe('cubiertos');
   });
 
-  it('no selecciona toda la ficha solamente por una bebida lista', () => {
-    const propia = ficha({ detalles: [{ id: 11, cantidad: 1, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: true, servido: false }] });
+  it('no selecciona toda la ficha solamente por contener una bebida inmediata', () => {
+    const propia = ficha({ detalles: [{ id: 11, cantidad: 1, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: false, servido: false }] });
     const cola = construirColaAsistenteServicio([propia], [ficha({ id: 2 })]);
     expect(cola[0].ficha.id).toBe(2);
     expect(cola.find(tarea => tarea.ficha.id === propia.id)?.accion).toBe('esperar');
@@ -44,8 +44,8 @@ describe('Asistente de Servicio', () => {
 
   it('espera el pedido principal completo y conserva aparte la señal de sopa o bebida', () => {
     const propia = ficha({ detalles: [
-      { id: 11, cantidad: 2, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: true, servido: false },
-      { id: 12, cantidad: 1, producto: 'Sopa', categoria: 'Sopas', opciones: [], listo: true, servido: false },
+      { id: 11, cantidad: 2, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: false, servido: false },
+      { id: 12, cantidad: 1, producto: 'Sopa', categoria: 'Sopas', opciones: [], listo: false, servido: false },
       { id: 13, cantidad: 1, producto: 'Pescado', categoria: 'Pescados', opciones: [], listo: true, servido: false },
     ] });
     const component = Object.create(ServicioHome.prototype) as ServicioHome;
@@ -53,6 +53,9 @@ describe('Asistente de Servicio', () => {
     expect(cola[0].accion).toBe('esperar');
     expect(cola[0].titulo).toBe('PRÓXIMA A SERVIR');
     expect(component.tieneSalidaInmediataServicio(propia)).toBe(true);
+    expect(component.esGrupoSalidaInmediataServicio({
+      categoria: 'Sopas', producto: 'Sopa', listo: false, detalles: [propia.detalles[1]],
+    } as any)).toBe(true);
   });
 });
 
