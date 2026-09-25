@@ -46,11 +46,63 @@ interface KdsDetalleAgrupado {
   todosBloqueados: boolean;
 }
 
+export interface TareaAsistenteKds {
+  orden: KdsOrden;
+  detalles: KdsDetalle[];
+  cantidad: number;
+  productos: Array<{ nombre: string; cantidad: number }>;
+  motivo: string;
+  esperaMinutos: number;
+}
+
+export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now()): TareaAsistenteKds[] {
+  return ordenes
+    .filter(orden => orden.estado !== 'cancelado' && !orden.preorden_temprana)
+    .map(orden => {
+      const detalles = orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido' && !detalle.bloqueado);
+      if (!detalles.length) return null;
+      const productos = new Map<string, number>();
+      detalles.forEach(detalle => productos.set(detalle.producto.nombre, (productos.get(detalle.producto.nombre) ?? 0) + Number(detalle.cantidad || 1)));
+      const fecha = new Date(orden.preorden_activada_en || orden.fecha_orden || orden.created_at).getTime();
+      const esperaMinutos = Math.max(0, Math.floor((ahora - fecha) / 60000));
+      const esPreorden = orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada';
+      const tieneTrabajoListo = detalles.some(detalle => detalle.listo_para_atender);
+      const yaAvanzada = orden.detalles.some(detalle => detalle.estado_cocina === 'servido');
+      const motivo = esPreorden
+        ? 'Preorden activada: debe salir a la hora comprometida.'
+        : tieneTrabajoListo
+          ? 'Otra estación ya avanzó esta ficha; completarla evita que se enfríe.'
+          : yaAvanzada
+            ? 'Esta ficha ya está parcialmente avanzada; conviene terminarla.'
+            : `Es la ficha pendiente más antigua (${esperaMinutos} min).`;
+      return {
+        orden,
+        detalles,
+        cantidad: detalles.reduce((total, detalle) => total + Number(detalle.cantidad || 1), 0),
+        productos: [...productos.entries()].map(([nombre, cantidad]) => ({ nombre, cantidad })),
+        motivo,
+        esperaMinutos,
+      };
+    })
+    .filter((tarea): tarea is TareaAsistenteKds => tarea !== null)
+    .sort((a, b) => {
+      const preordenA = a.orden.tipo_flujo === 'preorden' && a.orden.estado_preorden === 'activada' ? 0 : 1;
+      const preordenB = b.orden.tipo_flujo === 'preorden' && b.orden.estado_preorden === 'activada' ? 0 : 1;
+      const listaA = a.detalles.some(detalle => detalle.listo_para_atender) ? 0 : 1;
+      const listaB = b.detalles.some(detalle => detalle.listo_para_atender) ? 0 : 1;
+      const avanzadaA = a.orden.detalles.some(detalle => detalle.estado_cocina === 'servido') ? 0 : 1;
+      const avanzadaB = b.orden.detalles.some(detalle => detalle.estado_cocina === 'servido') ? 0 : 1;
+      const fechaA = new Date(a.orden.preorden_activada_en || a.orden.fecha_orden || a.orden.created_at).getTime();
+      const fechaB = new Date(b.orden.preorden_activada_en || b.orden.fecha_orden || b.orden.created_at).getTime();
+      return preordenA - preordenB || listaA - listaB || avanzadaA - avanzadaB || fechaA - fechaB || a.cantidad - b.cantidad;
+    });
+}
+
 @Component({
   selector: 'app-cocina-home',
   imports: [RouterLink, CommonModule, Icon],
   templateUrl: './cocina-home.html',
-  styleUrls: ['./cocina-home.css', './cocina-states.css', './cocina-theme.css'],
+  styleUrls: ['./cocina-home.css', './cocina-states.css', './cocina-theme.css', './cocina-assistant.css'],
 })
 export class CocinaHome implements OnInit, OnDestroy {
   readonly modifierColorStyle = modifierColorStyle;
@@ -165,6 +217,9 @@ export class CocinaHome implements OnInit, OnDestroy {
   private endpointPushRegistrado: string | null = null;
   verServidos = signal(false);
   detallesCompletadosAbiertos = signal<Record<number, boolean>>({});
+  colaAsistente = computed(() => construirColaAsistenteKds(this.ordenes()));
+  tareaAsistenteActual = computed(() => this.colaAsistente()[0] ?? null);
+  proximasTareasAsistente = computed(() => this.colaAsistente().slice(1, 4));
 
   puedeCambiarEstacion = computed(() => this.estacionesDisponibles().length > 1);
   esAdministrador = computed(() => {
@@ -233,6 +288,28 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   cerrarResumenProduccion(): void {
     this.resumenProduccionAbierto.set(false);
+  }
+
+  confirmarTareaAsistente(): void {
+    const tarea = this.tareaAsistenteActual();
+    if (!tarea || this.soloLecturaCocina() || this.operacionMasivaActualizando()) return;
+    if (tarea.detalles.length === 1) {
+      this.marcarServido(tarea.detalles[0], true);
+      return;
+    }
+    this.marcarServidosMasivo(tarea.orden, tarea.detalles, true, `asistente:${tarea.orden.id}`);
+  }
+
+  escucharTareaAsistente(): void {
+    const tarea = this.tareaAsistenteActual();
+    if (!tarea || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
+    const estacion = this.estacionActual()?.nombre || 'Estación';
+    const productos = tarea.productos.map(producto => `${producto.cantidad} ${producto.nombre}`).join(', ');
+    speechSynthesis.cancel();
+    const mensaje = new SpeechSynthesisUtterance(`${estacion}. Ahora ficha ${tarea.orden.numero_orden}. ${productos}.`);
+    mensaje.lang = 'es-BO';
+    mensaje.rate = 1.05;
+    speechSynthesis.speak(mensaje);
   }
 
   categorias = computed(() => {

@@ -37,11 +37,68 @@ interface GrupoDetalleServicio {
   detalles: ServicioFicha['detalles'];
 }
 
+export type AccionAsistenteServicio = 'entregar' | 'cubiertos' | 'confirmar' | 'tomar';
+
+export interface TareaAsistenteServicio {
+  ficha: ServicioFicha;
+  accion: AccionAsistenteServicio;
+  titulo: string;
+  motivo: string;
+  prioridad: number;
+  detalleId?: number;
+  producto?: string;
+}
+
+export function construirColaAsistenteServicio(
+  misFichas: ServicioFicha[],
+  disponibles: ServicioFicha[],
+): TareaAsistenteServicio[] {
+  const vigentes = (fichas: ServicioFicha[]) => fichas.filter(ficha => ficha.estado !== 'cancelado' && ficha.estado !== 'entregado');
+  const propias = vigentes(misFichas).flatMap<TareaAsistenteServicio>(ficha => {
+    if (ficha.todo_listo && ficha.cubiertos_entregados && !ficha.detalles.some(detalle => !!detalle.llevando_por_id)) {
+      return [{ ficha, accion: 'entregar', titulo: 'Entregar ficha completa', motivo: 'Todos los productos y cubiertos están listos.', prioridad: 0 }];
+    }
+    if (ficha.todo_listo && !ficha.cubiertos_entregados) {
+      return [{ ficha, accion: 'cubiertos', titulo: 'Llevar cubiertos', motivo: 'La comida está lista; faltan los cubiertos para entregar.', prioridad: 1 }];
+    }
+    const detalle = ficha.detalles.find(item => item.listo && !item.servido && !item.llevando_por_id);
+    if (detalle) {
+      return [{
+        ficha,
+        accion: 'confirmar',
+        titulo: `Llevar ${detalle.producto}`,
+        motivo: 'Este producto ya está listo y debe salir antes de enfriarse.',
+        prioridad: 2,
+        detalleId: detalle.id,
+        producto: detalle.producto,
+      }];
+    }
+    return [];
+  });
+  const comunes = vigentes(disponibles).map<TareaAsistenteServicio>(ficha => ({
+    ficha,
+    accion: 'tomar',
+    titulo: 'Tomar ficha',
+    motivo: ficha.todo_listo
+      ? 'La ficha está lista y todavía no tiene mesero.'
+      : 'Es la ficha disponible con mayor espera.',
+    prioridad: ficha.todo_listo ? 3 : 4,
+  }));
+  return [...propias, ...comunes].sort((a, b) => {
+    const preordenA = a.ficha.tipo_flujo === 'preorden' && a.ficha.estado_preorden === 'activada' ? 0 : 1;
+    const preordenB = b.ficha.tipo_flujo === 'preorden' && b.ficha.estado_preorden === 'activada' ? 0 : 1;
+    return a.prioridad - b.prioridad
+      || preordenA - preordenB
+      || Number(b.ficha.tiempo_espera_minutos || 0) - Number(a.ficha.tiempo_espera_minutos || 0)
+      || a.ficha.numero_orden - b.ficha.numero_orden;
+  });
+}
+
 @Component({
   selector: 'app-servicio-home',
   imports: [RouterLink, CommonModule, ReactiveFormsModule, Button, InputForm, Modal, Icon, LocationMap, MesasModalComponent],
   templateUrl: './servicio-home.html',
-  styleUrls: ['./servicio-home.css', './servicio-theme.css']
+  styleUrls: ['./servicio-home.css', './servicio-theme.css', './servicio-assistant.css']
 })
 export class ServicioHome implements OnInit, OnDestroy {
   readonly modifierColorStyle = modifierColorStyle;
@@ -87,6 +144,11 @@ export class ServicioHome implements OnInit, OnDestroy {
   sesionSeleccionada = signal<ServicioSesion | null>(null);
   disponibles = signal<ServicioFicha[]>([]);
   misFichas = signal<ServicioFicha[]>([]);
+  colaAsistenteServicio = computed(() => this.sesionSeleccionada()
+    ? construirColaAsistenteServicio(this.misFichas(), this.disponibles())
+    : []);
+  tareaAsistenteServicioActual = computed(() => this.colaAsistenteServicio()[0] ?? null);
+  proximasTareasAsistenteServicio = computed(() => this.colaAsistenteServicio().slice(1, 4));
   misEntregadas = signal<ServicioFicha[]>([]);
   viendoEntregadas = signal(false);
   viendoTodas = signal(false);
@@ -867,6 +929,26 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.pin.reset();
       }
     });
+  }
+
+  ejecutarTareaAsistenteServicio(): void {
+    const tarea = this.tareaAsistenteServicioActual();
+    if (!tarea || this.procesando()) return;
+    if (tarea.accion === 'entregar') this.entregar(tarea.ficha);
+    else if (tarea.accion === 'cubiertos') this.alternarCubiertos(tarea.ficha);
+    else if (tarea.accion === 'confirmar' && tarea.detalleId) this.confirmar(tarea.detalleId, false);
+    else if (tarea.accion === 'tomar') this.tomar(tarea.ficha);
+  }
+
+  escucharTareaAsistenteServicio(): void {
+    const tarea = this.tareaAsistenteServicioActual();
+    if (!tarea || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
+    const destino = tarea.ficha.mesa ? `mesa ${tarea.ficha.mesa}` : this.etiquetaTipo(tarea.ficha);
+    speechSynthesis.cancel();
+    const mensaje = new SpeechSynthesisUtterance(`Mesero. ${tarea.titulo}. Ficha ${tarea.ficha.numero_orden}, ${destino}.`);
+    mensaje.lang = 'es-BO';
+    mensaje.rate = 1.05;
+    speechSynthesis.speak(mensaje);
   }
 
   tomar(ficha: ServicioFicha): void {

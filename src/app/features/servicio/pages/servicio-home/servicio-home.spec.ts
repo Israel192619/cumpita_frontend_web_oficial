@@ -1,7 +1,46 @@
 import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { Producto } from '../../../../core/models/producto';
-import { ServicioHome } from './servicio-home';
+import { construirColaAsistenteServicio, ServicioHome } from './servicio-home';
+
+describe('Asistente de Servicio', () => {
+  const ficha = (cambios: any = {}) => ({
+    id: 1,
+    numero_orden: 10,
+    tipo_orden: 'dine-in',
+    estado: 'preparando',
+    hora: '12:00',
+    tiempo_espera_minutos: 8,
+    detalles: [{ id: 11, cantidad: 1, producto: 'Pescado', opciones: [], listo: false, servido: false }],
+    listos: 0,
+    total_items: 1,
+    todo_listo: false,
+    cubiertos_entregados: false,
+    created_at: '2026-09-25T12:00:00-04:00',
+    ...cambios,
+  });
+
+  it('prioriza una ficha propia completa antes de tomar otra ficha', () => {
+    const propia = ficha({ id: 1, numero_orden: 20, todo_listo: true, cubiertos_entregados: true, detalles: [{ id: 11, cantidad: 1, producto: 'Pescado', opciones: [], listo: true, servido: true }] });
+    const disponible = ficha({ id: 2, numero_orden: 10, tiempo_espera_minutos: 30 });
+    const cola = construirColaAsistenteServicio([propia], [disponible]);
+    expect(cola[0].accion).toBe('entregar');
+    expect(cola[0].ficha.id).toBe(1);
+  });
+
+  it('indica cubiertos antes de entregar una ficha lista', () => {
+    const lista = ficha({ todo_listo: true, cubiertos_entregados: false, detalles: [{ id: 11, cantidad: 1, producto: 'Pescado', opciones: [], listo: true, servido: true }] });
+    const cola = construirColaAsistenteServicio([lista], []);
+    expect(cola[0].accion).toBe('cubiertos');
+  });
+
+  it('recomienda sacar un producto listo antes de tomar una ficha común', () => {
+    const propia = ficha({ detalles: [{ id: 11, cantidad: 1, producto: 'Bebida', opciones: [], listo: true, servido: false }] });
+    const cola = construirColaAsistenteServicio([propia], [ficha({ id: 2 })]);
+    expect(cola[0].accion).toBe('confirmar');
+    expect(cola[0].producto).toBe('Bebida');
+  });
+});
 
 describe('Stock compartido de adicionales', () => {
   it('pide confirmación para desmarcar lo mostrado aunque exista una copia anterior', () => {
