@@ -1,7 +1,32 @@
 import { vi } from 'vitest';
 import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
-import { CocinaHome, conservarPosicionesSalida, fusionarPedidosKds } from './cocina-home';
+import { CocinaHome, conservarPosicionesSalida, construirColaAsistenteKds, fusionarPedidosKds } from './cocina-home';
+
+describe('Asistente de Cocina y Parrilla', () => {
+  const orden = (id: number, fecha: string, estado = 'pendiente', extra: any = {}) => ({
+    id, numero_orden: id, created_at: fecha, fecha_orden: fecha, estado: 'preparando', tipo_orden: 'dine-in',
+    detalles: [{ id: id * 10, cantidad: 1, estado_cocina: estado, bloqueado: false, producto: { id, nombre: `Pescado ${id}` } }],
+    ...extra,
+  }) as any;
+
+  it('recomienda primero la preorden activada y conserva tres tareas siguientes', () => {
+    const normalAntigua = orden(1, '2026-09-25T11:00:00');
+    const normalNueva = orden(2, '2026-09-25T11:10:00');
+    const preorden = orden(3, '2026-09-25T11:20:00', 'pendiente', { tipo_flujo: 'preorden', estado_preorden: 'activada' });
+    const cola = construirColaAsistenteKds([normalNueva, normalAntigua, preorden], new Date('2026-09-25T11:30:00').getTime());
+    expect(cola.map(tarea => tarea.orden.id)).toEqual([3, 1, 2]);
+    expect(cola[0].motivo).toContain('Preorden activada');
+  });
+
+  it('omite productos terminados y fichas bloqueadas', () => {
+    const terminada = orden(1, '2026-09-25T11:00:00', 'servido');
+    const bloqueada = orden(2, '2026-09-25T11:01:00');
+    bloqueada.detalles[0].bloqueado = true;
+    const activa = orden(3, '2026-09-25T11:02:00');
+    expect(construirColaAsistenteKds([terminada, bloqueada, activa]).map(tarea => tarea.orden.id)).toEqual([3]);
+  });
+});
 
 describe('Sincronización del monitor de Cocina', () => {
   it('abre y cierra el conteo grande cuando existe producción pendiente', () => {
