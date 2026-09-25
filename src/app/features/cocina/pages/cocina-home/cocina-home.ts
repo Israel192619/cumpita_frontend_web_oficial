@@ -55,7 +55,7 @@ export interface TareaAsistenteKds {
   motivo: string;
   esperaMinutos: number;
   puntaje: number;
-  tipo: 'salida_inmediata' | 'dependencia' | 'preorden' | 'parcial' | 'espera';
+  tipo: 'dependencia' | 'preorden' | 'parcial' | 'espera';
 }
 
 export function compararLlegadaKds(a: KdsOrden, b: KdsOrden): number {
@@ -83,19 +83,14 @@ export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now(
       const esPreorden = orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada';
       const tieneTrabajoListo = detalles.some(detalle => detalle.listo_para_atender);
       const yaAvanzada = orden.detalles.some(detalle => detalle.estado_cocina === 'servido');
-      const tieneSalidaInmediata = detalles.some(detalle => esProductoSalidaInmediata(detalle.producto.categoria?.nombre, detalle.producto.nombre));
       const puntaje = esperaMinutos * 2
-        + (tieneSalidaInmediata ? 120 : 0)
         + (esPreorden ? 110 : 0)
         + (tieneTrabajoListo ? 80 : 0)
         + (yaAvanzada ? 30 : 0);
-      const tipo: TareaAsistenteKds['tipo'] = tieneSalidaInmediata ? 'salida_inmediata'
-        : tieneTrabajoListo ? 'dependencia'
-          : esPreorden ? 'preorden'
-            : yaAvanzada ? 'parcial' : 'espera';
-      const motivo = tipo === 'salida_inmediata'
-        ? 'Las bebidas y sopas deben prepararse y salir inmediatamente.'
-        : tipo === 'dependencia'
+      const tipo: TareaAsistenteKds['tipo'] = tieneTrabajoListo ? 'dependencia'
+        : esPreorden ? 'preorden'
+          : yaAvanzada ? 'parcial' : 'espera';
+      const motivo = tipo === 'dependencia'
           ? 'Otra estación ya avanzó esta ficha; completarla evita que se enfríe.'
           : tipo === 'preorden'
             ? 'Preorden activada: debe salir a la hora comprometida.'
@@ -256,7 +251,6 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   etiquetaAsistenteKds(ordenId: number): string {
     const tarea = this.tareaAsistenteParaOrden(ordenId);
-    if (tarea?.tipo === 'salida_inmediata') return 'PREPARAR PRIMERO';
     if (tarea?.tipo === 'dependencia') return 'COMPLETAR AHORA';
     return this.estacionActual()?.codigo === 'PARRILLA' ? 'COCINAR AHORA' : 'PREPARAR AHORA';
   }

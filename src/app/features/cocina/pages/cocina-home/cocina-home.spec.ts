@@ -27,20 +27,20 @@ describe('Asistente de Cocina y Parrilla', () => {
     expect(construirColaAsistenteKds([terminada, bloqueada, activa]).map(tarea => tarea.orden.id)).toEqual([3]);
   });
 
-  it('da salida inmediata a sopas y bebidas sin mover las fichas del tablero', () => {
+  it('no mueve ni selecciona toda la ficha solo por contener una sopa', () => {
     const antigua = orden(1, '2026-09-25T11:00:00');
     const sopa = orden(2, '2026-09-25T11:20:00');
     sopa.detalles[0].producto = { id: 2, nombre: 'Sopa de pollo', categoria: { id: 4, nombre: 'Sopas' } };
     const cola = construirColaAsistenteKds([antigua, sopa], new Date('2026-09-25T11:30:00').getTime());
-    expect(cola[0].orden.id).toBe(2);
-    expect(cola[0].tipo).toBe('salida_inmediata');
+    expect(cola.map(tarea => tarea.orden.id)).toEqual([1, 2]);
+    expect(cola[1].puntaje).toBe(20);
     expect([antigua, sopa].sort(compararLlegadaKds).map(item => item.id)).toEqual([1, 2]);
   });
 
-  it('reconoce las subcategorias locales de bebidas', () => {
+  it('mantiene las subcategorias locales de bebidas fuera de la prioridad de ficha', () => {
     const gaseosa = orden(1, '2026-09-25T11:00:00');
     gaseosa.detalles[0].producto = { id: 1, nombre: 'Coca Cola', categoria: { id: 2, nombre: 'Gaseosas' } };
-    expect(construirColaAsistenteKds([gaseosa])[0].tipo).toBe('salida_inmediata');
+    expect(construirColaAsistenteKds([gaseosa], new Date('2026-09-25T11:01:00').getTime())[0].puntaje).toBe(2);
   });
 });
 

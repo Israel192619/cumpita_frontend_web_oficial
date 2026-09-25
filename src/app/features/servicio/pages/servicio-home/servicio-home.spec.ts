@@ -34,24 +34,24 @@ describe('Asistente de Servicio', () => {
     expect(cola[0].accion).toBe('cubiertos');
   });
 
-  it('recomienda sacar un producto listo antes de tomar una ficha común', () => {
+  it('no selecciona toda la ficha solamente por una bebida lista', () => {
     const propia = ficha({ detalles: [{ id: 11, cantidad: 1, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: true, servido: false }] });
     const cola = construirColaAsistenteServicio([propia], [ficha({ id: 2 })]);
-    expect(cola[0].accion).toBe('confirmar');
-    expect(cola[0].producto).toBe('1× Mocochinchi');
-    expect(cola[0].salidaInmediata).toBe(true);
-    expect(cola[0].puntaje).toBe(136);
+    expect(cola.some(tarea => tarea.ficha.id === propia.id)).toBe(false);
+    expect(cola[0].ficha.id).toBe(2);
   });
 
-  it('agrupa las bebidas y sopas listas de la misma ficha', () => {
+  it('separa la señal inmediata del producto de la prioridad general de la ficha', () => {
     const propia = ficha({ detalles: [
       { id: 11, cantidad: 2, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: true, servido: false },
       { id: 12, cantidad: 1, producto: 'Sopa', categoria: 'Sopas', opciones: [], listo: true, servido: false },
       { id: 13, cantidad: 1, producto: 'Pescado', categoria: 'Pescados', opciones: [], listo: true, servido: false },
     ] });
     const tarea = construirColaAsistenteServicio([propia], [])[0];
-    expect(tarea.detalleIds).toEqual([11, 12]);
-    expect(tarea.titulo).toContain('2× Mocochinchi, 1× Sopa');
+    const component = Object.create(ServicioHome.prototype) as ServicioHome;
+    expect(tarea.detalleIds).toEqual([13]);
+    expect(tarea.producto).toBe('Pescado');
+    expect(component.tieneSalidaInmediataServicio(propia)).toBe(true);
   });
 });
 

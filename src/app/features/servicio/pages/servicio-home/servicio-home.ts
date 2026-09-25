@@ -50,7 +50,6 @@ export interface TareaAsistenteServicio {
   detalleId?: number;
   detalleIds?: number[];
   producto?: string;
-  salidaInmediata?: boolean;
 }
 
 export function construirColaAsistenteServicio(
@@ -70,29 +69,13 @@ export function construirColaAsistenteServicio(
   const propias = vigentes(misFichas).flatMap<TareaAsistenteServicio>(ficha => {
     const { puntos } = extras(ficha);
     const listos = ficha.detalles.filter(detalle => detalle.listo && !detalle.servido && !detalle.llevando_por_id);
-    const inmediatos = listos.filter(detalle => esProductoSalidaInmediata(detalle.categoria, detalle.producto));
-    if (inmediatos.length) {
-      const resumen = inmediatos.map(detalle => `${detalle.cantidad}× ${detalle.producto}`).join(', ');
-      return [{
-        ficha,
-        accion: 'confirmar',
-        titulo: `LLEVAR AHORA · ${resumen}`,
-        motivo: 'Las bebidas y sopas se entregan sin esperar el resto del pedido.',
-        prioridad: 0,
-        puntaje: puntos + 120,
-        detalleId: inmediatos[0].id,
-        detalleIds: inmediatos.map(detalle => detalle.id),
-        producto: resumen,
-        salidaInmediata: true,
-      }];
-    }
     if (ficha.todo_listo && ficha.cubiertos_entregados && !ficha.detalles.some(detalle => !!detalle.llevando_por_id)) {
       return [{ ficha, accion: 'entregar', titulo: 'LLEVAR PEDIDO COMPLETO', motivo: 'Todos los productos y cubiertos están listos.', prioridad: 1, puntaje: puntos + 100 }];
     }
     if (ficha.todo_listo && !ficha.cubiertos_entregados) {
       return [{ ficha, accion: 'cubiertos', titulo: 'Llevar cubiertos', motivo: 'La comida está lista; faltan los cubiertos para entregar.', prioridad: 2, puntaje: puntos + 100 }];
     }
-    const detalle = listos[0];
+    const detalle = listos.find(item => !esProductoSalidaInmediata(item.categoria, item.producto));
     if (detalle) {
       return [{
         ficha,
@@ -110,22 +93,15 @@ export function construirColaAsistenteServicio(
   });
   const comunes = vigentes(disponibles).map<TareaAsistenteServicio>(ficha => {
     const { puntos } = extras(ficha);
-    const inmediatos = ficha.detalles.filter(detalle => detalle.listo && !detalle.servido && !detalle.llevando_por_id
-      && esProductoSalidaInmediata(detalle.categoria, detalle.producto));
-    const salidaInmediata = inmediatos.length > 0;
     return {
       ficha,
       accion: 'tomar',
-      titulo: salidaInmediata ? 'TOMAR · SALIDA INMEDIATA' : ficha.todo_listo ? 'TOMAR · PEDIDO COMPLETO' : 'Tomar ficha',
-      motivo: salidaInmediata
-        ? 'Tiene bebidas o sopas listas y todavía no tiene mesero.'
-        : ficha.todo_listo
-          ? 'La ficha está lista y todavía no tiene mesero.'
-          : 'Es una ficha disponible que necesita responsable.',
-      prioridad: salidaInmediata ? 0 : ficha.todo_listo ? 4 : 5,
-      puntaje: puntos + (salidaInmediata ? 120 : ficha.todo_listo ? 100 : 0),
-      detalleIds: inmediatos.map(detalle => detalle.id),
-      salidaInmediata,
+      titulo: ficha.todo_listo ? 'TOMAR · PEDIDO COMPLETO' : 'Tomar ficha',
+      motivo: ficha.todo_listo
+        ? 'La ficha está lista y todavía no tiene mesero.'
+        : 'Es una ficha disponible que necesita responsable.',
+      prioridad: ficha.todo_listo ? 4 : 5,
+      puntaje: puntos + (ficha.todo_listo ? 100 : 0),
     };
   });
   return [...propias, ...comunes].sort((a, b) => {
@@ -205,6 +181,13 @@ export class ServicioHome implements OnInit, OnDestroy {
     return esProductoSalidaInmediata(grupo.categoria, grupo.producto)
       && grupo.listo
       && grupo.detalles.some(detalle => !detalle.servido && !detalle.llevando_por_id);
+  }
+
+  tieneSalidaInmediataServicio(ficha: ServicioFicha): boolean {
+    return ficha.detalles.some(detalle => detalle.listo
+      && !detalle.servido
+      && !detalle.llevando_por_id
+      && esProductoSalidaInmediata(detalle.categoria, detalle.producto));
   }
   misEntregadas = signal<ServicioFicha[]>([]);
   viendoEntregadas = signal(false);
