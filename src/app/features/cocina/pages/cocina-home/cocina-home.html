@@ -217,7 +217,7 @@
       <div *ngIf="idsOrdenesSaliendo().has(orden.id)" class="ticket-completion-overlay" aria-hidden="true"><span>✓</span></div>
       <div *ngIf="orden.estado === 'cancelado'" class="cancelled-stamp">CANCELADO</div>
       <div *ngIf="!verServidos() && prioridadAsistente(orden.id) as prioridad" class="assistant-ticket-badge" [class.assistant-ticket-badge--now]="prioridad === 1">
-        {{ prioridad === 1 ? etiquetaAsistenteKds(orden.id) : 'SIGUE #' + prioridad }}
+        {{ prioridad === 1 ? etiquetaAsistenteKds(orden.id) : 'DESPUÉS #' + prioridad }}
       </div>
       <header class="ticket-header">
         <div class="ticket-client">

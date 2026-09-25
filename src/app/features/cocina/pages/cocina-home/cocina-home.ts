@@ -55,7 +55,7 @@ export interface TareaAsistenteKds {
   motivo: string;
   esperaMinutos: number;
   puntaje: number;
-  tipo: 'dependencia' | 'preorden' | 'parcial' | 'espera';
+  tipo: 'dependencia' | 'espera_estacion' | 'preorden' | 'parcial' | 'espera';
 }
 
 export function compararLlegadaKds(a: KdsOrden, b: KdsOrden): number {
@@ -76,10 +76,10 @@ export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now(
     .map(orden => {
       const principalesPendientes = orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido'
         && !esProductoSalidaInmediata(detalle.producto.categoria?.nombre, detalle.producto.nombre));
-      // Sopas y bebidas se atienden por separado. Una ficha principal no debe
-      // adelantarse mientras pescado, pollo u otro plato siga esperando estación.
-      if (principalesPendientes.some(detalle => detalle.bloqueado)) return null;
-      const detalles = principalesPendientes.filter(detalle => !detalle.bloqueado);
+      // Sopas y bebidas se atienden por separado. Las fichas bloqueadas siguen
+      // en la cola de servicio, pero no se presentan como una acción ejecutable.
+      const esperaEstacion = principalesPendientes.some(detalle => detalle.bloqueado);
+      const detalles = principalesPendientes;
       if (!detalles.length) return null;
       const productos = new Map<string, number>();
       detalles.forEach(detalle => productos.set(detalle.producto.nombre, (productos.get(detalle.producto.nombre) ?? 0) + Number(detalle.cantidad || 1)));
@@ -92,10 +92,13 @@ export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now(
         + (esPreorden ? 110 : 0)
         + (tieneTrabajoListo ? 80 : 0)
         + (yaAvanzada ? 30 : 0);
-      const tipo: TareaAsistenteKds['tipo'] = tieneTrabajoListo ? 'dependencia'
+      const tipo: TareaAsistenteKds['tipo'] = esperaEstacion ? 'espera_estacion'
+        : tieneTrabajoListo ? 'dependencia'
         : esPreorden ? 'preorden'
           : yaAvanzada ? 'parcial' : 'espera';
-      const motivo = tipo === 'dependencia'
+      const motivo = tipo === 'espera_estacion'
+        ? 'Es de las próximas fichas a servir, pero todavía espera otra estación.'
+        : tipo === 'dependencia'
           ? 'Otra estación ya avanzó esta ficha; completarla evita que se enfríe.'
           : tipo === 'preorden'
             ? 'Preorden activada: debe salir a la hora comprometida.'
@@ -243,7 +246,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   detallesCompletadosAbiertos = signal<Record<number, boolean>>({});
   colaAsistente = computed(() => construirColaAsistenteKds(this.ordenes()));
   prioridadesAsistente = computed(() => new Map(
-    this.colaAsistente().slice(0, 4).map((tarea, indice) => [tarea.orden.id, { prioridad: indice + 1, tarea }]),
+    this.colaAsistente().slice(0, 3).map((tarea, indice) => [tarea.orden.id, { prioridad: indice + 1, tarea }]),
   ));
 
   prioridadAsistente(ordenId: number): number {
@@ -256,6 +259,7 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   etiquetaAsistenteKds(ordenId: number): string {
     const tarea = this.tareaAsistenteParaOrden(ordenId);
+    if (tarea?.tipo === 'espera_estacion') return 'PRÓXIMA A SERVIR';
     if (tarea?.tipo === 'dependencia') return 'COMPLETAR AHORA';
     return this.estacionActual()?.codigo === 'PARRILLA' ? 'COCINAR AHORA' : 'PREPARAR AHORA';
   }

@@ -38,7 +38,7 @@ interface GrupoDetalleServicio {
   detalles: ServicioFicha['detalles'];
 }
 
-export type AccionAsistenteServicio = 'entregar' | 'cubiertos' | 'tomar';
+export type AccionAsistenteServicio = 'entregar' | 'cubiertos' | 'tomar' | 'esperar';
 
 export interface TareaAsistenteServicio {
   ficha: ServicioFicha;
@@ -71,7 +71,14 @@ export function construirColaAsistenteServicio(
     if (ficha.todo_listo && !ficha.cubiertos_entregados) {
       return [{ ficha, accion: 'cubiertos', titulo: 'Llevar cubiertos', motivo: 'La comida está lista; faltan los cubiertos para entregar.', prioridad: 2, puntaje: puntos + 100 }];
     }
-    return [];
+    return [{
+      ficha,
+      accion: 'esperar',
+      titulo: 'PRÓXIMA A SERVIR',
+      motivo: 'Es una de las próximas fichas del mesero, pero el pedido principal todavía no está completo.',
+      prioridad: 6,
+      puntaje: puntos,
+    }];
   });
   const comunes = vigentes(disponibles).map<TareaAsistenteServicio>(ficha => {
     const { puntos } = extras(ficha);
@@ -148,7 +155,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     ? construirColaAsistenteServicio(this.misFichas(), this.disponibles())
     : []);
   prioridadesAsistenteServicio = computed(() => new Map(
-    this.colaAsistenteServicio().slice(0, 4).map((tarea, indice) => [tarea.ficha.id, { prioridad: indice + 1, tarea }]),
+    this.colaAsistenteServicio().slice(0, 3).map((tarea, indice) => [tarea.ficha.id, { prioridad: indice + 1, tarea }]),
   ));
 
   prioridadAsistenteServicio(fichaId: number): number {

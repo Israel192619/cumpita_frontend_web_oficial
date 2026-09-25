@@ -19,12 +19,14 @@ describe('Asistente de Cocina y Parrilla', () => {
     expect(cola[0].motivo).toContain('Preorden activada');
   });
 
-  it('omite productos terminados y fichas bloqueadas', () => {
+  it('omite productos terminados y conserva fichas bloqueadas en la cola prevista', () => {
     const terminada = orden(1, '2026-09-25T11:00:00', 'servido');
     const bloqueada = orden(2, '2026-09-25T11:01:00');
     bloqueada.detalles[0].bloqueado = true;
     const activa = orden(3, '2026-09-25T11:02:00');
-    expect(construirColaAsistenteKds([terminada, bloqueada, activa]).map(tarea => tarea.orden.id)).toEqual([3]);
+    const cola = construirColaAsistenteKds([terminada, bloqueada, activa]);
+    expect(cola.map(tarea => tarea.orden.id)).toEqual([2, 3]);
+    expect(cola[0].tipo).toBe('espera_estacion');
   });
 
   it('no mueve ni selecciona toda la ficha solo por contener una sopa', () => {
@@ -42,13 +44,13 @@ describe('Asistente de Cocina y Parrilla', () => {
     expect(construirColaAsistenteKds([gaseosa], new Date('2026-09-25T11:01:00').getTime())).toEqual([]);
   });
 
-  it('espera a Parrilla antes de priorizar una ficha con pollo y pescado', () => {
+  it('mantiene la ficha en la cola prevista mientras espera Parrilla', () => {
     const mixta = orden(1, '2026-09-25T11:00:00');
     mixta.detalles = [
       { id: 11, cantidad: 1, estado_cocina: 'pendiente', bloqueado: false, producto: { id: 1, nombre: 'Pollo', categoria: { id: 1, nombre: 'Pollos' } } },
       { id: 12, cantidad: 1, estado_cocina: 'pendiente', bloqueado: true, producto: { id: 2, nombre: 'Pescado', categoria: { id: 2, nombre: 'Pescados' } } },
     ];
-    expect(construirColaAsistenteKds([mixta])).toEqual([]);
+    expect(construirColaAsistenteKds([mixta])[0].tipo).toBe('espera_estacion');
     mixta.detalles[1].bloqueado = false;
     mixta.detalles[1].listo_para_atender = true;
     expect(construirColaAsistenteKds([mixta])[0].tipo).toBe('dependencia');
