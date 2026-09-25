@@ -217,7 +217,7 @@
       <div *ngIf="idsOrdenesSaliendo().has(orden.id)" class="ticket-completion-overlay" aria-hidden="true"><span>✓</span></div>
       <div *ngIf="orden.estado === 'cancelado'" class="cancelled-stamp">CANCELADO</div>
       <div *ngIf="!verServidos() && prioridadAsistente(orden.id) as prioridad" class="assistant-ticket-badge" [class.assistant-ticket-badge--now]="prioridad === 1">
-        {{ prioridad === 1 ? 'SERVIR AHORA' : 'SIGUE #' + prioridad }}
+        {{ prioridad === 1 ? etiquetaAsistenteKds(orden.id) : 'SIGUE #' + prioridad }}
       </div>
       <header class="ticket-header">
         <div class="ticket-client">
@@ -296,13 +296,15 @@
         </div>
         <div *ngFor="let detalleGrupo of grupo.grupos" class="ticket-item ticket-item--group"
           [class.ticket-item--locked]="detalleGrupo.todosBloqueados"
-          [class.ticket-item--ready-attention]="detalleGrupo.tieneListos">
+          [class.ticket-item--ready-attention]="detalleGrupo.tieneListos"
+          [class.ticket-item--immediate]="esGrupoSalidaInmediata(detalleGrupo)">
           <div class="ticket-item__product">
             <strong>
               <span>{{ detalleGrupo.cantidad }}</span>
               {{ detalleGrupo.producto.nombre }}
               <em *ngIf="detalleGrupo.precioUnitario > 0" class="ticket-item__price">{{ formatearPrecio(detalleGrupo.precioUnitario) }}</em>
             </strong>
+            <span *ngIf="esGrupoSalidaInmediata(detalleGrupo)" class="immediate-product-badge">PREPARAR PRIMERO</span>
             <label *ngIf="!soloLecturaCocina() && detallesMarcablesProducto(detalleGrupo).length > 1" class="bulk-serve-check bulk-serve-check--product">
               <input type="checkbox" [checked]="todosServidos(detallesMarcablesProducto(detalleGrupo))"
                 [disabled]="!!operacionMasivaActualizando()"

@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
-import { CocinaHome, conservarPosicionesSalida, construirColaAsistenteKds, fusionarPedidosKds } from './cocina-home';
+import { CocinaHome, compararLlegadaKds, conservarPosicionesSalida, construirColaAsistenteKds, fusionarPedidosKds } from './cocina-home';
 
 describe('Asistente de Cocina y Parrilla', () => {
   const orden = (id: number, fecha: string, estado = 'pendiente', extra: any = {}) => ({
@@ -25,6 +25,22 @@ describe('Asistente de Cocina y Parrilla', () => {
     bloqueada.detalles[0].bloqueado = true;
     const activa = orden(3, '2026-09-25T11:02:00');
     expect(construirColaAsistenteKds([terminada, bloqueada, activa]).map(tarea => tarea.orden.id)).toEqual([3]);
+  });
+
+  it('da salida inmediata a sopas y bebidas sin mover las fichas del tablero', () => {
+    const antigua = orden(1, '2026-09-25T11:00:00');
+    const sopa = orden(2, '2026-09-25T11:20:00');
+    sopa.detalles[0].producto = { id: 2, nombre: 'Sopa de pollo', categoria: { id: 4, nombre: 'Sopas' } };
+    const cola = construirColaAsistenteKds([antigua, sopa], new Date('2026-09-25T11:30:00').getTime());
+    expect(cola[0].orden.id).toBe(2);
+    expect(cola[0].tipo).toBe('salida_inmediata');
+    expect([antigua, sopa].sort(compararLlegadaKds).map(item => item.id)).toEqual([1, 2]);
+  });
+
+  it('reconoce las subcategorias locales de bebidas', () => {
+    const gaseosa = orden(1, '2026-09-25T11:00:00');
+    gaseosa.detalles[0].producto = { id: 1, nombre: 'Coca Cola', categoria: { id: 2, nombre: 'Gaseosas' } };
+    expect(construirColaAsistenteKds([gaseosa])[0].tipo).toBe('salida_inmediata');
   });
 });
 
@@ -127,10 +143,10 @@ describe('Actualizaciones parciales del tablero', () => {
     expect(fusionarPedidosKds([primera, segunda], [nueva], [1])).toEqual([nueva, segunda]);
     expect(fusionarPedidosKds([primera, segunda], [nueva])).toEqual([nueva]);
   });
-  it('mantiene preordenes activadas primero y anticipadas al final', () => {
-    const normal = ficha(1), activada = ficha(2, { tipo_flujo: 'preorden', estado_preorden: 'activada' });
+  it('mantiene el orden de llegada y deja las preordenes anticipadas al final', () => {
+    const normal = ficha(1), activada = ficha(2, { tipo_flujo: 'preorden', estado_preorden: 'activada', preorden_activada_en: '2026-09-21T10:00:02' });
     const anticipada = ficha(3, { preorden_temprana: true, fecha_programada: '2026-09-21T11:00:00' });
-    expect(fusionarPedidosKds([normal, anticipada], [activada], [2]).map(o => o.id)).toEqual([2, 1, 3]);
+    expect(fusionarPedidosKds([normal, anticipada], [activada], [2]).map(o => o.id)).toEqual([1, 2, 3]);
   });
   it('agrupa avisos sin perder fichas ni cambios durante una consulta lenta', () => {
     vi.useFakeTimers();

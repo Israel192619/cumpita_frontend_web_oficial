@@ -5,5 +5,7 @@
 .assistant-ticket-badge--now{color:#151000;background:#ffd400;font-size:.73rem;animation:assistant-priority-pulse 1.8s ease-in-out infinite}
 .kds-ticket--assistant-now .ticket-header{padding-top:1.75rem}
 .kds-ticket--assistant-next .ticket-header{padding-top:1.55rem}
+.ticket-item--immediate{border:2px solid #00c9bd!important;background:color-mix(in srgb,#00c9bd 13%,var(--color-surface))!important;box-shadow:0 0 0 3px rgba(0,201,189,.15)!important}
+.immediate-product-badge{display:inline-flex;width:max-content;margin-top:.35rem;padding:.24rem .5rem;border-radius:999px;color:#002f2c;background:#49e7dd;font-size:.64rem;font-weight:950;letter-spacing:.06em}
 @keyframes assistant-priority-pulse{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,.24)}50%{box-shadow:0 4px 12px rgba(0,0,0,.24),0 0 0 6px rgba(255,212,0,.18)}}
 @media(prefers-reduced-motion:reduce){.assistant-ticket-badge--now{animation:none}.kds-ticket{transition:none}}

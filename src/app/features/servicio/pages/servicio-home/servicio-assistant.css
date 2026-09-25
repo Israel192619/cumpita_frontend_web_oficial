@@ -5,5 +5,8 @@
 .service-assistant-badge--now{background:var(--brand-mustard);font-size:.7rem;animation:service-priority-pulse 1.8s ease-in-out infinite}
 .work-ticket--assistant-now .ticket-head,.work-ticket--assistant-next .ticket-head{padding-top:2rem}
 .available-ticket--assistant-now,.available-ticket--assistant-next{padding-top:2.25rem}
+.item.item--immediate{border:2px solid #00c9bd!important;background:color-mix(in srgb,#00c9bd 15%,var(--color-surface))!important;box-shadow:0 0 0 3px rgba(0,201,189,.16)!important}
+.item.item--immediate .state{color:#006f69!important;font-weight:950;letter-spacing:.04em}
+:host-context(:root[data-theme='dark']) .item.item--immediate .state{color:#49e7dd!important}
 @keyframes service-priority-pulse{0%,100%{box-shadow:0 4px 12px color-mix(in srgb,var(--brand-black) 25%,transparent)}50%{box-shadow:0 4px 12px color-mix(in srgb,var(--brand-black) 25%,transparent),0 0 0 6px color-mix(in srgb,var(--brand-mustard) 18%,transparent)}}
 @media(prefers-reduced-motion:reduce){.service-assistant-badge--now{animation:none}.work-ticket,.available-ticket{transition:none}}

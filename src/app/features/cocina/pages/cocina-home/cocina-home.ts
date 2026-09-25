@@ -14,6 +14,7 @@ import { ConfirmDialogService } from '@app/shared/services/confirm-dialog-servic
 import { modifierColorStyle } from '@app/core/utils/modifier-color';
 import { SwPush } from '@angular/service-worker';
 import { firstValueFrom } from 'rxjs';
+import { esProductoSalidaInmediata } from '@app/core/utils/assistant-priority';
 
 interface ActualizacionKds { id: number; nueva?: boolean; cambios: KdsCambioOrden[]; }
 
@@ -53,6 +54,20 @@ export interface TareaAsistenteKds {
   productos: Array<{ nombre: string; cantidad: number }>;
   motivo: string;
   esperaMinutos: number;
+  puntaje: number;
+  tipo: 'salida_inmediata' | 'dependencia' | 'preorden' | 'parcial' | 'espera';
+}
+
+export function compararLlegadaKds(a: KdsOrden, b: KdsOrden): number {
+  if (!!a.preorden_temprana !== !!b.preorden_temprana) return a.preorden_temprana ? 1 : -1;
+  const fecha = (orden: KdsOrden) => new Date(
+    orden.preorden_temprana
+      ? orden.fecha_programada || orden.created_at
+      : orden.preorden_activada_en || orden.fecha_orden || orden.created_at,
+  ).getTime();
+  const fechaA = fecha(a);
+  const fechaB = fecha(b);
+  return (Number.isFinite(fechaA) ? fechaA : 0) - (Number.isFinite(fechaB) ? fechaB : 0) || a.id - b.id;
 }
 
 export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now()): TareaAsistenteKds[] {
@@ -68,13 +83,25 @@ export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now(
       const esPreorden = orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada';
       const tieneTrabajoListo = detalles.some(detalle => detalle.listo_para_atender);
       const yaAvanzada = orden.detalles.some(detalle => detalle.estado_cocina === 'servido');
-      const motivo = esPreorden
-        ? 'Preorden activada: debe salir a la hora comprometida.'
-        : tieneTrabajoListo
+      const tieneSalidaInmediata = detalles.some(detalle => esProductoSalidaInmediata(detalle.producto.categoria?.nombre, detalle.producto.nombre));
+      const puntaje = esperaMinutos * 2
+        + (tieneSalidaInmediata ? 120 : 0)
+        + (esPreorden ? 110 : 0)
+        + (tieneTrabajoListo ? 80 : 0)
+        + (yaAvanzada ? 30 : 0);
+      const tipo: TareaAsistenteKds['tipo'] = tieneSalidaInmediata ? 'salida_inmediata'
+        : tieneTrabajoListo ? 'dependencia'
+          : esPreorden ? 'preorden'
+            : yaAvanzada ? 'parcial' : 'espera';
+      const motivo = tipo === 'salida_inmediata'
+        ? 'Las bebidas y sopas deben prepararse y salir inmediatamente.'
+        : tipo === 'dependencia'
           ? 'Otra estación ya avanzó esta ficha; completarla evita que se enfríe.'
-          : yaAvanzada
-            ? 'Esta ficha ya está parcialmente avanzada; conviene terminarla.'
-            : `Es la ficha pendiente más antigua (${esperaMinutos} min).`;
+          : tipo === 'preorden'
+            ? 'Preorden activada: debe salir a la hora comprometida.'
+            : tipo === 'parcial'
+              ? 'Esta ficha ya está parcialmente avanzada; conviene terminarla.'
+              : `Es la ficha pendiente más antigua (${esperaMinutos} min).`;
       return {
         orden,
         detalles,
@@ -82,19 +109,16 @@ export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now(
         productos: [...productos.entries()].map(([nombre, cantidad]) => ({ nombre, cantidad })),
         motivo,
         esperaMinutos,
+        puntaje,
+        tipo,
       };
     })
     .filter((tarea): tarea is TareaAsistenteKds => tarea !== null)
     .sort((a, b) => {
-      const preordenA = a.orden.tipo_flujo === 'preorden' && a.orden.estado_preorden === 'activada' ? 0 : 1;
-      const preordenB = b.orden.tipo_flujo === 'preorden' && b.orden.estado_preorden === 'activada' ? 0 : 1;
-      const listaA = a.detalles.some(detalle => detalle.listo_para_atender) ? 0 : 1;
-      const listaB = b.detalles.some(detalle => detalle.listo_para_atender) ? 0 : 1;
-      const avanzadaA = a.orden.detalles.some(detalle => detalle.estado_cocina === 'servido') ? 0 : 1;
-      const avanzadaB = b.orden.detalles.some(detalle => detalle.estado_cocina === 'servido') ? 0 : 1;
-      const fechaA = new Date(a.orden.preorden_activada_en || a.orden.fecha_orden || a.orden.created_at).getTime();
-      const fechaB = new Date(b.orden.preorden_activada_en || b.orden.fecha_orden || b.orden.created_at).getTime();
-      return preordenA - preordenB || listaA - listaB || avanzadaA - avanzadaB || fechaA - fechaB || a.cantidad - b.cantidad;
+      return b.puntaje - a.puntaje
+        || b.esperaMinutos - a.esperaMinutos
+        || a.cantidad - b.cantidad
+        || a.orden.numero_orden - b.orden.numero_orden;
     });
 }
 
@@ -219,11 +243,27 @@ export class CocinaHome implements OnInit, OnDestroy {
   detallesCompletadosAbiertos = signal<Record<number, boolean>>({});
   colaAsistente = computed(() => construirColaAsistenteKds(this.ordenes()));
   prioridadesAsistente = computed(() => new Map(
-    this.colaAsistente().slice(0, 4).map((tarea, indice) => [tarea.orden.id, indice + 1]),
+    this.colaAsistente().slice(0, 4).map((tarea, indice) => [tarea.orden.id, { prioridad: indice + 1, tarea }]),
   ));
 
   prioridadAsistente(ordenId: number): number {
-    return this.prioridadesAsistente().get(ordenId) ?? 0;
+    return this.prioridadesAsistente().get(ordenId)?.prioridad ?? 0;
+  }
+
+  tareaAsistenteParaOrden(ordenId: number): TareaAsistenteKds | null {
+    return this.prioridadesAsistente().get(ordenId)?.tarea ?? null;
+  }
+
+  etiquetaAsistenteKds(ordenId: number): string {
+    const tarea = this.tareaAsistenteParaOrden(ordenId);
+    if (tarea?.tipo === 'salida_inmediata') return 'PREPARAR PRIMERO';
+    if (tarea?.tipo === 'dependencia') return 'COMPLETAR AHORA';
+    return this.estacionActual()?.codigo === 'PARRILLA' ? 'COCINAR AHORA' : 'PREPARAR AHORA';
+  }
+
+  esGrupoSalidaInmediata(grupo: KdsDetalleAgrupado): boolean {
+    return esProductoSalidaInmediata(grupo.producto.categoria?.nombre, grupo.producto.nombre)
+      && grupo.estados.some(estado => estado.detalles.some(detalle => detalle.estado_cocina !== 'servido' && !detalle.bloqueado));
   }
 
   puedeCambiarEstacion = computed(() => this.estacionesDisponibles().length > 1);
@@ -317,7 +357,7 @@ export class CocinaHome implements OnInit, OnDestroy {
         });
         return coincideDetalleActivo || this.tieneCambiosRecientes(orden) || orden.estado === 'cancelado';
       })
-      .sort((a, b) => this.compararPrioridad(a, b));
+      .sort(compararLlegadaKds);
   });
 
   ordenesCompletadas = computed(() => {
@@ -1222,16 +1262,8 @@ export class CocinaHome implements OnInit, OnDestroy {
         cambios_recientes: cambios.length > 0 ? cambios : anterior?.cambios_recientes || [],
       };
 
-      return [...sinOrdenActual, ordenConCambios].sort((a, b) => this.compararPrioridad(a, b));
+      return [...sinOrdenActual, ordenConCambios].sort(compararLlegadaKds);
     });
-  }
-
-  private compararPrioridad(a: KdsOrden, b: KdsOrden): number {
-    const prioridadA = a.tipo_flujo === 'preorden' && a.estado_preorden === 'activada' ? 0 : 1;
-    const prioridadB = b.tipo_flujo === 'preorden' && b.estado_preorden === 'activada' ? 0 : 1;
-    return prioridadA - prioridadB
-      || new Date(a.preorden_activada_en || a.created_at).getTime()
-        - new Date(b.preorden_activada_en || b.created_at).getTime();
   }
 
   /** Actualiza solo el detalle confirmado por la API, sin recargar la lista completa. */
@@ -1453,10 +1485,6 @@ export function fusionarPedidosKds(actuales: KdsOrden[], recibidas: KdsOrden[], 
   const reemplazadas = new Set(ids);
   return [...actuales.filter(orden => !reemplazadas.has(orden.id)), ...recibidas].sort((a, b) => {
     if (programadas) return (a.fecha_programada || '').localeCompare(b.fecha_programada || '') || a.id - b.id;
-    const prioridad = (orden: KdsOrden) => orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada' ? 0
-      : orden.preorden_temprana ? 2 : 1;
-    return prioridad(a) - prioridad(b)
-      || (a.preorden_temprana ? a.fecha_programada || '' : a.created_at).localeCompare(b.preorden_temprana ? b.fecha_programada || '' : b.created_at)
-      || a.id - b.id;
+    return compararLlegadaKds(a, b);
   });
 }

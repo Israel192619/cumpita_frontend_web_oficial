@@ -21,6 +21,7 @@ import { LocationMap, MapLocation } from '../../../../shared/components/location
 import { ConfiguracionService } from '../../../../core/services/configuracion-service';
 import { modifierColorStyle } from '../../../../core/utils/modifier-color';
 import { SwPush } from '@angular/service-worker';
+import { esProductoSalidaInmediata } from '../../../../core/utils/assistant-priority';
 
 interface Mesero { id: number; name: string; }
 interface GrupoDetalleServicio {
@@ -45,51 +46,92 @@ export interface TareaAsistenteServicio {
   titulo: string;
   motivo: string;
   prioridad: number;
+  puntaje: number;
   detalleId?: number;
+  detalleIds?: number[];
   producto?: string;
+  salidaInmediata?: boolean;
 }
 
 export function construirColaAsistenteServicio(
   misFichas: ServicioFicha[],
   disponibles: ServicioFicha[],
 ): TareaAsistenteServicio[] {
-  const vigentes = (fichas: ServicioFicha[]) => fichas.filter(ficha => ficha.estado !== 'cancelado' && ficha.estado !== 'entregado');
+  const vigentes = (fichas: ServicioFicha[]) => fichas.filter(ficha => ficha.estado !== 'cancelado'
+    && ficha.estado !== 'entregado'
+    && !ficha.bloqueada
+    && !(ficha.tipo_flujo === 'preorden' && ficha.estado_preorden !== 'activada'));
+  const extras = (ficha: ServicioFicha) => {
+    const espera = Math.max(0, Number(ficha.tiempo_espera_minutos || 0));
+    const preorden = ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada' ? 110 : 0;
+    const avanzada = ficha.detalles.some(detalle => !!detalle.servido) ? 30 : 0;
+    return { espera, puntos: espera * 2 + preorden + avanzada };
+  };
   const propias = vigentes(misFichas).flatMap<TareaAsistenteServicio>(ficha => {
+    const { puntos } = extras(ficha);
+    const listos = ficha.detalles.filter(detalle => detalle.listo && !detalle.servido && !detalle.llevando_por_id);
+    const inmediatos = listos.filter(detalle => esProductoSalidaInmediata(detalle.categoria, detalle.producto));
+    if (inmediatos.length) {
+      const resumen = inmediatos.map(detalle => `${detalle.cantidad}× ${detalle.producto}`).join(', ');
+      return [{
+        ficha,
+        accion: 'confirmar',
+        titulo: `LLEVAR AHORA · ${resumen}`,
+        motivo: 'Las bebidas y sopas se entregan sin esperar el resto del pedido.',
+        prioridad: 0,
+        puntaje: puntos + 120,
+        detalleId: inmediatos[0].id,
+        detalleIds: inmediatos.map(detalle => detalle.id),
+        producto: resumen,
+        salidaInmediata: true,
+      }];
+    }
     if (ficha.todo_listo && ficha.cubiertos_entregados && !ficha.detalles.some(detalle => !!detalle.llevando_por_id)) {
-      return [{ ficha, accion: 'entregar', titulo: 'Entregar ficha completa', motivo: 'Todos los productos y cubiertos están listos.', prioridad: 0 }];
+      return [{ ficha, accion: 'entregar', titulo: 'LLEVAR PEDIDO COMPLETO', motivo: 'Todos los productos y cubiertos están listos.', prioridad: 1, puntaje: puntos + 100 }];
     }
     if (ficha.todo_listo && !ficha.cubiertos_entregados) {
-      return [{ ficha, accion: 'cubiertos', titulo: 'Llevar cubiertos', motivo: 'La comida está lista; faltan los cubiertos para entregar.', prioridad: 1 }];
+      return [{ ficha, accion: 'cubiertos', titulo: 'Llevar cubiertos', motivo: 'La comida está lista; faltan los cubiertos para entregar.', prioridad: 2, puntaje: puntos + 100 }];
     }
-    const detalle = ficha.detalles.find(item => item.listo && !item.servido && !item.llevando_por_id);
+    const detalle = listos[0];
     if (detalle) {
       return [{
         ficha,
         accion: 'confirmar',
-        titulo: `Llevar ${detalle.producto}`,
+        titulo: `LLEVAR AHORA · ${detalle.producto}`,
         motivo: 'Este producto ya está listo y debe salir antes de enfriarse.',
-        prioridad: 2,
+        prioridad: 3,
+        puntaje: puntos + 90,
         detalleId: detalle.id,
+        detalleIds: [detalle.id],
         producto: detalle.producto,
       }];
     }
     return [];
   });
-  const comunes = vigentes(disponibles).map<TareaAsistenteServicio>(ficha => ({
-    ficha,
-    accion: 'tomar',
-    titulo: 'Tomar ficha',
-    motivo: ficha.todo_listo
-      ? 'La ficha está lista y todavía no tiene mesero.'
-      : 'Es la ficha disponible con mayor espera.',
-    prioridad: ficha.todo_listo ? 3 : 4,
-  }));
+  const comunes = vigentes(disponibles).map<TareaAsistenteServicio>(ficha => {
+    const { puntos } = extras(ficha);
+    const inmediatos = ficha.detalles.filter(detalle => detalle.listo && !detalle.servido && !detalle.llevando_por_id
+      && esProductoSalidaInmediata(detalle.categoria, detalle.producto));
+    const salidaInmediata = inmediatos.length > 0;
+    return {
+      ficha,
+      accion: 'tomar',
+      titulo: salidaInmediata ? 'TOMAR · SALIDA INMEDIATA' : ficha.todo_listo ? 'TOMAR · PEDIDO COMPLETO' : 'Tomar ficha',
+      motivo: salidaInmediata
+        ? 'Tiene bebidas o sopas listas y todavía no tiene mesero.'
+        : ficha.todo_listo
+          ? 'La ficha está lista y todavía no tiene mesero.'
+          : 'Es una ficha disponible que necesita responsable.',
+      prioridad: salidaInmediata ? 0 : ficha.todo_listo ? 4 : 5,
+      puntaje: puntos + (salidaInmediata ? 120 : ficha.todo_listo ? 100 : 0),
+      detalleIds: inmediatos.map(detalle => detalle.id),
+      salidaInmediata,
+    };
+  });
   return [...propias, ...comunes].sort((a, b) => {
-    const preordenA = a.ficha.tipo_flujo === 'preorden' && a.ficha.estado_preorden === 'activada' ? 0 : 1;
-    const preordenB = b.ficha.tipo_flujo === 'preorden' && b.ficha.estado_preorden === 'activada' ? 0 : 1;
-    return a.prioridad - b.prioridad
-      || preordenA - preordenB
+    return b.puntaje - a.puntaje
       || Number(b.ficha.tiempo_espera_minutos || 0) - Number(a.ficha.tiempo_espera_minutos || 0)
+      || a.prioridad - b.prioridad
       || a.ficha.numero_orden - b.ficha.numero_orden;
   });
 }
@@ -157,6 +199,12 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   tareaAsistenteParaFicha(fichaId: number): TareaAsistenteServicio | null {
     return this.prioridadesAsistenteServicio().get(fichaId)?.tarea ?? null;
+  }
+
+  esGrupoSalidaInmediataServicio(grupo: GrupoDetalleServicio): boolean {
+    return esProductoSalidaInmediata(grupo.categoria, grupo.producto)
+      && grupo.listo
+      && grupo.detalles.some(detalle => !detalle.servido && !detalle.llevando_por_id);
   }
   misEntregadas = signal<ServicioFicha[]>([]);
   viendoEntregadas = signal(false);
@@ -829,9 +877,9 @@ export class ServicioHome implements OnInit, OnDestroy {
             ficha.todo_listo = ficha.detalles.length > 0 && ficha.detalles.every(detalle => detalle.listo);
           }
         }
-        this.todasFichas.set(tablero.todas_fichas ?? []);
+        this.todasFichas.set(this.ordenarPorLlegada(tablero.todas_fichas ?? []));
         this.disponibles.set(this.ordenarPorLlegada(tablero.disponibles ?? []));
-        this.misFichas.set(tablero.mis_fichas ?? []);
+        this.misFichas.set(this.ordenarPorLlegada(tablero.mis_fichas ?? []));
         this.misEntregadas.set(tablero.mis_entregadas ?? []);
         this.preordenesProgramadas.set(tablero.preordenes_programadas ?? []);
         const sesionActual = this.sesionSeleccionada();
@@ -1550,11 +1598,8 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   private ordenarPorLlegada(fichas: ServicioFicha[]): ServicioFicha[] {
     return [...fichas].sort((a, b) => {
-      const prioridadA = a.tipo_flujo === 'preorden' && a.estado_preorden === 'activada' ? 0 : 1;
-      const prioridadB = b.tipo_flujo === 'preorden' && b.estado_preorden === 'activada' ? 0 : 1;
-      if (prioridadA !== prioridadB) return prioridadA - prioridadB;
-      const fechaA = new Date(a.created_at).getTime();
-      const fechaB = new Date(b.created_at).getTime();
+      const fechaA = new Date(a.preorden_activada_en || a.created_at).getTime();
+      const fechaB = new Date(b.preorden_activada_en || b.created_at).getTime();
       if (Number.isFinite(fechaA) && Number.isFinite(fechaB) && fechaA !== fechaB) return fechaA - fechaB;
       return a.id - b.id;
     });
