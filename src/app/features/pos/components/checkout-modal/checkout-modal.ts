@@ -9,6 +9,12 @@ import { CURRENCY_CONFIG, formatCurrency } from '@app/core/config/currency.confi
 
 export type PaymentMethodType = 'efectivo' | 'qr';
 export type PaymentStatus = 'insufficient' | 'exact' | 'excess';
+export interface SplitPaymentInput {
+  metodoPago: PaymentMethodType;
+  montoAplicado: number;
+  montoRecibido: number;
+}
+interface SplitPaymentLine extends SplitPaymentInput { id: number; }
 
 @Component({
   selector: 'app-checkout-modal',
@@ -39,6 +45,7 @@ export class CheckoutModalComponent implements OnChanges {
     mesaId?: number;
     montoRecibido?: number;
     tipoPago?: 'pago' | 'devolucion';
+    pagosDivididos?: SplitPaymentInput[];
   }>();
   checkoutCancelled = output<void>();
 
@@ -61,6 +68,19 @@ export class CheckoutModalComponent implements OnChanges {
   mesaId = input<number | null>(null);
 
   montoRecibido = signal<number>(0);
+  modoPagoDividido = signal(false);
+  pagosDivididos = signal<SplitPaymentLine[]>([]);
+  private siguientePagoId = 1;
+
+  totalDividido = computed(() => this.roundCurrency(
+    this.pagosDivididos().reduce((total, pago) => total + Number(pago.montoAplicado || 0), 0)
+  ));
+  saldoDividido = computed(() => this.roundCurrency(this.getTargetAmount() - this.totalDividido()));
+  pagoDivididoValido = computed(() => this.pagosDivididos().length >= 2
+    && this.pagosDivididos().every(pago => pago.montoAplicado > 0
+      && (pago.metodoPago !== 'efectivo' || pago.montoRecibido >= pago.montoAplicado))
+    && this.totalDividido() > 0
+    && this.totalDividido() <= this.getTargetAmount());
 
   cambio = computed(() => {
     const monto = this.montoRecibido();
@@ -94,6 +114,8 @@ export class CheckoutModalComponent implements OnChanges {
     if (changes['isOpen'] && this.isOpen()) {
       this.selectedPaymentMethod.set(null);
       this.form.patchValue({ metodoPago: null });
+      this.modoPagoDividido.set(false);
+      this.pagosDivididos.set([]);
       const initialAmount = this.getTargetAmount();
       this.montoRecibido.set(initialAmount);
       return;
@@ -135,6 +157,22 @@ export class CheckoutModalComponent implements OnChanges {
   }
 
   onConfirm(): void {
+    if (this.modoPagoDividido()) {
+      if (!this.pagoDivididoValido()) return;
+      const pagos = this.pagosDivididos().map(({ metodoPago, montoAplicado, montoRecibido }) => ({
+        metodoPago,
+        montoAplicado: this.roundCurrency(montoAplicado),
+        montoRecibido: this.roundCurrency(metodoPago === 'qr' ? montoAplicado : montoRecibido),
+      }));
+      this.checkoutConfirmed.emit({
+        metodoPago: pagos[0].metodoPago,
+        clienteId: this.clienteId?.() || undefined,
+        mesaId: this.mesaId?.() || undefined,
+        montoRecibido: this.roundCurrency(pagos.reduce((total, pago) => total + pago.montoRecibido, 0)),
+        pagosDivididos: pagos,
+      });
+      return;
+    }
     if (!this.selectedPaymentMethod()) {
       return;
     }
@@ -165,6 +203,81 @@ export class CheckoutModalComponent implements OnChanges {
     this.showClientSearch.set(false);
     this.showCreateClient.set(false);
     this.montoRecibido.set(0);
+    this.modoPagoDividido.set(false);
+    this.pagosDivididos.set([]);
+  }
+
+  activarPagoDividido(dividido: boolean): void {
+    if (this.isRefundMode()) return;
+    this.modoPagoDividido.set(dividido);
+    if (dividido && this.pagosDivididos().length === 0) {
+      this.pagosDivididos.set([
+        this.nuevaParte('qr'),
+        this.nuevaParte('efectivo'),
+      ]);
+    }
+  }
+
+  agregarParte(): void {
+    if (this.pagosDivididos().length >= 6) return;
+    const ultimo = this.pagosDivididos().at(-1)?.metodoPago;
+    this.pagosDivididos.update(pagos => [...pagos, this.nuevaParte(ultimo === 'qr' ? 'efectivo' : 'qr')]);
+  }
+
+  quitarParte(id: number): void {
+    if (this.pagosDivididos().length <= 2) return;
+    this.pagosDivididos.update(pagos => pagos.filter(pago => pago.id !== id));
+  }
+
+  cambiarMetodoParte(id: number, metodoPago: PaymentMethodType): void {
+    this.pagosDivididos.update(pagos => pagos.map(pago => pago.id !== id ? pago : {
+      ...pago,
+      metodoPago,
+      montoRecibido: metodoPago === 'qr' ? pago.montoAplicado : Math.max(pago.montoAplicado, pago.montoRecibido),
+    }));
+  }
+
+  cambiarMontoParte(id: number, valor: string): void {
+    const montoAplicado = this.roundCurrency(Math.max(0, Number(valor) || 0));
+    this.pagosDivididos.update(pagos => pagos.map(pago => pago.id !== id ? pago : {
+      ...pago,
+      montoAplicado,
+      montoRecibido: pago.metodoPago === 'qr' ? montoAplicado : Math.max(montoAplicado, pago.montoRecibido),
+    }));
+  }
+
+  cambiarRecibidoParte(id: number, valor: string): void {
+    const montoRecibido = this.roundCurrency(Math.max(0, Number(valor) || 0));
+    this.pagosDivididos.update(pagos => pagos.map(pago => pago.id === id ? { ...pago, montoRecibido } : pago));
+  }
+
+  completarRestante(id: number): void {
+    const otrasPartes = this.pagosDivididos()
+      .filter(pago => pago.id !== id)
+      .reduce((total, pago) => total + Number(pago.montoAplicado || 0), 0);
+    this.cambiarMontoParte(id, String(Math.max(0, this.roundCurrency(this.getTargetAmount() - otrasPartes))));
+  }
+
+  cambioParte(pago: SplitPaymentLine): number {
+    return pago.metodoPago === 'efectivo'
+      ? Math.max(0, this.roundCurrency(pago.montoRecibido - pago.montoAplicado))
+      : 0;
+  }
+
+  getSplitConfirmButtonLabel(): string {
+    if (this.isProcessing()) return 'Procesando...';
+    if (!this.pagoDivididoValido()) {
+      return this.saldoDividido() < 0
+        ? `Excede por ${formatCurrency(Math.abs(this.saldoDividido()))}`
+        : 'Completa los montos';
+    }
+    return this.saldoDividido() > 0
+      ? `Registrar · faltan ${formatCurrency(this.saldoDividido())}`
+      : 'Completar pago dividido';
+  }
+
+  private nuevaParte(metodoPago: PaymentMethodType): SplitPaymentLine {
+    return { id: this.siguientePagoId++, metodoPago, montoAplicado: 0, montoRecibido: 0 };
   }
 
   private roundCurrency(value: number): number {

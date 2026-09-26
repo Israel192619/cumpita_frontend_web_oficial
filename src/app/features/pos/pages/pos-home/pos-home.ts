@@ -7,7 +7,7 @@ import { finalize, Observable, shareReplay, Subscription } from 'rxjs';
 import { CancelacionInfo, CartItem, CartItemModificador, DeliveryChangeState, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen, CajaUsuario, normalizeOrderComment } from '../../services';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
-import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, PosToolbarComponent, ProductGridComponent } from '../../components';
+import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, PosToolbarComponent, ProductGridComponent, SplitPaymentInput } from '../../components';
 import { CategoriaService } from '../../../categorias/services/categoria-service';
 import { ProductoService } from '../../../productos/services/producto-service';
 import { ToastrService } from 'ngx-toastr';
@@ -1602,6 +1602,7 @@ export class PosHome implements OnInit, OnDestroy {
     mesaId?: number;
     montoRecibido?: number;
     tipoPago?: 'pago' | 'devolucion';
+    pagosDivididos?: SplitPaymentInput[];
   }): void {
     this.isProcessingCheckout.set(true);
 
@@ -1610,7 +1611,9 @@ export class PosHome implements OnInit, OnDestroy {
       return;
     }
 
-    if (data.metodoPago === 'efectivo' && !this.cajaActual()) {
+    const usaEfectivo = data.metodoPago === 'efectivo'
+      || !!data.pagosDivididos?.some(pago => pago.metodoPago === 'efectivo');
+    if (usaEfectivo && !this.cajaActual()) {
       const mensaje = 'Abre una caja antes de registrar pagos o devoluciones en efectivo.';
       this.error.set(mensaje);
       this.toastr.info('Abre la caja para continuar con el pago en efectivo.');
@@ -1628,6 +1631,14 @@ export class PosHome implements OnInit, OnDestroy {
 
     const montoRecibido = data.montoRecibido ?? 0;
     const tipoPago = data.tipoPago ?? 'pago';
+    const registrarPagos = (ordenId: number) => data.pagosDivididos?.length
+      ? this.posService.crearPagosDivididos(ordenId, data.pagosDivididos)
+      : this.posService.crearPagoOrden({
+          id_orden: ordenId,
+          monto_recibido: montoRecibido,
+          metodo_pago: data.metodoPago,
+          tipo_pago: tipoPago,
+        });
 
     // Si es modo refund, SOLO registrar el pago, NO actualizar la orden
     if (this.isRefundMode() && this.isEditingOrder() && this.editingOrderId()) {
@@ -1771,12 +1782,7 @@ export class PosHome implements OnInit, OnDestroy {
 
     if (this.isEditingOrder() && this.editingOrderId()) {
       const orderId = this.editingOrderId()!;
-      const registrarPago = () => this.posService.crearPagoOrden({
-        id_orden: orderId,
-        monto_recibido: montoRecibido,
-        metodo_pago: data.metodoPago,
-        tipo_pago: tipoPago,
-      }).subscribe({
+      const registrarPago = () => registrarPagos(orderId).subscribe({
         next: () => {
           this.finalizarVenta();
           this.isCheckoutModalOpen.set(false);
@@ -1825,12 +1831,7 @@ export class PosHome implements OnInit, OnDestroy {
           // Backend may return the created order under different keys depending on endpoint/version.
           const createdOrderId = response?.orden?.id ?? response?.order?.id ?? response?.id ?? null;
           if (createdOrderId && montoRecibido > 0) {
-            this.posService.crearPagoOrden({
-              id_orden: createdOrderId,
-              monto_recibido: montoRecibido,
-              metodo_pago: data.metodoPago,
-              tipo_pago: tipoPago,
-            }).subscribe({
+            registrarPagos(createdOrderId).subscribe({
               next: () => {
                 this.finalizarVenta();
                 this.isCheckoutModalOpen.set(false);

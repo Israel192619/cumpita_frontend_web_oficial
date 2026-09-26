@@ -318,6 +318,21 @@ export class PosService {
     return this.http.post<any>(`${this.apiUrl}/pagos-ordenes`, data);
   }
 
+  crearPagosDivididos(idOrden: number, pagos: Array<{
+    metodoPago: 'efectivo' | 'qr';
+    montoAplicado: number;
+    montoRecibido: number;
+  }>): Observable<{ mensaje: string; total_aplicado: number; saldo_pendiente: number }> {
+    return this.http.post<{ mensaje: string; total_aplicado: number; saldo_pendiente: number }>(`${this.apiUrl}/pagos-ordenes/dividido`, {
+      id_orden: idOrden,
+      pagos: pagos.map(pago => ({
+        metodo_pago: pago.metodoPago,
+        monto_aplicado: pago.montoAplicado,
+        monto_recibido: pago.montoRecibido,
+      })),
+    });
+  }
+
   prepararCambioDelivery(id: number, preparado: boolean, montoEsperado?: number | null): Observable<DeliveryChangeState> {
     return this.http.patch<DeliveryChangeState>(`${this.apiUrl}/ordenes/${id}/delivery-cambio`, {
       preparado,

@@ -1,5 +1,10 @@
 <app-modal [open]="isOpen()" [title]="isRefundMode() ? 'Devolución' : 'Pago y cierre'" size="large" panelClass="checkout-modal" [busy]="isProcessing()" (closed)="onCancel()">
     <div class="modal-body">
+      <div class="payment-mode-switch" *ngIf="!isRefundMode()">
+        <button type="button" [class.active]="!modoPagoDividido()" (click)="activarPagoDividido(false)" [disabled]="isProcessing()">Pago único</button>
+        <button type="button" [class.active]="modoPagoDividido()" (click)="activarPagoDividido(true)" [disabled]="isProcessing()">Dividir pago</button>
+      </div>
+
       <div class="section">
         <div class="section-title-row">
           <h3>Resumen del pedido</h3>
@@ -33,7 +38,41 @@
         </div>
       </div>
 
-      <div class="section">
+      <div class="section split-payment-section" *ngIf="modoPagoDividido()">
+        <div class="section-title-row">
+          <h3>Partes del pago</h3>
+          <span class="summary-pill">Pendiente {{ formatPrice(getTargetAmount()) }}</span>
+        </div>
+        <div class="split-payment-list">
+          <article class="split-payment-row" *ngFor="let pago of pagosDivididos(); let indice = index">
+            <header>
+              <strong>Parte {{ indice + 1 }}</strong>
+              <button type="button" *ngIf="pagosDivididos().length > 2" (click)="quitarParte(pago.id)" [disabled]="isProcessing()">Quitar</button>
+            </header>
+            <div class="split-methods">
+              <button type="button" [class.active]="pago.metodoPago === 'efectivo'" (click)="cambiarMetodoParte(pago.id, 'efectivo')" [disabled]="isProcessing() || efectivoInsuficiente()">Efectivo</button>
+              <button type="button" [class.active]="pago.metodoPago === 'qr'" (click)="cambiarMetodoParte(pago.id, 'qr')" [disabled]="isProcessing()">QR</button>
+            </div>
+            <label class="split-field">
+              <span>Monto que paga</span>
+              <div><input type="number" min="0" step="0.01" [value]="pago.montoAplicado || ''" (input)="cambiarMontoParte(pago.id, $any($event.target).value)" [disabled]="isProcessing()"><b>{{ currencySymbol }}</b></div>
+            </label>
+            <button type="button" class="split-remainder" (click)="completarRestante(pago.id)" [disabled]="isProcessing()">Completar restante</button>
+            <label class="split-field" *ngIf="pago.metodoPago === 'efectivo'">
+              <span>Efectivo recibido</span>
+              <div><input type="number" min="0" step="0.01" [value]="pago.montoRecibido || ''" (input)="cambiarRecibidoParte(pago.id, $any($event.target).value)" [disabled]="isProcessing()"><b>{{ currencySymbol }}</b></div>
+            </label>
+            <small class="split-change" *ngIf="pago.metodoPago === 'efectivo' && cambioParte(pago) > 0">Cambio: {{ formatPrice(cambioParte(pago)) }}</small>
+          </article>
+        </div>
+        <button type="button" class="add-split-payment" (click)="agregarParte()" [disabled]="isProcessing() || pagosDivididos().length >= 6">+ Agregar otra parte</button>
+        <div class="split-totals" [class.over]="saldoDividido() < 0">
+          <span>Asignado <strong>{{ formatPrice(totalDividido()) }}</strong></span>
+          <span>{{ saldoDividido() < 0 ? 'Excede' : 'Falta' }} <strong>{{ formatPrice(Math.abs(saldoDividido())) }}</strong></span>
+        </div>
+      </div>
+
+      <div class="section" *ngIf="!modoPagoDividido()">
         <div class="section-title-row">
           <h3 *ngIf="!isRefundMode()">Monto a recibir</h3>
           <h3 *ngIf="isRefundMode()">Monto a devolver</h3>
@@ -103,7 +142,7 @@
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" *ngIf="!modoPagoDividido()">
         <h3>Método de pago</h3>
         <div class="payment-methods" [formGroup]="form">
           <button
@@ -125,6 +164,6 @@
 
     <div modal-actions class="checkout-actions">
       <app-button text="Cancelar" color="light" size="medium" [fullWidth]="true" [disabled]="isProcessing()" (buttonClick)="onCancel()" />
-      <app-button [text]="getConfirmButtonLabel()" [color]="isRefundMode() ? 'danger' : 'primary'" size="medium" [fullWidth]="true" [loading]="isProcessing()" [disabled]="!selectedPaymentMethod() || isProcessing()" (buttonClick)="onConfirm()" />
+      <app-button [text]="modoPagoDividido() ? getSplitConfirmButtonLabel() : getConfirmButtonLabel()" [color]="isRefundMode() ? 'danger' : 'primary'" size="medium" [fullWidth]="true" [loading]="isProcessing()" [disabled]="modoPagoDividido() ? !pagoDivididoValido() || isProcessing() : !selectedPaymentMethod() || isProcessing()" (buttonClick)="onConfirm()" />
     </div>
 </app-modal>
