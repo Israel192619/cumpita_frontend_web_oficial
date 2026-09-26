@@ -122,20 +122,23 @@ export function seleccionarOfertaAsistenteMesero(
   const detalleOmitido = (detalle: ServicioDetalle) => (ofertasPasadas[`${meseroId}:inmediata:${detalle.id}`] ?? 0) > ahora;
   const fichasGlobales = todasFichas.filter(vigente);
   for (const ficha of fichasGlobales) {
-    const detalle = ficha.detalles.find(item => !item.servido && item.llevando_por_id === meseroId
-      && esProductoSalidaInmediata(item.categoria, item.producto));
+    const detalle = ficha.tipo_orden === 'dine-in' ? ficha.detalles.find(item => !item.servido && item.llevando_por_id === meseroId
+      && esProductoSalidaInmediata(item.categoria, item.producto))
+      : undefined;
     if (detalle) return { ficha, detalle, tipo: 'salida_reservada' };
-  }
-  for (const ficha of fichasGlobales) {
-    const detalle = ficha.detalles.find(item => !item.servido && !item.llevando_por_id && !detalleOmitido(item)
-      && esProductoSalidaInmediata(item.categoria, item.producto));
-    if (detalle) return { ficha, detalle, tipo: 'salida_inmediata' };
   }
   const apoyoReservado = disponibles.find(ficha => ficha.apoyo_por_id === meseroId);
   if (apoyoReservado) return { ficha: apoyoReservado, tipo: 'apoyo_reservado' };
+  if ((ofertasPasadas[`${meseroId}:pausa`] ?? 0) > ahora) return null;
+  for (const ficha of fichasGlobales) {
+    const detalle = ficha.tipo_orden === 'dine-in' ? ficha.detalles.find(item => !item.servido && !item.llevando_por_id && !detalleOmitido(item)
+      && esProductoSalidaInmediata(item.categoria, item.producto))
+      : undefined;
+    if (detalle) return { ficha, detalle, tipo: 'salida_inmediata' };
+  }
   if (misFichas.length >= 2) {
-    const tieneTrabajoPropioUrgente = misFichas.some(ficha => ficha.todo_listo || ficha.detalles.some(detalle =>
-      !detalle.servido && !detalle.llevando_por_id && esProductoSalidaInmediata(detalle.categoria, detalle.producto)));
+    const tieneTrabajoPropioUrgente = misFichas.some(ficha => ficha.todo_listo || (ficha.tipo_orden === 'dine-in' && ficha.detalles.some(detalle =>
+      !detalle.servido && !detalle.llevando_por_id && esProductoSalidaInmediata(detalle.categoria, detalle.producto))));
     if (tieneTrabajoPropioUrgente) return null;
     const apoyo = disponibles.find(ficha => ficha.todo_listo && !ficha.apoyo_por_id && !omitida(ficha));
     return apoyo ? { ficha: apoyo, tipo: 'apoyo' } : null;
@@ -203,6 +206,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   ));
   private readonly maxFichasPorMesero = 2;
   private readonly pausaOfertaMs = 120000;
+  private readonly pausaEntreOfertasMs = 60000;
   ofertasPasadas = signal<Record<string, number>>(this.leerOfertasPasadas());
   relojOfertas = signal(Date.now());
   alcanzoLimiteFichas = computed(() => this.misFichas().length >= this.maxFichasPorMesero);
@@ -225,13 +229,13 @@ export class ServicioHome implements OnInit, OnDestroy {
     return this.prioridadesAsistenteServicio().get(fichaId)?.tarea ?? null;
   }
 
-  esGrupoSalidaInmediataServicio(grupo: GrupoDetalleServicio): boolean {
-    return esProductoSalidaInmediata(grupo.categoria, grupo.producto)
+  esGrupoSalidaInmediataServicio(grupo: GrupoDetalleServicio, ficha?: ServicioFicha): boolean {
+    return (!ficha || ficha.tipo_orden === 'dine-in') && esProductoSalidaInmediata(grupo.categoria, grupo.producto)
       && grupo.detalles.some(detalle => !detalle.servido && !detalle.llevando_por_id);
   }
 
   tieneSalidaInmediataServicio(ficha: ServicioFicha): boolean {
-    return ficha.detalles.some(detalle => !detalle.servido
+    return ficha.tipo_orden === 'dine-in' && ficha.detalles.some(detalle => !detalle.servido
       && !detalle.llevando_por_id
       && esProductoSalidaInmediata(detalle.categoria, detalle.producto));
   }
@@ -1058,22 +1062,27 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   aceptarOfertaAsistente(oferta: OfertaAsistenteMesero): void {
     if ((oferta.tipo === 'salida_inmediata' || oferta.tipo === 'salida_reservada') && oferta.detalle) {
+      if (oferta.tipo === 'salida_reservada') this.pausarNuevasOfertas();
       this.colaborar(oferta.detalle.id, oferta.tipo === 'salida_inmediata' ? 'llevar' : 'entregar');
       return;
     }
     if (oferta.tipo === 'asignacion') {
+      this.pausarNuevasOfertas();
       this.tomar(oferta.ficha);
       return;
     }
+    if (oferta.tipo === 'apoyo_reservado') this.pausarNuevasOfertas();
     this.procesarApoyo(oferta.ficha, oferta.tipo === 'apoyo' ? 'llevar' : 'entregar');
   }
 
   pasarOfertaAsistente(oferta: OfertaAsistenteMesero): void {
     if (oferta.tipo === 'salida_reservada' && oferta.detalle) {
+      this.pausarNuevasOfertas();
       this.colaborar(oferta.detalle.id, 'cancelar');
       return;
     }
     if (oferta.tipo === 'apoyo_reservado') {
+      this.pausarNuevasOfertas();
       this.procesarApoyo(oferta.ficha, 'cancelar');
       return;
     }
@@ -1082,13 +1091,29 @@ export class ServicioHome implements OnInit, OnDestroy {
     const clave = oferta.tipo === 'salida_inmediata' && oferta.detalle
       ? `${sesion.user.id}:inmediata:${oferta.detalle.id}`
       : `${sesion.user.id}:ficha:${oferta.ficha.id}`;
-    const siguientes = { ...this.ofertasPasadas(), [clave]: Date.now() + this.pausaOfertaMs };
+    const siguientes = {
+      ...this.ofertasPasadas(),
+      [clave]: Date.now() + this.pausaOfertaMs,
+      [`${sesion.user.id}:pausa`]: Date.now() + this.pausaEntreOfertasMs,
+    };
     this.ofertasPasadas.set(siguientes);
     this.guardarOfertasPasadas(siguientes);
     this.relojOfertas.set(Date.now());
     this.toastr.info(oferta.tipo === 'salida_inmediata'
       ? 'La sopa o bebida se ofrecerá a otro mesero.'
       : 'La ficha se ofrecerá a otro mesero. Volverá a consultarte en 2 minutos si sigue libre.');
+  }
+
+  private pausarNuevasOfertas(): void {
+    const sesion = this.sesionSeleccionada();
+    if (!sesion) return;
+    const siguientes = {
+      ...this.ofertasPasadas(),
+      [`${sesion.user.id}:pausa`]: Date.now() + this.pausaEntreOfertasMs,
+    };
+    this.ofertasPasadas.set(siguientes);
+    this.guardarOfertasPasadas(siguientes);
+    this.relojOfertas.set(Date.now());
   }
 
   procesarApoyo(ficha: ServicioFicha, accion: 'llevar' | 'cancelar' | 'entregar'): void {

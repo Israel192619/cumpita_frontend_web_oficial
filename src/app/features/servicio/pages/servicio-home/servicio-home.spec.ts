@@ -109,6 +109,25 @@ describe('Asistente de Servicio', () => {
     ] });
     expect(seleccionarOfertaAsistenteMesero([ficha({ id: 1 }), ficha({ id: 2 })], [], [bebida], 7, {}, 1000)).toBeNull();
   });
+
+  it('no adelanta sopas ni bebidas de fichas para llevar', () => {
+    const paraLlevar = ficha({ id: 9, tipo_orden: 'to-go', detalles: [
+      { id: 91, cantidad: 1, producto: 'Sopa', categoria: 'Sopas', opciones: [], listo: false, servido: false },
+    ] });
+    expect(seleccionarOfertaAsistenteMesero([ficha({ id: 1 }), ficha({ id: 2 })], [], [paraLlevar], 7, {}, 1000)).toBeNull();
+  });
+
+  it('hace una pausa antes de mostrar otra recomendación al mismo mesero', () => {
+    const disponible = ficha({ id: 3 });
+    expect(seleccionarOfertaAsistenteMesero([], [disponible], [disponible], 7, { '7:pausa': 2000 }, 1000)).toBeNull();
+  });
+
+  it('mantiene visible una entrega ya reservada aunque exista una pausa', () => {
+    const bebida = ficha({ id: 9, detalles: [
+      { id: 91, cantidad: 1, producto: 'Refresco', categoria: 'Bebidas', opciones: [], listo: false, servido: false, llevando_por_id: 7 },
+    ] });
+    expect(seleccionarOfertaAsistenteMesero([], [], [bebida], 7, { '7:pausa': 2000 }, 1000)?.tipo).toBe('salida_reservada');
+  });
 });
 
 describe('Stock compartido de adicionales', () => {
