@@ -3,6 +3,7 @@
 .kds-ticket--assistant-next{border-color:color-mix(in srgb,#ffd400 62%,var(--color-border))!important;box-shadow:0 0 0 2px rgba(255,212,0,.12),0 8px 22px rgba(0,0,0,.2)!important}
 .assistant-ticket-badge{position:absolute;z-index:5;top:0;left:50%;padding:.34rem .72rem;border-radius:0 0 9px 9px;transform:translateX(-50%);color:#161616;background:#e7bd00;font-size:.66rem;font-weight:950;letter-spacing:.08em;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.24)}
 .assistant-ticket-badge--now{color:#151000;background:#ffd400;font-size:.73rem;animation:assistant-priority-pulse 1.8s ease-in-out infinite}
+.assistant-ticket-badge:not(.assistant-ticket-badge--now){display:flex;align-items:center;gap:.32rem}.assistant-sequence-dots{font-size:1rem;line-height:.55;letter-spacing:.12em}
 .kds-ticket--assistant-now .ticket-header{padding-top:1.75rem}
 .kds-ticket--assistant-next .ticket-header{padding-top:1.55rem}
 .ticket-item--immediate{border:2px solid #00c9bd!important;background:color-mix(in srgb,#00c9bd 13%,var(--color-surface))!important;box-shadow:0 0 0 3px rgba(0,201,189,.15)!important}
