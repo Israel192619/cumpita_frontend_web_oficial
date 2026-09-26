@@ -51,7 +51,8 @@ export interface TareaAsistenteServicio {
 
 export interface OfertaAsistenteMesero {
   ficha: ServicioFicha;
-  tipo: 'asignacion' | 'apoyo' | 'apoyo_reservado';
+  tipo: 'asignacion' | 'apoyo' | 'apoyo_reservado' | 'salida_inmediata' | 'salida_reservada';
+  detalle?: ServicioDetalle;
 }
 
 export function construirColaAsistenteServicio(
@@ -109,11 +110,27 @@ export function construirColaAsistenteServicio(
 export function seleccionarOfertaAsistenteMesero(
   misFichas: ServicioFicha[],
   disponibles: ServicioFicha[],
+  todasFichas: ServicioFicha[],
   meseroId: number,
   ofertasPasadas: Record<string, number>,
   ahora = Date.now(),
 ): OfertaAsistenteMesero | null {
-  const omitida = (ficha: ServicioFicha) => (ofertasPasadas[`${meseroId}:${ficha.id}`] ?? 0) > ahora;
+  const vigente = (ficha: ServicioFicha) => ficha.estado !== 'cancelado' && ficha.estado !== 'entregado'
+    && !ficha.bloqueada && !(ficha.tipo_flujo === 'preorden' && ficha.estado_preorden !== 'activada');
+  const omitida = (ficha: ServicioFicha) => (ofertasPasadas[`${meseroId}:ficha:${ficha.id}`]
+    ?? ofertasPasadas[`${meseroId}:${ficha.id}`] ?? 0) > ahora;
+  const detalleOmitido = (detalle: ServicioDetalle) => (ofertasPasadas[`${meseroId}:inmediata:${detalle.id}`] ?? 0) > ahora;
+  const fichasGlobales = todasFichas.filter(vigente);
+  for (const ficha of fichasGlobales) {
+    const detalle = ficha.detalles.find(item => !item.servido && item.llevando_por_id === meseroId
+      && esProductoSalidaInmediata(item.categoria, item.producto));
+    if (detalle) return { ficha, detalle, tipo: 'salida_reservada' };
+  }
+  for (const ficha of fichasGlobales) {
+    const detalle = ficha.detalles.find(item => !item.servido && !item.llevando_por_id && !detalleOmitido(item)
+      && esProductoSalidaInmediata(item.categoria, item.producto));
+    if (detalle) return { ficha, detalle, tipo: 'salida_inmediata' };
+  }
   const apoyoReservado = disponibles.find(ficha => ficha.apoyo_por_id === meseroId);
   if (apoyoReservado) return { ficha: apoyoReservado, tipo: 'apoyo_reservado' };
   if (misFichas.length >= 2) {
@@ -196,7 +213,7 @@ export class ServicioHome implements OnInit, OnDestroy {
       || !!this.fichaALiberar() || !!this.fichaUbicacion() || this.seleccionMesaAbierta();
     if (!this.esMesero() || !sesion || this.fechaTablero() !== this.fechaHoy || this.loading() || interfazOcupada) return null;
     return seleccionarOfertaAsistenteMesero(
-      this.misFichas(), this.disponibles(), sesion.user.id, this.ofertasPasadas(), this.relojOfertas(),
+      this.misFichas(), this.disponibles(), this.todasFichas(), sesion.user.id, this.ofertasPasadas(), this.relojOfertas(),
     );
   });
 
@@ -1018,7 +1035,11 @@ export class ServicioHome implements OnInit, OnDestroy {
       : [...fichas, { ...ficha, mesero: sesion.user.name, mesero_id: sesion.user.id }]);
     this.procesando.set(`tomar-${ficha.id}`);
     this.servicio.tomar(ficha.id, sesion.token).subscribe({
-      next: () => { this.procesando.set(null); this.cargar(false); },
+      next: response => {
+        this.procesando.set(null);
+        if (response.recomendacion) this.toastr.info(response.recomendacion);
+        this.cargar(false);
+      },
       error: error => {
         this.descartarActualizacionLocal(ficha.id);
         this.misFichas.update(fichas => fichas.filter(item => item.id !== ficha.id));
@@ -1036,6 +1057,10 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   aceptarOfertaAsistente(oferta: OfertaAsistenteMesero): void {
+    if ((oferta.tipo === 'salida_inmediata' || oferta.tipo === 'salida_reservada') && oferta.detalle) {
+      this.colaborar(oferta.detalle.id, oferta.tipo === 'salida_inmediata' ? 'llevar' : 'entregar');
+      return;
+    }
     if (oferta.tipo === 'asignacion') {
       this.tomar(oferta.ficha);
       return;
@@ -1044,18 +1069,26 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   pasarOfertaAsistente(oferta: OfertaAsistenteMesero): void {
+    if (oferta.tipo === 'salida_reservada' && oferta.detalle) {
+      this.colaborar(oferta.detalle.id, 'cancelar');
+      return;
+    }
     if (oferta.tipo === 'apoyo_reservado') {
       this.procesarApoyo(oferta.ficha, 'cancelar');
       return;
     }
     const sesion = this.sesionSeleccionada();
     if (!sesion) return;
-    const clave = `${sesion.user.id}:${oferta.ficha.id}`;
+    const clave = oferta.tipo === 'salida_inmediata' && oferta.detalle
+      ? `${sesion.user.id}:inmediata:${oferta.detalle.id}`
+      : `${sesion.user.id}:ficha:${oferta.ficha.id}`;
     const siguientes = { ...this.ofertasPasadas(), [clave]: Date.now() + this.pausaOfertaMs };
     this.ofertasPasadas.set(siguientes);
     this.guardarOfertasPasadas(siguientes);
     this.relojOfertas.set(Date.now());
-    this.toastr.info('La ficha se ofrecerá a otro mesero. Volverá a consultarte en 2 minutos si sigue libre.');
+    this.toastr.info(oferta.tipo === 'salida_inmediata'
+      ? 'La sopa o bebida se ofrecerá a otro mesero.'
+      : 'La ficha se ofrecerá a otro mesero. Volverá a consultarte en 2 minutos si sigue libre.');
   }
 
   procesarApoyo(ficha: ServicioFicha, accion: 'llevar' | 'cancelar' | 'entregar'): void {

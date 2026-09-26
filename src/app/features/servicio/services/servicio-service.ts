@@ -29,7 +29,7 @@ export class ServicioService {
       params: fecha ? { fecha } : undefined,
     });
   }
-  tomar(id: number, token?: string) { return this.http.post(`${this.api}/fichas/${id}/tomar`, {}, this.opciones(token)); }
+  tomar(id: number, token?: string) { return this.http.post<{ message: string; orden_id: number; recomendacion?: string | null }>(`${this.api}/fichas/${id}/tomar`, {}, this.opciones(token)); }
   apoyar(id: number, accion: 'llevar' | 'cancelar' | 'entregar', token?: string) { return this.http.post(`${this.api}/fichas/${id}/apoyar`, { accion }, this.opciones(token)); }
   liberar(id: number, token?: string) { return this.http.post(`${this.api}/fichas/${id}/liberar`, {}, this.opciones(token)); }
   confirmar(detalleId: number, token?: string) { return this.http.patch(`${this.api}/detalles/${detalleId}/confirmar`, {}, this.opciones(token)); }

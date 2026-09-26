@@ -59,7 +59,8 @@ describe('Asistente de Servicio', () => {
   });
 
   it('ofrece una ficha normal hasta completar dos responsabilidades', () => {
-    const oferta = seleccionarOfertaAsistenteMesero([ficha({ id: 1 })], [ficha({ id: 2 })], 7, {}, 1000);
+    const disponibles = [ficha({ id: 2 })];
+    const oferta = seleccionarOfertaAsistenteMesero([ficha({ id: 1 })], disponibles, disponibles, 7, {}, 1000);
     expect(oferta?.tipo).toBe('asignacion');
     expect(oferta?.ficha.id).toBe(2);
   });
@@ -67,20 +68,46 @@ describe('Asistente de Servicio', () => {
   it('ofrece apoyo urgente sin añadir una tercera ficha y respeta pasar a otro', () => {
     const propias = [ficha({ id: 1 }), ficha({ id: 2 })];
     const lista = ficha({ id: 3, todo_listo: true });
-    expect(seleccionarOfertaAsistenteMesero(propias, [lista], 7, {}, 1000)?.tipo).toBe('apoyo');
-    expect(seleccionarOfertaAsistenteMesero(propias, [lista], 7, { '7:3': 2000 }, 1000)).toBeNull();
+    expect(seleccionarOfertaAsistenteMesero(propias, [lista], [lista], 7, {}, 1000)?.tipo).toBe('apoyo');
+    expect(seleccionarOfertaAsistenteMesero(propias, [lista], [lista], 7, { '7:ficha:3': 2000 }, 1000)).toBeNull();
   });
 
   it('prioriza el trabajo propio urgente antes de ofrecer ayuda', () => {
     const propias = [ficha({ id: 1, todo_listo: true }), ficha({ id: 2 })];
     const lista = ficha({ id: 3, todo_listo: true });
-    expect(seleccionarOfertaAsistenteMesero(propias, [lista], 7, {}, 1000)).toBeNull();
+    expect(seleccionarOfertaAsistenteMesero(propias, [lista], [lista], 7, {}, 1000)).toBeNull();
   });
 
   it('mantiene la confirmación de una ayuda ya reservada por el mesero', () => {
     const reservada = ficha({ id: 3, todo_listo: true, apoyo_por_id: 7, apoyo_por: 'Mesero A' });
-    const oferta = seleccionarOfertaAsistenteMesero([ficha({ id: 1 }), ficha({ id: 2 })], [reservada], 7, {}, 1000);
+    const oferta = seleccionarOfertaAsistenteMesero([ficha({ id: 1 }), ficha({ id: 2 })], [reservada], [reservada], 7, {}, 1000);
     expect(oferta?.tipo).toBe('apoyo_reservado');
+  });
+
+  it('ofrece una sopa de cualquier ficha aunque el mesero ya tenga dos', () => {
+    const propias = [ficha({ id: 1 }), ficha({ id: 2 })];
+    const lejana = ficha({ id: 9, numero_orden: 30, mesero_id: 15, detalles: [
+      { id: 91, cantidad: 2, producto: 'Sopa de maní', categoria: 'Sopas', opciones: [], listo: false, servido: false },
+    ] });
+    const oferta = seleccionarOfertaAsistenteMesero(propias, [], [lejana], 7, {}, 1000);
+    expect(oferta?.tipo).toBe('salida_inmediata');
+    expect(oferta?.detalle?.id).toBe(91);
+    expect(oferta?.ficha.id).toBe(9);
+  });
+
+  it('pide confirmar una bebida reservada por el mismo mesero', () => {
+    const bebida = ficha({ id: 9, detalles: [
+      { id: 91, cantidad: 1, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: false, servido: false, llevando_por_id: 7 },
+    ] });
+    const oferta = seleccionarOfertaAsistenteMesero([], [], [bebida], 7, {}, 1000);
+    expect(oferta?.tipo).toBe('salida_reservada');
+  });
+
+  it('no ofrece una salida inmediata que lleva otro mesero', () => {
+    const bebida = ficha({ id: 9, detalles: [
+      { id: 91, cantidad: 1, producto: 'Refresco', categoria: 'Bebidas', opciones: [], listo: false, servido: false, llevando_por_id: 8 },
+    ] });
+    expect(seleccionarOfertaAsistenteMesero([ficha({ id: 1 }), ficha({ id: 2 })], [], [bebida], 7, {}, 1000)).toBeNull();
   });
 });
 
