@@ -400,4 +400,5 @@ export class CheckoutModalComponent implements OnChanges {
   }
 
   trackByItem = (index: number, item: CartItem) => item.id;
+  trackBySplitPayment = (_index: number, pago: SplitPaymentLine) => pago.id;
 }

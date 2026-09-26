@@ -44,7 +44,7 @@
           <span class="summary-pill">Pendiente {{ formatPrice(getTargetAmount()) }}</span>
         </div>
         <div class="split-payment-list">
-          <article class="split-payment-row" *ngFor="let pago of pagosDivididos(); let indice = index">
+          <article class="split-payment-row" *ngFor="let pago of pagosDivididos(); let indice = index; trackBy: trackBySplitPayment">
             <header>
               <strong>Parte {{ indice + 1 }}</strong>
               <button type="button" *ngIf="pagosDivididos().length > 2" (click)="quitarParte(pago.id)" [disabled]="isProcessing()">Quitar</button>

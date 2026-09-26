@@ -51,4 +51,18 @@ describe('CheckoutModalComponent pago dividido', () => {
       { metodoPago: 'efectivo', montoAplicado: 50, montoRecibido: 100 },
     ]);
   });
+
+  it('mantiene activo el input mientras se escribe un monto', () => {
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('.split-payment-row input') as HTMLInputElement;
+    input.focus();
+    input.value = '4';
+    input.dispatchEvent(new Event('input'));
+
+    fixture.detectChanges();
+
+    const inputDespues = fixture.nativeElement.querySelector('.split-payment-row input') as HTMLInputElement;
+    expect(inputDespues).toBe(input);
+    expect(document.activeElement).toBe(input);
+  });
 });
