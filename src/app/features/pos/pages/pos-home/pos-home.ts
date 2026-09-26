@@ -4,7 +4,7 @@ import { Component, signal, computed, effect, OnInit, OnDestroy, ViewChild, Host
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, Observable, shareReplay, Subscription } from 'rxjs';
-import { CancelacionInfo, CartItem, CartItemModificador, DeliveryChangeState, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen, CajaUsuario, normalizeOrderComment } from '../../services';
+import { AtomicSalePayload, CancelacionInfo, CartItem, CartItemModificador, DeliveryChangeState, InitialOrderPayment, OfflineSalesService, Order, PaymentMethodOption, PosService, ClienteSearch, Mesa, Caja, CajaResumen, CajaUsuario, normalizeOrderComment } from '../../services';
 import { Categoria } from '../../../../core/models/categoria';
 import { Producto } from '../../../../core/models/producto';
 import { CartPanelComponent, CategoryBarComponent, CheckoutModalComponent, PaymentMethodType, PosToolbarComponent, ProductGridComponent, SplitPaymentInput } from '../../components';
@@ -63,6 +63,7 @@ export class PosHome implements OnInit, OnDestroy {
   private stockUpdatesSubscription?: Subscription;
   private reservationUpdatesSubscription?: Subscription;
   private cajaUpdatesSubscription?: Subscription;
+  private offlineSalesSubscription?: Subscription;
   private reservationTimer?: ReturnType<typeof setTimeout>;
   private reservationKeepAliveTimer?: ReturnType<typeof setInterval>;
 
@@ -386,6 +387,7 @@ export class PosHome implements OnInit, OnDestroy {
     private confirmDialog: ConfirmDialogService,
     private reverb: ReverbService,
     private auth: AuthService,
+    private offlineSales: OfflineSalesService,
     readonly themeService: ThemeService
   ) {
     this.operationMode = this.route.snapshot.data['mode'] === 'preorden' ? 'preorden' : 'pos';
@@ -418,6 +420,14 @@ export class PosHome implements OnInit, OnDestroy {
     this.initializeReservationTabIdentity();
     this.restoreSavedDraft();
     this.draftPersistenceReady.set(true);
+    if (this.operationMode === 'pos') {
+      void this.offlineSales.start();
+      this.offlineSalesSubscription = this.offlineSales.synced.subscribe(cantidad => {
+        this.toastr.success(`${cantidad} ${cantidad === 1 ? 'venta pendiente sincronizada' : 'ventas pendientes sincronizadas'}.`);
+        this.refreshOrderLists(true, true);
+        this.cargarCajaActual();
+      });
+    }
     this.reservationKeepAliveTimer = setInterval(() => {
       if (!this.reservationIdentityReady() || this.isEditingOrder()) return;
       const reservation = this.reservationItems();
@@ -498,6 +508,8 @@ export class PosHome implements OnInit, OnDestroy {
     this.stockUpdatesSubscription?.unsubscribe();
     this.reservationUpdatesSubscription?.unsubscribe();
     this.cajaUpdatesSubscription?.unsubscribe();
+    this.offlineSalesSubscription?.unsubscribe();
+    if (this.operationMode === 'pos') this.offlineSales.stop();
     if (this.reservationTimer) clearTimeout(this.reservationTimer);
     if (this.reservationKeepAliveTimer) clearInterval(this.reservationKeepAliveTimer);
     if (this.reservationIdentityTimer) clearTimeout(this.reservationIdentityTimer);
@@ -521,6 +533,11 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   abrirModalCaja(mode: 'abrir' | 'cerrar' | 'salir'): void {
+    if ((mode === 'cerrar' || mode === 'salir') && this.offlinePendingCount() > 0) {
+      this.toastr.warning('Sincroniza las ventas guardadas antes de cerrar o dejar la caja.');
+      this.retryOfflineSales();
+      return;
+    }
     this.cajaModalMode.set(mode);
     this.montoCaja.set(mode === 'cerrar' ? this.resumenCaja()?.monto_esperado?.toString() ?? '' : '');
     this.observacionCaja.set('');
@@ -657,6 +674,11 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   onBackRequested(): void {
+    if (this.offlinePendingCount() > 0) {
+      this.toastr.warning('Hay ventas guardadas pendientes. Sincronízalas antes de cerrar sesión.');
+      this.retryOfflineSales();
+      return;
+    }
     const leaveDecision = this.confirmLeave();
     if (typeof leaveDecision === 'boolean') {
       if (leaveDecision) this.leavePos();
@@ -1560,19 +1582,7 @@ export class PosHome implements OnInit, OnDestroy {
         },
       });
     } else {
-      this.posService.crearOrden(order, this.orderReservationSession()).subscribe({
-        next: (response) => {
-          this.finalizarVenta();
-          this.isProcessingCheckout.set(false);
-          this.mostrarExito('Orden adeudada creada exitosamente');
-        },
-        error: (err) => {
-          if (this.handleCatalogConflict(err)) return;
-          this.error.set('Error al procesar la orden adeudada');
-          this.toastr.error('Error al procesar la orden adeudada');
-          this.isProcessingCheckout.set(false);
-        },
-      });
+      this.registrarNuevaVentaProtegida(order, [], 'Orden adeudada creada exitosamente');
     }
   }
 
@@ -1820,52 +1830,88 @@ export class PosHome implements OnInit, OnDestroy {
         },
       });
     } else {
-      // Crear nueva orden y luego registrar pago
-      //const createPayload = this.posService.mapOrderToPayload(order);
-      //console.log('Creating order payload:', createPayload);
-      this.posService.crearOrden(order, this.orderReservationSession()).subscribe({
-        next: (response: any) => {
-          // Desde este punto la orden ya existe en el servidor. Eliminar el borrador
-          // evita duplicarla si el registro del pago falla y se recarga la pantalla.
-          this.discardSavedDraft();
-          // Backend may return the created order under different keys depending on endpoint/version.
-          const createdOrderId = response?.orden?.id ?? response?.order?.id ?? response?.id ?? null;
-          if (createdOrderId && montoRecibido > 0) {
-            registrarPagos(createdOrderId).subscribe({
-              next: () => {
-                this.finalizarVenta();
-                this.isCheckoutModalOpen.set(false);
-                this.isProcessingCheckout.set(false);
-                this.isRefundMode.set(false);
-                this.deletedItems.set([]);
-                this.mostrarExito('Venta completada exitosamente');
-              },
-              error: (err) => {
-          if (this.handleCatalogConflict(err)) return;
-                console.error('crearPagoOrden error:', err);
-                this.error.set('Error al registrar el pago');
-                this.toastr.error('Error al registrar el pago');
-                this.isProcessingCheckout.set(false);
-              },
-            });
-          } else {
-            // No hay monto recibido o no se obtuvo id, finalizar sin pago
-            console.warn('No createdOrderId or montoRecibido <= 0, skipping payment. createdOrderId=', createdOrderId, 'montoRecibido=', montoRecibido);
-            this.finalizarVenta();
-            this.isCheckoutModalOpen.set(false);
-            this.isProcessingCheckout.set(false);
-            this.mostrarExito('Venta completada exitosamente');
-          }
-        },
-        error: (err) => {
-          if (this.handleCatalogConflict(err)) return;
-          console.error('crearOrden error:', err);
-          this.error.set('Error al procesar la venta');
-          this.toastr.error('Error al procesar la venta');
-          this.isProcessingCheckout.set(false);
-        },
-      });
+      const pagos: InitialOrderPayment[] = data.pagosDivididos?.length
+        ? data.pagosDivididos.map(pago => ({
+            metodo_pago: pago.metodoPago,
+            monto_aplicado: pago.montoAplicado,
+            monto_recibido: pago.metodoPago === 'qr' ? pago.montoAplicado : pago.montoRecibido,
+          }))
+        : montoRecibido > 0
+          ? [{
+              metodo_pago: data.metodoPago,
+              monto_aplicado: Math.min(this.total(), montoRecibido),
+              monto_recibido: data.metodoPago === 'qr' ? Math.min(this.total(), montoRecibido) : montoRecibido,
+            }]
+          : [];
+      this.registrarNuevaVentaProtegida(order, pagos, 'Venta completada exitosamente', true);
     }
+  }
+
+  offlinePendingCount(): number { return this.offlineSales.pendingCount(); }
+  offlineSyncing(): boolean { return this.offlineSales.syncing(); }
+  offlineNeedsAttention(): number { return this.offlineSales.needsAttention(); }
+  offlineConnected(): boolean { return this.offlineSales.connected(); }
+
+  retryOfflineSales(): void {
+    void this.offlineSales.syncPending().then(resultado => {
+      if (resultado.synced === 0 && resultado.pending > 0) {
+        this.toastr.info(resultado.needsAttention > 0
+          ? 'Hay ventas que necesitan revisión antes de sincronizar.'
+          : 'Todavía no hay conexión con el servidor. Las ventas siguen guardadas.');
+      }
+    });
+  }
+
+  private registrarNuevaVentaProtegida(order: Order, pagos: InitialOrderPayment[], mensajeExito: string, cerrarPago = false): void {
+    const usuarioId = this.auth.usuarioActual()?.id;
+    if (!usuarioId) {
+      this.isProcessingCheckout.set(false);
+      this.toastr.error('No se pudo identificar al cajero. Vuelve a iniciar sesión.');
+      return;
+    }
+    const payload: AtomicSalePayload = {
+      ...this.posService.mapOrderToPayload(order),
+      reserva_sesion_id: this.orderReservationSession(),
+      operacion_cliente_id: this.createClientUuid(),
+      usuario_origen_id: usuarioId,
+      caja_id: pagos.some(pago => pago.metodo_pago === 'efectivo') ? this.cajaActual()?.id : null,
+      venta_sin_conexion: false,
+      pagos,
+    };
+
+    this.posService.crearVentaAtomica(payload).subscribe({
+      next: () => {
+        this.finalizarVenta();
+        this.terminarRegistroNuevaVenta(cerrarPago);
+        this.mostrarExito(mensajeExito);
+      },
+      error: err => {
+        if (!this.offlineSales.isConnectivityError(err)) {
+          if (this.handleCatalogConflict(err)) return;
+          this.error.set(err?.error?.message || 'Error al procesar la venta');
+          this.toastr.error(err?.error?.message || 'Error al procesar la venta');
+          this.isProcessingCheckout.set(false);
+          return;
+        }
+        void this.offlineSales.enqueue({ ...payload, venta_sin_conexion: true })
+          .then(() => {
+            this.finalizarVenta(false);
+            this.terminarRegistroNuevaVenta(cerrarPago);
+            this.toastr.warning('Venta guardada en este dispositivo. Se enviará cuando vuelva la conexión.', 'Pendiente de sincronizar', { timeOut: 7000 });
+          })
+          .catch(() => {
+            this.isProcessingCheckout.set(false);
+            this.toastr.error('No se pudo guardar la venta sin conexión. El pedido continúa abierto para no perderlo.');
+          });
+      },
+    });
+  }
+
+  private terminarRegistroNuevaVenta(cerrarPago: boolean): void {
+    if (cerrarPago) this.isCheckoutModalOpen.set(false);
+    this.isProcessingCheckout.set(false);
+    this.isRefundMode.set(false);
+    this.deletedItems.set([]);
   }
 
   onCheckoutCancelled(): void {

@@ -14,6 +14,38 @@
   overflow: hidden;
 }
 
+.offline-sales-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #d69000;
+  background: #fff3cd;
+  color: #5d3c00;
+}
+.offline-sales-banner div { display: flex; align-items: baseline; gap: 9px; }
+.offline-sales-banner span { font-size: 0.8rem; }
+.offline-sales-banner button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 8px;
+  background: #8a5700;
+  color: white;
+  font-weight: 800;
+}
+.offline-sales-banner button:disabled { opacity: 0.65; }
+.offline-sales-banner--attention { border-color: #b42318; background: #fee4e2; color: #7a271a; }
+.offline-sales-banner--attention button { background: #b42318; }
+
+@media (max-width: 600px) {
+  .offline-sales-banner { padding: 7px 10px; }
+  .offline-sales-banner div { display: grid; gap: 1px; }
+  .offline-sales-banner button { padding: 0 9px; font-size: 0.76rem; }
+}
+
 .error-banner {
   display: flex;
   justify-content: space-between;

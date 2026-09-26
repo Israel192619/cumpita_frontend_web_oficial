@@ -10,12 +10,19 @@ import { ReverbService } from '@app/core/services/reverb-service';
 import { PosService, Order } from '../../services/pos-service';
 import { PosHome } from './pos-home';
 import { Producto } from '@app/core/models/producto';
+import { OfflineSalesService } from '../../services/offline-sales-service';
+import { signal } from '@angular/core';
+import { Subject } from 'rxjs';
 
 function crearComponente() {
   TestBed.configureTestingModule({
       imports: [PosHome],
       providers: [
         { provide: PosService, useValue: {} },
+        { provide: OfflineSalesService, useValue: {
+          pendingCount: signal(0), syncing: signal(false), needsAttention: signal(0),
+          synced: new Subject<number>(), start: () => Promise.resolve(), stop: () => undefined,
+        } },
         { provide: CategoriaService, useValue: {} },
         { provide: ProductoService, useValue: {} },
         { provide: ToastrService, useValue: { error: () => undefined, info: () => undefined } },

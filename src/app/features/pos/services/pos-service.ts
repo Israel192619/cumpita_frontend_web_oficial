@@ -114,6 +114,20 @@ export interface OrderPayload {
   reserva_sesion_id?: string;
 }
 
+export interface InitialOrderPayment {
+  metodo_pago: 'efectivo' | 'qr';
+  monto_aplicado: number;
+  monto_recibido: number;
+}
+
+export interface AtomicSalePayload extends OrderPayload {
+  operacion_cliente_id: string;
+  usuario_origen_id: number;
+  caja_id?: number | null;
+  venta_sin_conexion: boolean;
+  pagos: InitialOrderPayment[];
+}
+
 export interface OrderItem {
   orden_detalle_id?: number;
   producto_id: number;
@@ -232,6 +246,10 @@ export class PosService {
     const snapshot = this.editingOrderSnapshot?.id === id ? this.editingOrderSnapshot : null;
     this.editingOrderSnapshot = null;
     return snapshot ? concat(of({ orden: snapshot }), request) : request;
+  }
+
+  crearVentaAtomica(payload: AtomicSalePayload): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/ordenes`, payload, { headers: { 'X-Offline-Queue': '1' } });
   }
 
   obtenerOrdenesPaginadas(options: {

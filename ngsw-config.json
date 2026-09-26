@@ -26,5 +26,24 @@
         ]
       }
     }
+  ],
+  "dataGroups": [
+    {
+      "name": "pos-catalogo",
+      "urls": [
+        "/api/categorias**",
+        "/api/productos**",
+        "/api/clientes**",
+        "/api/mesas**",
+        "/api/cajas/actual",
+        "/api/payment-methods"
+      ],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 250,
+        "maxAge": "12h",
+        "timeout": "4s"
+      }
+    }
   ]
 }

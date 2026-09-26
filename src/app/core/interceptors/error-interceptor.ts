@@ -17,9 +17,12 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
     req.url.includes(route)
   );
   const esSesionServicio = req.headers.has('X-Service-Request') || req.headers.has('X-Service-Session') || req.headers.has('X-Service-Login');
+  const errorManejadoLocalmente = req.headers.has('X-Offline-Queue');
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
+
+      if (errorManejadoLocalmente) return throwError(() => err);
 
       switch (err.status) {
 

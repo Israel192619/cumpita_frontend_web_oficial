@@ -1,4 +1,13 @@
 <div class="pos-container" [posSearchFocus]="searchFocusTarget()">
+  <div *ngIf="offlinePendingCount() > 0 || !offlineConnected()" class="offline-sales-banner" [class.offline-sales-banner--attention]="offlineNeedsAttention() > 0">
+    <div>
+      <strong>{{ offlinePendingCount() > 0 ? offlinePendingCount() + (offlinePendingCount() === 1 ? ' venta guardada' : ' ventas guardadas') : 'Sin conexión' }}</strong>
+      <span>{{ offlineNeedsAttention() > 0 ? 'Hay ventas que necesitan revisión.' : (offlinePendingCount() > 0 ? 'Pendientes de enviar al servidor.' : 'Las ventas nuevas se guardarán en este dispositivo.') }}</span>
+    </div>
+    <button *ngIf="offlinePendingCount() > 0" type="button" (click)="retryOfflineSales()" [disabled]="offlineSyncing()">
+      {{ offlineSyncing() ? 'Enviando…' : 'Sincronizar ahora' }}
+    </button>
+  </div>
   <!-- Edit Mode Indicator -->
   <div *ngIf="isEditingOrder()" class="edit-mode-banner">
     <div class="edit-mode-content">
