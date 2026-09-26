@@ -774,9 +774,9 @@
 }
 .kds-ticket--cancelled { border-color: var(--color-danger); }
 .kds-ticket--mesa .ticket-header { background: #ff4500; }
-.kds-ticket--llevar .ticket-header,
-.kds-ticket--delivery .ticket-header { background: #1769d2; }
+.kds-ticket--llevar .ticket-header { background: #1769d2; }
 .kds-ticket--preorden .ticket-header { background: #1a1a1a; }
+.kds-ticket--delivery .ticket-header { background: #15803d; }
 .kds-ticket--mesa .ticket-header h2,
 .kds-ticket--llevar .ticket-header h2,
 .kds-ticket--delivery .ticket-header h2,

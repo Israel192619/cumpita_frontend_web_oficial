@@ -84,7 +84,8 @@
           <article class="work-ticket"
             [class.ticket-black-hole-exit]="fichasSaliendo().has(ficha.id)"
             [class.work-ticket--mesa]="ficha.tipo_orden === 'dine-in'"
-            [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go' || ficha.tipo_orden === 'delivery'"
+            [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go'"
+            [class.work-ticket--delivery]="ficha.tipo_orden === 'delivery'"
             [class.work-ticket--preorden]="ficha.tipo_flujo === 'preorden'"
             [class.work-ticket--assistant-now]="prioridadAsistenteServicio(ficha.id) === 1"
             [class.work-ticket--assistant-next]="prioridadAsistenteServicio(ficha.id) > 1">
@@ -153,7 +154,8 @@
         @for (ficha of misEntregadas(); track ficha.id) {
           <article class="work-ticket delivered-ticket"
             [class.work-ticket--mesa]="ficha.tipo_orden === 'dine-in'"
-            [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go' || ficha.tipo_orden === 'delivery'"
+            [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go'"
+            [class.work-ticket--delivery]="ficha.tipo_orden === 'delivery'"
             [class.work-ticket--preorden]="ficha.tipo_flujo === 'preorden'">
             <div class="ticket-head"><div><span>FICHA ENTREGADA</span><h3>#{{ ficha.numero_orden }}</h3><small class="ticket-table">{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></div><div class="delivered-badge">✓ Entregada</div></div>
             <div class="ticket-detail-meta"><span class="ticket-client-name"><b>{{ ficha.cliente || 'Cliente no registrado' }}</b></span><span>{{ ficha.total_items }} producto(s)</span><span>{{ ficha.entregada_en | date:'HH:mm' }}</span></div>

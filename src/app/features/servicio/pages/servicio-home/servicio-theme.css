@@ -71,17 +71,22 @@
 .work-ticket--mesa .ticket-head{background:var(--brand-orange,#ff4500)}
 .work-ticket--llevar .ticket-head{background:#1769d2}
 .work-ticket--preorden .ticket-head{background:#1a1a1a}
+.work-ticket--delivery .ticket-head{background:#15803d}
 .work-ticket--mesa .ticket-head,
 .work-ticket--llevar .ticket-head,
+.work-ticket--delivery .ticket-head,
 .work-ticket--preorden .ticket-head{border-bottom-color:transparent;color:#fff}
 .work-ticket--mesa .ticket-head span,
 .work-ticket--mesa .ticket-head small,
 .work-ticket--llevar .ticket-head span,
 .work-ticket--llevar .ticket-head small,
+.work-ticket--delivery .ticket-head span,
+.work-ticket--delivery .ticket-head small,
 .work-ticket--preorden .ticket-head span,
 .work-ticket--preorden .ticket-head small{color:rgba(255,255,255,.88)}
 .work-ticket--mesa .ticket-head .progress,
 .work-ticket--llevar .ticket-head .progress,
+.work-ticket--delivery .ticket-head .progress,
 .work-ticket--preorden .ticket-head .progress{background:rgba(255,255,255,.16);color:#fff}
 .service-item-price{margin-left:.28rem;color:var(--color-text-secondary);font-size:.72rem;font-style:normal;font-weight:750;white-space:nowrap}
 
