@@ -1455,6 +1455,13 @@ export class ServicioHome implements OnInit, OnDestroy {
     return ficha.tipo_orden === 'dine-in' ? 'En mesa' : ficha.tipo_orden === 'delivery' ? 'Delivery' : 'Para llevar';
   }
 
+  avisoDeliveryProgramado(ficha: ServicioFicha): string {
+    if (!ficha.fecha_programada) return 'DELIVERY';
+    const programada = new Date(ficha.fecha_programada);
+    if (Date.now() >= programada.getTime()) return 'YA HAY QUE LLEVAR';
+    return `LLEVAR A LAS ${programada.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
   private ejecutarCierre(liberarFichas: boolean): void {
     const sesion = this.sesionSeleccionada();
     if (!sesion) return;
@@ -1727,6 +1734,9 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   private ordenarPorLlegada(fichas: ServicioFicha[]): ServicioFicha[] {
     return [...fichas].sort((a, b) => {
+      const deliveryProgramado = (ficha: ServicioFicha) => ficha.tipo_orden === 'delivery'
+        && ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada';
+      if (deliveryProgramado(a) !== deliveryProgramado(b)) return deliveryProgramado(a) ? -1 : 1;
       const fechaA = new Date(a.preorden_activada_en || a.created_at).getTime();
       const fechaB = new Date(b.preorden_activada_en || b.created_at).getTime();
       if (Number.isFinite(fechaA) && Number.isFinite(fechaB) && fechaA !== fechaB) return fechaA - fechaB;

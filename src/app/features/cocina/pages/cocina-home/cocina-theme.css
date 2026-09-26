@@ -825,18 +825,7 @@
   text-transform: uppercase;
 }
 
-/* Una preorden programada se reconoce por la banda, pero conserva la misma
-   estructura visual y permanece al final de las fichas operativas. */
-.kds-ticket--programada .ticket-meta {
-  color: #fff;
-  background: #b91c1c;
-}
-.kds-ticket--programada .ticket-meta > strong,
-.kds-ticket--programada .ticket-meta > span { color: #fff; }
-.kds-ticket--programada .ticket-preorder-badge {
-  color: #fff;
-  background: rgb(255 255 255 / .16);
-}
+/* La etiqueta comunica el estado de la preorden sin ocupar toda la banda. */
 .ticket-preorder-start {
   display: inline-flex;
   align-items: center;

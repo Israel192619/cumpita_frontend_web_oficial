@@ -59,6 +59,9 @@ export interface TareaAsistenteKds {
 }
 
 export function compararLlegadaKds(a: KdsOrden, b: KdsOrden): number {
+  const deliveryProgramado = (orden: KdsOrden) => orden.tipo_orden === 'delivery'
+    && orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada';
+  if (deliveryProgramado(a) !== deliveryProgramado(b)) return deliveryProgramado(a) ? -1 : 1;
   if (!!a.preorden_temprana !== !!b.preorden_temprana) return a.preorden_temprana ? -1 : 1;
   const fecha = (orden: KdsOrden) => new Date(
     orden.preorden_temprana
@@ -1463,7 +1466,9 @@ export class CocinaHome implements OnInit, OnDestroy {
       return orden.preorden_cliente_no_llego ? 'CLIENTE NO LLEGÓ' : 'ESPERANDO CLIENTE';
     }
     if (orden.tipo_flujo === 'preorden' && orden.tipo_orden === 'delivery' && orden.fecha_programada) {
-      return `LLEVAR A LAS ${new Date(orden.fecha_programada).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}`;
+      const programada = new Date(orden.fecha_programada);
+      if (Date.now() >= programada.getTime()) return 'YA HAY QUE LLEVAR';
+      return `LLEVAR A LAS ${programada.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}`;
     }
     return null;
   }

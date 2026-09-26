@@ -44,6 +44,15 @@ describe('Asistente de Cocina y Parrilla', () => {
     expect(construirColaAsistenteKds([gaseosa], new Date('2026-09-25T11:01:00').getTime())).toEqual([]);
   });
 
+  it('coloca arriba el delivery programado cuando se activa tres minutos antes', () => {
+    const normal = orden(1, '2026-09-25T11:00:00');
+    const delivery = orden(2, '2026-09-25T11:20:00', 'pendiente', {
+      tipo_orden: 'delivery', tipo_flujo: 'preorden', estado_preorden: 'activada',
+      fecha_programada: '2026-09-25T11:23:00', preorden_activada_en: '2026-09-25T11:20:00',
+    });
+    expect([normal, delivery].sort(compararLlegadaKds).map(item => item.id)).toEqual([2, 1]);
+  });
+
   it('mantiene la ficha en la cola prevista mientras espera Parrilla', () => {
     const mixta = orden(1, '2026-09-25T11:00:00');
     mixta.detalles = [
