@@ -517,7 +517,7 @@
   </app-modal>
 
   <app-modal [open]="isPreordersModalOpen()" title="Preórdenes programadas" size="large" panelClass="pos-dashboard-modal" (closed)="closePreordersModal()">
-    <p class="modal-intro">Activa una preorden cuando el cliente llegue. Entrará inmediatamente al flujo operativo.</p>
+    <p class="modal-intro">En mesa o para llevar, confirma cuando llegue el cliente. Los delivery se habilitan automáticamente 3 minutos antes.</p>
     <div class="pending-orders-search">
       <input
         type="text"
@@ -554,7 +554,7 @@
           <div class="pending-order-summary">Total: {{ formatPrice(orden.total) }}</div>
           <div class="pending-order-actions">
             <app-button text="Editar" color="secondary" size="small" (buttonClick)="onEditPreorder(orden.id)" />
-            <app-button text="Activar" color="success" size="small" (buttonClick)="onActivatePreorder(orden)" />
+            <app-button *ngIf="orden.tipo_orden !== 'delivery'" text="¡YA LLEGÓ!" color="success" size="small" (buttonClick)="onActivatePreorder(orden)" />
           </div>
         </div>
       </div>

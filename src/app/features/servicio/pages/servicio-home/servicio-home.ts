@@ -332,6 +332,10 @@ export class ServicioHome implements OnInit, OnDestroy {
         .toLocaleLowerCase().includes(q)
     );
   });
+  preordenesEsperandoCliente = computed(() => this.preordenesProgramadas()
+    .filter(ficha => ficha.tipo_orden !== 'delivery' && ficha.preorden_proxima));
+  hayPreordenSinLlegar = computed(() => this.preordenesEsperandoCliente()
+    .some(ficha => ficha.preorden_cliente_no_llego));
   pin = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d{4,6}$/)] });
   private subs: Subscription[] = [];
   private cargaSub?: Subscription;
@@ -730,7 +734,7 @@ export class ServicioHome implements OnInit, OnDestroy {
       next: () => {
         this.preordenesProgramadas.update(preordenes => preordenes.filter(item => item.id !== ficha.id));
         this.procesando.set(null);
-        this.toastr.success(`Preorden #${ficha.numero_orden} activada.`);
+        this.toastr.success(`Llegada confirmada para la preorden #${ficha.numero_orden}.`);
         this.cargar(false);
       },
       error: error => {

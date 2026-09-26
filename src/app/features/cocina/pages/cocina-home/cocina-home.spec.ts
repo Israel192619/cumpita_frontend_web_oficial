@@ -156,10 +156,10 @@ describe('Actualizaciones parciales del tablero', () => {
     expect(fusionarPedidosKds([primera, segunda], [nueva], [1])).toEqual([nueva, segunda]);
     expect(fusionarPedidosKds([primera, segunda], [nueva])).toEqual([nueva]);
   });
-  it('mantiene el orden de llegada y deja las preordenes anticipadas al final', () => {
+  it('adelanta la preorden que ya entro en la ventana de cinco minutos', () => {
     const normal = ficha(1), activada = ficha(2, { tipo_flujo: 'preorden', estado_preorden: 'activada', preorden_activada_en: '2026-09-21T10:00:02' });
     const anticipada = ficha(3, { preorden_temprana: true, fecha_programada: '2026-09-21T11:00:00' });
-    expect(fusionarPedidosKds([normal, anticipada], [activada], [2]).map(o => o.id)).toEqual([1, 2, 3]);
+    expect(fusionarPedidosKds([normal, anticipada], [activada], [2]).map(o => o.id)).toEqual([3, 1, 2]);
   });
   it('agrupa avisos sin perder fichas ni cambios durante una consulta lenta', () => {
     vi.useFakeTimers();

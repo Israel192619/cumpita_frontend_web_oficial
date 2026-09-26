@@ -59,7 +59,7 @@ export interface TareaAsistenteKds {
 }
 
 export function compararLlegadaKds(a: KdsOrden, b: KdsOrden): number {
-  if (!!a.preorden_temprana !== !!b.preorden_temprana) return a.preorden_temprana ? 1 : -1;
+  if (!!a.preorden_temprana !== !!b.preorden_temprana) return a.preorden_temprana ? -1 : 1;
   const fecha = (orden: KdsOrden) => new Date(
     orden.preorden_temprana
       ? orden.fecha_programada || orden.created_at
@@ -626,7 +626,7 @@ export class CocinaHome implements OnInit, OnDestroy {
         }
         eventos.filter(evento => evento.cambios.length).forEach(evento => this.programarOcultarCambios(evento.id));
         this.preordenesProgramadas.set(fusionarPedidosKds(this.preordenesProgramadas(), res.preordenes_programadas || [], parciales, true));
-        if (res.estacion.codigo === 'PARRILLA') this.avisarPreordenesTempranas(ordenes);
+        this.avisarPreordenesTempranas(ordenes);
         if (res.estacion.codigo === 'PARRILLA' && alertarParrillaDesde) {
           ordenes.filter(orden => {
             const creada = new Date(orden.created_at).getTime();
@@ -686,7 +686,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   private revisarPreordenesProximas(): void {
-    if (this.estacionActual()?.codigo !== 'PARRILLA') return;
+    if (!this.estacionActual()) return;
 
     this.cocinaService.obtenerPreordenesProximas(this.fechaSeleccionada(), this.estacionSolicitada()).subscribe({
       next: ({ ids }) => {
@@ -737,7 +737,7 @@ export class CocinaHome implements OnInit, OnDestroy {
       const hora = orden.fecha_programada ? new Date(orden.fecha_programada).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) : '';
       this.toastr.warning(
         `#${orden.numero_orden || orden.id} · ${orden.cliente?.nombre || 'Cliente pendiente'}${hora ? ` · ${hora}` : ''}`,
-        'Preorden para preparar en Parrilla',
+        orden.preorden_cliente_no_llego ? 'CLIENTE AÚN NO LLEGÓ' : 'Preorden próxima · esperando cliente',
         { timeOut: 8000, progressBar: true, enableHtml: false }
       );
     });
@@ -894,7 +894,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   private claveAlertaPreorden(orden: KdsOrden): string {
-    return `${orden.id}:${orden.fecha_programada ?? ''}`;
+    return `${orden.id}:${orden.fecha_programada ?? ''}:${orden.preorden_cliente_no_llego ? 'tarde' : 'proxima'}`;
   }
 
   private cargarAlertasPreordenMostradas(): void {
@@ -1454,8 +1454,18 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   etiquetaBloqueo(orden: KdsOrden): string {
-    if (this.esPreordenProgramada(orden)) return 'Aún no activa';
+    if (this.esPreordenProgramada(orden)) return orden.preorden_cliente_no_llego ? 'CLIENTE NO LLEGÓ' : 'Esperando cliente';
     return 'Espera Parrilla';
+  }
+
+  avisoPreorden(orden: KdsOrden): string | null {
+    if (this.esPreordenProgramada(orden)) {
+      return orden.preorden_cliente_no_llego ? 'CLIENTE NO LLEGÓ' : 'ESPERANDO CLIENTE';
+    }
+    if (orden.tipo_flujo === 'preorden' && orden.tipo_orden === 'delivery' && orden.fecha_programada) {
+      return `LLEVAR A LAS ${new Date(orden.fecha_programada).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    return null;
   }
 
   private normalizar(valor: string): string {

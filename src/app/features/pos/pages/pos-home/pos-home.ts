@@ -2775,15 +2775,15 @@ export class PosHome implements OnInit, OnDestroy {
 
   onActivatePreorder(order: Order): void {
     this.confirmDialog.confirm({
-      title: 'Activar preorden',
-      message: `¿Activar la preorden #${order.numero_orden || order.id}? Entrará inmediatamente a Cocina, Parrilla y Servicio.`,
-      confirmText: 'Activar',
+      title: 'Confirmar llegada',
+      message: `¿Confirmar que ya llegó el cliente de la preorden #${order.numero_orden || order.id}? Entrará inmediatamente a Cocina, Parrilla y Servicio.`,
+      confirmText: '¡YA LLEGÓ!',
       confirmColor: 'primary',
     }).subscribe(confirmed => {
       if (!confirmed) return;
       this.posService.activarPreorden(order.id).subscribe({
         next: () => {
-          this.toastr.success('Preorden activada correctamente.');
+          this.toastr.success('Llegada confirmada. La preorden ya está activa.');
           this.loadPreorders();
           this.loadOrders();
         },

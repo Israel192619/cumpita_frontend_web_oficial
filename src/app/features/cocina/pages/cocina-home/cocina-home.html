@@ -233,7 +233,7 @@
         <strong>#{{ orden.numero_orden || orden.id }}</strong>
         <span>{{ etiquetaTipoOrden(orden) }}</span>
         <span *ngIf="orden.tipo_flujo === 'preorden'" class="ticket-preorder-badge">Preorden</span>
-        <span *ngIf="orden.preorden_temprana && estacionActual()?.codigo === 'PARRILLA'" class="ticket-preorder-start">Aún no activa</span>
+        <span *ngIf="avisoPreorden(orden) as aviso" class="ticket-preorder-start" [class.ticket-preorder-start--late]="orden.preorden_cliente_no_llego">{{ aviso }}</span>
         <span *ngIf="orden.estado !== 'preparando' && orden.estado !== 'pendiente'" class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
       </div>
 
@@ -277,7 +277,7 @@
             <label *ngFor="let detalle of detallesDelGrupo(grupo)" class="serve-switch">
               <input type="checkbox" [checked]="detalle.estado_cocina === 'servido'"
                 [disabled]="estaDetalleActualizando(detalle.id) || esPreordenProgramada(orden)" (change)="marcarServido(detalle, $any($event.target).checked)">
-              <span></span><b>{{ esPreordenProgramada(orden) ? 'Aún no activa' : 'Servido' }}</b>
+              <span></span><b>{{ esPreordenProgramada(orden) ? etiquetaBloqueo(orden) : 'Servido' }}</b>
             </label>
             </ng-container>
           </div>

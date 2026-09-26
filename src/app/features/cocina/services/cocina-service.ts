@@ -75,6 +75,7 @@ export interface KdsOrden {
   tipo_flujo?: 'normal' | 'preorden';
   estado_preorden?: 'programada' | 'activada' | null;
   preorden_temprana?: boolean;
+  preorden_cliente_no_llego?: boolean;
   bloqueada?: boolean;
   asignacion?: { user_id: number; nombre: string; color: 'amarillo' | 'indigo' | 'salmon' | 'verde' } | null;
   observaciones?: string | null;
