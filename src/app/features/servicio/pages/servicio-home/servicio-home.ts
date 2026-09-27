@@ -208,6 +208,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   private readonly maxFichasPorMesero = 2;
   private readonly pausaOfertaMs = 120000;
   private readonly pausaEntreOfertasMs = 60000;
+  readonly confirmacionesAsistenteActivas = false;
   ofertasPasadas = signal<Record<string, number>>(this.leerOfertasPasadas());
   relojOfertas = signal(Date.now());
   alcanzoLimiteFichas = computed(() => this.misFichas().length >= this.maxFichasPorMesero);
@@ -217,7 +218,8 @@ export class ServicioHome implements OnInit, OnDestroy {
       || this.buscarOrdenAbierto() || this.selectorProductoAbierto() || this.confirmarCierre()
       || !!this.fichaALiberar() || !!this.fichaUbicacion() || this.seleccionMesaAbierta()
       || this.salidaInmediataFichaId() !== null;
-    if (!this.esMesero() || !sesion || this.fechaTablero() !== this.fechaHoy || this.loading() || interfazOcupada) return null;
+    if (!this.confirmacionesAsistenteActivas || !this.esMesero() || !sesion
+      || this.fechaTablero() !== this.fechaHoy || this.loading() || interfazOcupada) return null;
     return seleccionarOfertaAsistenteMesero(
       this.misFichas(), this.disponibles(), this.todasFichas(), sesion.user.id, this.ofertasPasadas(), this.relojOfertas(),
     );
@@ -255,6 +257,10 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   abrirSalidaInmediata(ficha: ServicioFicha): void {
+    if (this.fechaTablero() !== this.fechaHoy) {
+      this.toastr.info('La entrega rápida solo está disponible en las fichas de hoy.');
+      return;
+    }
     if (!this.requerirSesion() || !this.tieneSalidaInmediataServicio(ficha)) return;
     this.salidaInmediataFichaId.set(ficha.id);
   }
