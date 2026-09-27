@@ -58,6 +58,19 @@ describe('Asistente de Servicio', () => {
     } as any)).toBe(true);
   });
 
+  it('nombra exactamente sopa, bebida o ambas y oculta la señal al servirlas', () => {
+    const component = Object.create(ServicioHome.prototype) as ServicioHome;
+    const pedido = ficha({ detalles: [
+      { id: 11, cantidad: 1, producto: 'Sopa de maní', categoria: 'Sopas', opciones: [], listo: false, servido: false },
+      { id: 12, cantidad: 1, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: false, servido: false },
+    ] });
+    expect(component.etiquetaSalidaInmediataServicio(pedido)).toBe('SOPA Y BEBIDA · SERVIR PRIMERO');
+    pedido.detalles[1].servido = true;
+    expect(component.etiquetaSalidaInmediataServicio(pedido)).toBe('SOPA · SERVIR PRIMERO');
+    pedido.detalles[0].servido = true;
+    expect(component.tieneSalidaInmediataServicio(pedido)).toBe(false);
+  });
+
   it('ofrece una ficha normal hasta completar dos responsabilidades', () => {
     const disponibles = [ficha({ id: 2 })];
     const oferta = seleccionarOfertaAsistenteMesero([ficha({ id: 1 })], disponibles, disponibles, 7, {}, 1000);

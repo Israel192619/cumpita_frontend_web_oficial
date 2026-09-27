@@ -198,6 +198,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   sesionSeleccionada = signal<ServicioSesion | null>(null);
   disponibles = signal<ServicioFicha[]>([]);
   misFichas = signal<ServicioFicha[]>([]);
+  salidaInmediataFichaId = signal<number | null>(null);
   colaAsistenteServicio = computed(() => this.sesionSeleccionada()
     ? construirColaAsistenteServicio(this.misFichas(), this.disponibles())
     : []);
@@ -214,7 +215,8 @@ export class ServicioHome implements OnInit, OnDestroy {
     const sesion = this.sesionSeleccionada();
     const interfazOcupada = this.mostrarIngreso() || this.preordenesAbiertas() || this.solicitudesAbiertas()
       || this.buscarOrdenAbierto() || this.selectorProductoAbierto() || this.confirmarCierre()
-      || !!this.fichaALiberar() || !!this.fichaUbicacion() || this.seleccionMesaAbierta();
+      || !!this.fichaALiberar() || !!this.fichaUbicacion() || this.seleccionMesaAbierta()
+      || this.salidaInmediataFichaId() !== null;
     if (!this.esMesero() || !sesion || this.fechaTablero() !== this.fechaHoy || this.loading() || interfazOcupada) return null;
     return seleccionarOfertaAsistenteMesero(
       this.misFichas(), this.disponibles(), this.todasFichas(), sesion.user.id, this.ofertasPasadas(), this.relojOfertas(),
@@ -235,9 +237,55 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   tieneSalidaInmediataServicio(ficha: ServicioFicha): boolean {
-    return ficha.tipo_orden === 'dine-in' && ficha.detalles.some(detalle => !detalle.servido
-      && !detalle.llevando_por_id
+    return this.detallesSalidaInmediataServicio(ficha).length > 0;
+  }
+
+  detallesSalidaInmediataServicio(ficha: ServicioFicha): ServicioDetalle[] {
+    if (ficha.tipo_orden !== 'dine-in') return [];
+    return ficha.detalles.filter(detalle => !detalle.servido
       && esProductoSalidaInmediata(detalle.categoria, detalle.producto));
+  }
+
+  etiquetaSalidaInmediataServicio(ficha: ServicioFicha): string {
+    const detalles = this.detallesSalidaInmediataServicio(ficha);
+    const tieneSopa = detalles.some(detalle => this.esSopa(detalle));
+    const tieneBebida = detalles.some(detalle => !this.esSopa(detalle));
+    const productos = tieneSopa && tieneBebida ? 'SOPA Y BEBIDA' : tieneSopa ? 'SOPA' : 'BEBIDA';
+    return `${productos} · SERVIR PRIMERO`;
+  }
+
+  abrirSalidaInmediata(ficha: ServicioFicha): void {
+    if (!this.requerirSesion() || !this.tieneSalidaInmediataServicio(ficha)) return;
+    this.salidaInmediataFichaId.set(ficha.id);
+  }
+
+  cerrarSalidaInmediata(): void {
+    this.salidaInmediataFichaId.set(null);
+  }
+
+  fichaSalidaInmediataActual(): ServicioFicha | null {
+    const id = this.salidaInmediataFichaId();
+    if (id === null) return null;
+    return this.todasFichas().find(ficha => ficha.id === id)
+      ?? this.disponibles().find(ficha => ficha.id === id)
+      ?? this.misFichas().find(ficha => ficha.id === id)
+      ?? null;
+  }
+
+  accionSalidaInmediata(detalle: ServicioDetalle): 'llevar' | 'entregar' | null {
+    if (detalle.servido) return null;
+    if (!detalle.llevando_por_id) return 'llevar';
+    return detalle.llevando_por_id === this.sesionSeleccionada()?.user.id ? 'entregar' : null;
+  }
+
+  textoAccionSalidaInmediata(detalle: ServicioDetalle): string {
+    return this.accionSalidaInmediata(detalle) === 'entregar' ? 'ENTREGADO' : 'VOY A LLEVAR';
+  }
+
+  private esSopa(detalle: ServicioDetalle): boolean {
+    const texto = `${detalle.categoria || ''} ${detalle.producto || ''}`
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return /\bsopas?\b/.test(texto);
   }
   misEntregadas = signal<ServicioFicha[]>([]);
   viendoEntregadas = signal(false);
@@ -926,6 +974,10 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.misFichas.set(this.ordenarPorLlegada(tablero.mis_fichas ?? []));
         this.misEntregadas.set(tablero.mis_entregadas ?? []);
         this.preordenesProgramadas.set(tablero.preordenes_programadas ?? []);
+        const fichaSalida = this.fichaSalidaInmediataActual();
+        if (this.salidaInmediataFichaId() !== null && (!fichaSalida || !this.tieneSalidaInmediataServicio(fichaSalida))) {
+          this.cerrarSalidaInmediata();
+        }
         const sesionActual = this.sesionSeleccionada();
         if (sesionActual) this.guardarTableroSesion(sesionActual);
         this.loading.set(false);
