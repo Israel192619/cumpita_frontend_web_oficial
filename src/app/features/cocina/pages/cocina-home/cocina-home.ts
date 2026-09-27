@@ -59,12 +59,18 @@ export interface TareaAsistenteKds {
 }
 
 export function compararLlegadaKds(a: KdsOrden, b: KdsOrden): number {
-  const deliveryProgramado = (orden: KdsOrden) => orden.tipo_orden === 'delivery'
-    && orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada';
-  if (deliveryProgramado(a) !== deliveryProgramado(b)) return deliveryProgramado(a) ? -1 : 1;
-  if (!!a.preorden_temprana !== !!b.preorden_temprana) return a.preorden_temprana ? -1 : 1;
+  const preordenActivada = (orden: KdsOrden) => orden.tipo_flujo === 'preorden'
+    && orden.estado_preorden === 'activada';
+  const esperandoLlegada = (orden: KdsOrden) => orden.tipo_flujo === 'preorden'
+    && orden.estado_preorden === 'programada';
+
+  // Las preórdenes activadas suben: Caja/Servicio confirmó la llegada o el
+  // delivery entró automáticamente en su ventana de tres minutos.
+  if (preordenActivada(a) !== preordenActivada(b)) return preordenActivada(a) ? -1 : 1;
+  // Mesa y para llevar permanecen visibles al final mientras esperan cliente.
+  if (esperandoLlegada(a) !== esperandoLlegada(b)) return esperandoLlegada(a) ? 1 : -1;
   const fecha = (orden: KdsOrden) => new Date(
-    orden.preorden_temprana
+    esperandoLlegada(orden)
       ? orden.fecha_programada || orden.created_at
       : orden.preorden_activada_en || orden.fecha_orden || orden.created_at,
   ).getTime();
