@@ -15,7 +15,7 @@ function crearComponente() {
       { provide: PosService, useValue: {} },
       { provide: ProductoService, useValue: {} },
       { provide: ConfirmDialogService, useValue: {} },
-      { provide: ToastrService, useValue: {} },
+      { provide: ToastrService, useValue: { success: () => {}, warning: () => {}, info: () => {}, error: () => {} } },
       { provide: ConfiguracionService, useValue: { cargar: () => of({}) } },
     ],
   }).overrideComponent(CartPanelComponent, { set: { template: '', imports: [], styles: [], styleUrls: [] } });
@@ -23,6 +23,45 @@ function crearComponente() {
 }
 
 describe('Editor de modificadores del carrito agrupado', () => {
+  it('al copiar guarniciones usa la combinación del producto destino', () => {
+    const fixture = crearComponente();
+    const component = fixture.componentInstance;
+    const grupo: ModificadorEstructurado = {
+      id: 1, nombre: 'Guarniciones', tipo: 'multiple', requerido: false, activo: true,
+      opciones: [
+        { id: 3, nombre: 'Yuca', precio_extra: 0, activo: true, predeterminado: true },
+        { id: 4, nombre: 'Ensalada', precio_extra: 0, activo: true, predeterminado: true },
+        { id: 5, nombre: 'Mote', precio_extra: 0, activo: true, predeterminado: true },
+      ],
+    };
+    const modificadores = grupo.opciones!.map(opcion => ({
+      modificador_id: grupo.id, opcion_id: opcion.id, opcion_nombre: opcion.nombre, precio_extra: 0,
+    }));
+    const source: CartItem = {
+      id: 10, cantidad: 1, precio_unitario: 60, subtotal: 60, modificadores,
+      combinacion_id: 3, combinacion_nombre: 'NORMAL',
+      producto: { id: 7, categoria_id: 1, nombre: 'Pescado desespinado', precio: 60, activo: true, maneja_stock: false,
+        modificadores: [grupo], combinaciones: [{ id: 3, nombre: 'NORMAL', activo: true, predeterminada: true, orden: 0, opciones: grupo.opciones! }] },
+    };
+    const target: CartItem = {
+      id: 20, cantidad: 1, precio_unitario: 50, subtotal: 50, modificadores: [],
+      combinacion_id: 5, combinacion_nombre: 'NORMAL',
+      producto: { id: 6, categoria_id: 1, nombre: 'Pescado grande', precio: 50, activo: true, maneja_stock: false,
+        modificadores: [grupo], combinaciones: [{ id: 5, nombre: 'NORMAL', activo: true, predeterminada: true, orden: 0,
+          opciones: [...grupo.opciones!, { id: 2, nombre: 'Papa hervida' }] }] },
+    };
+    let emittedCombinationId: number | undefined;
+    component.itemModifiersChanged.subscribe(event => emittedCombinationId = event.combinacion_id);
+    component.modifierReservationRequested.subscribe(request => request.accept());
+    fixture.componentRef.setInput('items', [source, target]);
+    fixture.detectChanges();
+
+    (component as any).copyModifiers(source, target);
+
+    expect(emittedCombinationId).toBe(5);
+    fixture.destroy();
+  });
+
   it('conserva la combinación en empate y cambia automáticamente a la más cercana', () => {
     const fixture = crearComponente();
     const component = fixture.componentInstance;

@@ -1126,6 +1126,7 @@ export class CartPanelComponent {
       return;
     }
     const copied = (source.modificadores || []).map(modifier => ({ ...modifier }));
+    const targetCombination = this.combinationForModifierCopy(source, target, copied);
     this.modifierReservationRequested.emit({
       reservation: {
         original: (target.modificadores || []).map(modifier => ({ ...modifier })),
@@ -1136,13 +1137,28 @@ export class CartPanelComponent {
         for (const linea of this.lineasDelGrupo(target)) this.itemModifiersChanged.emit({
           itemId: linea.id,
           modificadores: copied,
-          combinacion_id: source.combinacion_id,
-          combinacion_nombre: source.combinacion_nombre,
+          combinacion_id: targetCombination?.id,
+          combinacion_nombre: targetCombination?.nombre,
         });
         this.toastr.success(`Modificadores copiados a ${target.producto.nombre}.`);
       },
       reject: message => this.toastr.warning(message),
     });
+  }
+
+  private combinationForModifierCopy(
+    source: CartItem,
+    target: CartItem,
+    copied: CartItemModificador[],
+  ): ProductoCombinacion | undefined {
+    const exact = this.findMatchingCombination(target.producto, copied);
+    if (exact) return exact;
+
+    const sourceName = source.combinacion_nombre?.trim().toLowerCase();
+    if (!sourceName) return undefined;
+    return (target.producto.combinaciones ?? []).find(combination =>
+      combination.activo && combination.nombre.trim().toLowerCase() === sourceName
+    );
   }
 
   private isCopyStillCompatible(source: CartItem, target: CartItem): boolean {
