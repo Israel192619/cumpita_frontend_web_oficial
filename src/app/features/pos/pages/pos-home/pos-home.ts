@@ -2182,11 +2182,12 @@ export class PosHome implements OnInit, OnDestroy {
     accept: () => void;
     reject: (message: string) => void;
   }): void {
-    // Una solicitud vencida ya no posee reservas. Durante su corrección pueden
-    // quedar unidades agotadas en los lotes todavía no editados; validar el
-    // carrito completo en cada clic impediría reemplazarlas una por una.
-    // El backend valida y reserva el resultado completo al guardar.
-    if (this.editingCustomerRequest()) {
+    // Una orden ya registrada descontó sus existencias. El catálogo devuelve
+    // créditos por sus opciones originales para poder intercambiarlas, pero una
+    // reserva temporal volvería a exigir esas mismas unidades como si se tratara
+    // de una venta nueva. La actualización final se valida y ajusta de forma
+    // atómica en el backend.
+    if (this.isEditingOrder()) {
       event.accept();
       return;
     }

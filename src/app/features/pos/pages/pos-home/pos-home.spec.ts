@@ -12,7 +12,7 @@ import { PosHome } from './pos-home';
 import { Producto } from '@app/core/models/producto';
 import { OfflineSalesService } from '../../services/offline-sales-service';
 import { signal } from '@angular/core';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 function crearComponente() {
   TestBed.configureTestingModule({
@@ -145,5 +145,56 @@ describe('Reinicio del POS después de cobrar', () => {
       modificadores: [{ modificador_id: 4, opcion_id: 13, opcion_nombre: 'Ala', precio_extra: 0 }],
     }]);
     expect((component as any).stopIfModifierStockIsInsufficient()).toBe(true);
+  });
+
+  it('no vuelve a reservar presas que ya fueron descontadas al editar una orden', () => {
+    const component = crearComponente();
+    component.isEditingOrder.set(true);
+    let accepted = false;
+    let synchronized = false;
+    (component as any).productoService = {
+      sincronizarReservasStock: () => {
+        synchronized = true;
+        return of({});
+      },
+    };
+
+    component.onModifierReservationRequested({
+      reservation: {
+        original: [{ modificador_id: 4, opcion_id: 13, opcion_nombre: 'Ala', precio_extra: 0 }],
+        draft: [{ modificador_id: 4, opcion_id: 15, opcion_nombre: 'Pecho', precio_extra: 0 }],
+        quantity: 1,
+      },
+      accept: () => { accepted = true; },
+      reject: () => undefined,
+    });
+
+    expect(accepted).toBe(true);
+    expect(synchronized).toBe(false);
+  });
+
+  it('mantiene la reserva entre cajas al elegir presas para una venta nueva', () => {
+    const component = crearComponente();
+    let accepted = false;
+    let synchronized = false;
+    (component as any).productoService = {
+      sincronizarReservasStock: () => {
+        synchronized = true;
+        return of({});
+      },
+    };
+
+    component.onModifierReservationRequested({
+      reservation: {
+        original: [{ modificador_id: 4, opcion_id: 13, opcion_nombre: 'Ala', precio_extra: 0 }],
+        draft: [{ modificador_id: 4, opcion_id: 15, opcion_nombre: 'Pecho', precio_extra: 0 }],
+        quantity: 1,
+      },
+      accept: () => { accepted = true; },
+      reject: () => undefined,
+    });
+
+    expect(synchronized).toBe(true);
+    expect(accepted).toBe(true);
   });
 });
