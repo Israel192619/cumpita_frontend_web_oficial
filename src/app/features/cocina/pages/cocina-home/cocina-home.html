@@ -165,8 +165,8 @@
         <span [style.width.%]="segundosAlertaParrilla() * 5"></span>
       </div>
       <header>
-        <span>Nuevo pedido en Parrilla</span>
-        <h2 id="grill-alert-title">Poner a cocer</h2>
+        <span>{{ alerta.preorden ? 'Preorden' + (alerta.horaProgramada ? ' · ' + alerta.horaProgramada : '') : 'Nuevo pedido en Parrilla' }}</span>
+        <h2 id="grill-alert-title">{{ alerta.preorden ? 'Poner a cocer ahora' : 'Poner a cocer' }}</h2>
         <small>Este aviso continuará en {{ segundosAlertaParrilla() }} s</small>
       </header>
       <div class="grill-alert__products">

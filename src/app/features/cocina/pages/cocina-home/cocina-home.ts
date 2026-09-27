@@ -20,6 +20,8 @@ interface ActualizacionKds { id: number; nueva?: boolean; cambios: KdsCambioOrde
 
 interface AlertaParrilla {
   ordenId: number;
+  preorden?: boolean;
+  horaProgramada?: string;
   productos: Array<{ nombre: string; cantidad: number; precio: number }>;
 }
 
@@ -744,6 +746,11 @@ export class CocinaHome implements OnInit, OnDestroy {
     nuevas.forEach(orden => {
       this.preordenesAlertadas.add(this.claveAlertaPreorden(orden));
       const hora = orden.fecha_programada ? new Date(orden.fecha_programada).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) : '';
+      if (this.estacionActual()?.codigo === 'PARRILLA' && this.encolarAlertaParrilla(orden, true, hora)) {
+        this.reproducirTono([784, 1046, 1318, 1046], .32);
+        if ('vibrate' in navigator) navigator.vibrate([300, 120, 300, 120, 650]);
+        return;
+      }
       this.toastr.warning(
         `#${orden.numero_orden || orden.id} · ${orden.cliente?.nombre || 'Cliente pendiente'}${hora ? ` · ${hora}` : ''}`,
         orden.preorden_cliente_no_llego ? 'CLIENTE AÚN NO LLEGÓ' : 'Preorden próxima · esperando cliente',
@@ -820,7 +827,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.notificacionesParrillaActivas.set(true);
   }
 
-  private encolarAlertaParrilla(orden: KdsOrden): boolean {
+  private encolarAlertaParrilla(orden: KdsOrden, preorden = false, horaProgramada = ''): boolean {
     const productos = new Map<string, { nombre: string; cantidad: number; precio: number }>();
     for (const detalle of orden.detalles) {
       if (!detalle.producto || detalle.incluye_producto === false) continue;
@@ -835,7 +842,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     }
     if (!productos.size) return false;
 
-    this.colaAlertasParrilla.push({ ordenId: orden.id, productos: [...productos.values()] });
+    this.colaAlertasParrilla.push({ ordenId: orden.id, preorden, horaProgramada, productos: [...productos.values()] });
     this.mostrarSiguienteAlertaParrilla();
     return true;
   }
@@ -903,7 +910,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   }
 
   private claveAlertaPreorden(orden: KdsOrden): string {
-    return `${orden.id}:${orden.fecha_programada ?? ''}:${orden.preorden_cliente_no_llego ? 'tarde' : 'proxima'}`;
+    return `${this.estacionActual()?.codigo ?? 'KDS'}:${orden.id}:${orden.fecha_programada ?? ''}:${orden.preorden_cliente_no_llego ? 'tarde' : 'proxima'}`;
   }
 
   private cargarAlertasPreordenMostradas(): void {
