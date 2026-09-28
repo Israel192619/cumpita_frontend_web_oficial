@@ -67,6 +67,7 @@
           [cajaMontoEsperado]="resumenCaja()?.monto_esperado || cajaActual()?.monto_apertura || 0"
           [cajaPagosEfectivo]="resumenCaja()?.cantidad_pagos_efectivo || 0"
           (searchChanged)="onProductSearchChanged($event)"
+          (searchSubmitted)="onProductSearchSubmitted()"
           (pendingOrdersRequested)="onPendingOrdersRequested()"
           (deliveriesRequested)="onDeliveriesRequested()"
           (todayOrdersRequested)="onTodayOrdersRequested()"
@@ -120,7 +121,7 @@
     <div class="mobile-product-tools">
       <label class="mobile-product-search">
         <app-icon name="search" [size]="18" />
-        <input data-pos-search="product" type="search" placeholder="Buscar producto..." [value]="productSearchQuery()" (input)="onProductSearchChanged($any($event.target).value)">
+        <input data-pos-search="product" type="search" placeholder="Nombre o código SKU" [value]="productSearchQuery()" (input)="onProductSearchChanged($any($event.target).value)" (keydown.enter)="onProductSearchSubmitted()">
       </label>
       <app-button text="+" size="small" ariaLabel="Agregar producto" (buttonClick)="openProductSelector()" />
       <div *ngIf="productSearchQuery().trim() && globalSearchResults().length > 1" class="mobile-search-results" role="listbox" aria-label="Coincidencias de productos">
@@ -192,7 +193,7 @@
     <div class="mobile-product-selector">
       <label class="mobile-modal-search">
         <app-icon name="search" [size]="18" />
-        <input type="search" placeholder="Buscar productos..." [value]="productSearchQuery()" (input)="onProductSearchChanged($any($event.target).value)" autofocus>
+        <input type="search" placeholder="Nombre o código SKU" [value]="productSearchQuery()" (input)="onProductSearchChanged($any($event.target).value)" (keydown.enter)="onProductSearchSubmitted()" autofocus>
       </label>
       <app-category-bar
         [categorias]="categorias()"

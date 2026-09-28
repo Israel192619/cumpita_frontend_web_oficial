@@ -45,6 +45,7 @@ export interface Producto {
   nombre: string;
   descripcion?: string;
   precio: number;
+  sku?: string | null;
   activo: boolean;
   maneja_stock: boolean;
   stock?: number;
@@ -72,6 +73,7 @@ export interface CreateProducto {
   nombre: string;
   descripcion?: string;
   precio: number;
+  sku?: string | null;
   activo: boolean;
   maneja_stock: boolean;
   stock?: number;

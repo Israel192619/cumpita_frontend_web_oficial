@@ -33,6 +33,7 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   showUserMenu = input(false);
 
   searchChanged = output<string>();
+  searchSubmitted = output<void>();
   backRequested = output<void>();
   pendingOrdersRequested = output<void>();
   deliveriesRequested = output<void>();
@@ -69,6 +70,11 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
 
   onSearchInput(event: Event): void {
     this.searchChanged.emit((event.target as HTMLInputElement).value);
+  }
+
+  onSearchSubmitted(event: Event): void {
+    event.preventDefault();
+    this.searchSubmitted.emit();
   }
 
   onCajaAction(): void {

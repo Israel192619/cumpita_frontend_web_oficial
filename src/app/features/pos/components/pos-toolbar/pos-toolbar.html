@@ -59,6 +59,6 @@
 
   <label class="toolbar-search">
     <app-icon name="search" [size]="18" />
-    <input data-pos-search="product" type="search" placeholder="Buscar productos" [value]="searchValue()" (input)="onSearchInput($event)" [disabled]="isLoading()">
+    <input data-pos-search="product" type="search" placeholder="Nombre o código SKU" [value]="searchValue()" (input)="onSearchInput($event)" (keydown.enter)="onSearchSubmitted($event)" [disabled]="isLoading()">
   </label>
 </header>

@@ -317,7 +317,7 @@ export class PosHome implements OnInit, OnDestroy {
     }
 
     return productos.filter((producto) => {
-      const haystack = `${producto.nombre || ''} ${producto.descripcion || ''}`.toLowerCase();
+      const haystack = `${producto.sku || ''} ${producto.nombre || ''} ${producto.descripcion || ''}`.toLowerCase();
       return haystack.includes(query);
     });
   });
@@ -2477,6 +2477,27 @@ export class PosHome implements OnInit, OnDestroy {
       return;
     }
     this.programarAutoSeleccion(query);
+  }
+
+  onProductSearchSubmitted(): void {
+    const seleccionar = () => {
+      const query = this.productSearchQuery().trim().toLowerCase();
+      if (!query) return;
+
+      const productoPorSku = this.allProductos().find(producto => producto.sku?.trim().toLowerCase() === query);
+      const producto = productoPorSku ?? (this.globalSearchResults().length === 1 ? this.globalSearchResults()[0] : null);
+      if (!producto) {
+        this.toastr.info('No se encontró un producto con ese código.');
+        return;
+      }
+      this.selectGlobalProduct(producto);
+    };
+
+    if (!this.globalProductsLoaded) {
+      this.cargarCatalogoGlobal(false, seleccionar);
+      return;
+    }
+    seleccionar();
   }
 
   selectGlobalProduct(producto: Producto): void {

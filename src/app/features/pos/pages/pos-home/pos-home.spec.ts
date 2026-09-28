@@ -42,6 +42,24 @@ function crearComponente() {
 describe('Reinicio del POS después de cobrar', () => {
   beforeEach(() => localStorage.clear());
 
+  it('agrega inmediatamente el producto al confirmar su código SKU', () => {
+    const component = crearComponente();
+    const producto = {
+      id: 21, categoria_id: 1, nombre: 'Coca-Cola 2L', sku: 'BEB-101',
+      precio: 15, activo: true, maneja_stock: false,
+    } as Producto;
+    component.allProductos.set([producto]);
+    (component as any).globalProductsLoaded = true;
+    component.productSearchQuery.set('beb-101');
+    let agregado: Producto | null = null;
+    component.onProductAdded = productoAgregado => { agregado = productoAgregado; };
+
+    component.onProductSearchSubmitted();
+
+    expect(agregado).toBe(producto);
+    expect(component.productSearchQuery()).toBe('');
+  });
+
   it('descarta los pagos del pedido anterior antes de empezar otra venta', () => {
     const component = crearComponente();
     component.editingOrder.set({

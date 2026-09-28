@@ -77,6 +77,7 @@ export class ProductoEdit {
       estacion_id: [null],
       nombre: ['', Validators.required],
       descripcion: [''],
+      sku: ['', [Validators.maxLength(64), Validators.pattern(/^[A-Za-z0-9._-]*$/)]],
       precio: [0, [Validators.required, Validators.min(0)]],
       activo: [true],
       maneja_stock: [false],
@@ -204,6 +205,7 @@ export class ProductoEdit {
               estacion_id: producto.estacion_id,
               nombre: producto.nombre,
               descripcion: producto.descripcion,
+              sku: producto.sku || '',
               precio: producto.precio,
               activo: producto.activo,
               maneja_stock: producto.maneja_stock,
@@ -385,6 +387,7 @@ export class ProductoEdit {
     formData.append('estacion_id', formValue.estacion_id);
     formData.append('nombre', formValue.nombre);
     formData.append('descripcion', formValue.descripcion || '');
+    formData.append('sku', (formValue.sku || '').trim());
     formData.append('precio', formValue.precio);
     formData.append('activo', formValue.activo ? '1' : '0');
     formData.append('maneja_stock', formValue.maneja_stock ? '1' : '0');

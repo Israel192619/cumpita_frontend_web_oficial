@@ -4,6 +4,9 @@
     <app-input-form label="Nombre *" [control]="getControl('nombre')" placeholder="Nombre del producto">
     </app-input-form>
 
+    <app-input-form label="Código rápido (SKU)" [control]="getControl('sku')" placeholder="Ej. 101 o código de barras" helpText="Opcional. Escríbelo o escanéalo en el POS para agregar el producto rápidamente.">
+    </app-input-form>
+
     <!-- Descripción -->
     <app-input-form label="Descripción" [control]="getControl('descripcion')" placeholder="Descripción del producto"
       type="textarea">
