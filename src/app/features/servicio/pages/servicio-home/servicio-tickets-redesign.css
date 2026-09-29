@@ -19,7 +19,7 @@
 .work-ticket.work-ticket--assistant-now,.work-ticket.work-ticket--assistant-next { transform: none; border: 1px solid var(--color-border) !important; box-shadow: 0 5px 18px color-mix(in srgb, var(--ticket-accent) 18%, transparent) !important; }
 
 .work-ticket:not(.delivered-ticket) .ticket-head { position: relative; display: grid; grid-template-columns: 68px minmax(0, 1fr) 116px; gap: .65rem; min-height: 122px; padding: .8rem .7rem .75rem 0; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--ticket-accent) 4%, var(--color-surface)); color: var(--color-text); }
-.ticket-number { display: grid; align-content: center; justify-items: center; align-self: stretch; min-width: 0; color: #fff; }
+.ticket-number { display: grid; align-content: center; justify-items: center; align-self: stretch; min-width: 0; margin: -.8rem 0 -.75rem; background: var(--ticket-accent); color: #fff; }
 .ticket-number > span { color: rgb(255 255 255 / .88) !important; }
 .ticket-number h3 { margin: .2rem 0 0; color: #fff; font-size: 1.75rem; }
 .ticket-number .preorder-priority { max-width: 60px; font-size: .52rem; text-align: center; }
@@ -29,7 +29,8 @@
 .ticket-head-customer small::before { content: ''; }
 .ticket-head-actions { position: relative; min-width: 0; }
 .ticket-more-button { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); color: var(--color-text); font-size: .82rem; font-weight: 950; letter-spacing: -.08em; cursor: pointer; }
-.ticket-head-actions .progress { position: absolute; top: 0; right: 44px; display: grid; place-items: center; width: 54px; min-width: 54px; height: 54px; padding: 0; border: 5px solid color-mix(in srgb, var(--ticket-accent) 70%, #dfe5e8); border-radius: 50%; background: var(--color-surface) !important; color: var(--color-text) !important; }
+.ticket-head-actions .progress { position: absolute; top: 0; right: 44px; display: grid; place-items: center; width: 54px; min-width: 54px; height: 54px; padding: 0; border: 5px solid color-mix(in srgb, #20aaa5 72%, #dfe5e8); border-radius: 50%; background: var(--color-surface) !important; color: var(--color-text) !important; }
+.ticket-head-actions .progress.complete { border-color: var(--color-success); }
 .ticket-head-actions .progress b { font-size: .95rem; line-height: 1; }
 .ticket-head-actions .progress small { color: var(--color-text-secondary) !important; font-size: .58rem; }
 .ticket-head-actions .service-table-action { position: absolute; right: 0; bottom: 0; min-width: 98px; padding: .42rem .5rem; border-color: var(--color-border); background: var(--color-hover); color: var(--color-text); font-size: .68rem; text-transform: uppercase; }
@@ -54,8 +55,10 @@
 
 .ticket-footer-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .55rem; padding: .55rem .75rem .75rem; background: var(--color-surface); }
 .ticket-footer-actions > :only-child { grid-column: 1 / -1; }
-.ticket-footer-actions app-button { min-width: 0; }
-.ticket-footer-actions .deliver { width: 100%; min-height: 48px; margin: 0; border-radius: 10px; background: var(--ticket-accent); font-size: .9rem; }
+.ticket-footer-actions > button { min-width: 0; min-height: 48px; border: 0; border-radius: 10px; font: inherit; font-size: .78rem; font-weight: 900; cursor: pointer; }
+.ticket-add-product { background: #eef1f4; color: #172033; }
+.ticket-take { background: #2f80d9; color: #fff; }
+.ticket-footer-actions .deliver { width: 100%; margin: 0; background: var(--ticket-accent); color: #fff; font-size: .9rem; }
 .ticket-footer-actions .deliver:disabled { background: var(--color-hover); color: var(--color-text-secondary); }
 
 .ticket-actions-backdrop { position: fixed; z-index: 1000; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 1rem; background: rgb(0 0 0 / .38); backdrop-filter: blur(2px); }
@@ -75,6 +78,8 @@
 .sheet-cancel { width: 100%; min-height: 48px; margin-top: .6rem; border: 0; border-radius: 12px; background: var(--color-hover); color: var(--color-text); font-weight: 900; cursor: pointer; }
 @keyframes service-sheet-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 
+.work-ticket .service-assistant-badge { top: .4rem; left: calc(50% + 20px); width: max-content; max-width: 150px; padding: .25rem .55rem; border-radius: 999px; box-shadow: none; font-size: .58rem; }
+
 @media (max-width: 560px) {
   .service-view-heading > div:first-child { display: none; }
   .service-view-heading { display: block; }
@@ -83,6 +88,7 @@
   .service-view-switch button b { min-width: 19px; height: 19px; margin-left: .15rem; }
   .work-ticket::before { inset: 0 auto 61px 0; width: 58px; }
   .work-ticket:not(.delivered-ticket) .ticket-head { grid-template-columns: 58px minmax(0, 1fr) 104px; gap: .5rem; min-height: 112px; padding: .65rem .55rem .65rem 0; }
+  .ticket-number { margin: -.65rem 0; }
   .ticket-number h3 { font-size: 1.45rem; }
   .ticket-number > span { font-size: .58rem !important; }
   .ticket-head-customer strong { font-size: 1.25rem; }
