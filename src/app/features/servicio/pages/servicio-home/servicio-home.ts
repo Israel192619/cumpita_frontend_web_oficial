@@ -152,7 +152,7 @@ export function seleccionarOfertaAsistenteMesero(
   selector: 'app-servicio-home',
   imports: [RouterLink, CommonModule, ReactiveFormsModule, Button, InputForm, Modal, Icon, LocationMap, MesasModalComponent],
   templateUrl: './servicio-home.html',
-  styleUrls: ['./servicio-home.css', './servicio-theme.css', './servicio-assistant.css']
+  styleUrls: ['./servicio-home.css', './servicio-theme.css', './servicio-assistant.css', './servicio-tickets-redesign.css']
 })
 export class ServicioHome implements OnInit, OnDestroy {
   readonly modifierColorStyle = modifierColorStyle;
@@ -216,7 +216,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     const sesion = this.sesionSeleccionada();
     const interfazOcupada = this.mostrarIngreso() || this.preordenesAbiertas() || this.solicitudesAbiertas()
       || this.buscarOrdenAbierto() || this.selectorProductoAbierto() || this.confirmarCierre()
-      || !!this.fichaALiberar() || !!this.fichaUbicacion() || this.seleccionMesaAbierta()
+      || !!this.fichaALiberar() || !!this.fichaUbicacion() || !!this.fichaAcciones() || this.seleccionMesaAbierta()
       || this.salidaInmediataFichaId() !== null;
     if (!this.confirmacionesAsistenteActivas || !this.esMesero() || !sesion
       || this.fechaTablero() !== this.fechaHoy || this.loading() || interfazOcupada) return null;
@@ -337,6 +337,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   esDespacho = signal(false);
   esMesero = signal(false);
   fichaALiberar = signal<ServicioFicha | null>(null);
+  fichaAcciones = signal<ServicioFicha | null>(null);
   fichaUbicacion = signal<ServicioFicha | null>(null);
   editandoUbicacion = signal(false);
   eliminandoFotoUbicacion = signal(false);
@@ -1479,6 +1480,10 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   solicitarLiberacion(ficha: ServicioFicha): void { this.fichaALiberar.set(ficha); }
 
+  abrirAccionesFicha(ficha: ServicioFicha): void { this.fichaAcciones.set(ficha); }
+
+  cerrarAccionesFicha(): void { this.fichaAcciones.set(null); }
+
   confirmarLiberacion(): void {
     const ficha = this.fichaALiberar();
     const sesion = this.requerirSesion();
@@ -1906,6 +1911,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.loading.set(false);
     this.confirmarCierre.set(false);
     this.fichaALiberar.set(null);
+    this.fichaAcciones.set(null);
   }
 
   private leerOfertasPasadas(): Record<string, number> {
