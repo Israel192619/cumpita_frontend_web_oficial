@@ -348,6 +348,50 @@
     <div modal-actions><app-button text="Seguir atendiendo" color="secondary" (buttonClick)="confirmarCierre.set(false)" /><app-button text="Liberar y cerrar" color="danger" (buttonClick)="cerrarYLiberar()" /></div>
   </app-modal>
 
+  <app-modal [open]="buscadorColaboracionAbierto()" title="Buscar pedido para ayudar" size="large" (closed)="cerrarBuscadorColaboracion()">
+    @if (!fichaColaboracionActiva()) {
+      <div class="collaboration-search-head">
+        <div class="order-search"><input type="search" placeholder="Ficha, cliente, mesa o mesero" [value]="consultaColaboracion()" (input)="consultaColaboracion.set($any($event.target).value)" autocomplete="off" autofocus /></div>
+        <p>Pedidos de hoy. Puedes ver quién es responsable y ayudar cuando no se encuentre.</p>
+      </div>
+      <div class="collaboration-order-list">
+        @for (ficha of fichasColaboracion(); track ficha.id) {
+          <button type="button" (click)="confirmarAyudaFicha(ficha)">
+            <span class="collaboration-order-number">#{{ ficha.numero_orden }}</span>
+            <span class="collaboration-order-copy"><b>{{ ficha.cliente || 'Cliente sin nombre' }}</b><small>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></span>
+            <span class="collaboration-order-owner"><small>RESPONSABLE</small><b>{{ ficha.mesero || 'Sin asignar' }}</b></span>
+            <span class="collaboration-order-status" [class.is-complete]="ficha.estado === 'entregado'" [class.is-partial]="estadoColaboracion(ficha) === 'Parcial'">{{ estadoColaboracion(ficha) }}</span>
+          </button>
+        } @empty { <p class="empty-card">No hay pedidos que coincidan con la búsqueda.</p> }
+      </div>
+    } @else if (fichaColaboracionActiva(); as fichaAyuda) {
+      <div class="collaboration-workspace-head">
+        <button type="button" (click)="fichaColaboracionActivaId.set(null)">← Volver a pedidos</button>
+        <div><small>FICHA</small><strong>#{{ fichaAyuda.numero_orden }}</strong></div>
+        <div><small>CLIENTE</small><strong>{{ fichaAyuda.cliente || 'Sin nombre' }}</strong></div>
+        <div><small>UBICACIÓN</small><strong>{{ fichaAyuda.mesa ? 'Mesa ' + fichaAyuda.mesa : etiquetaTipo(fichaAyuda) }}</strong></div>
+        <div><small>RESPONSABLE</small><strong>{{ fichaAyuda.mesero || 'Sin asignar' }}</strong></div>
+      </div>
+      <div class="collaboration-workspace-list">
+        @for (detalle of fichaAyuda.detalles; track detalle.id) {
+          <article [class.is-delivered]="detalle.servido">
+            <div><strong>{{ detalle.cantidad }}× {{ detalle.producto }}</strong>@if (detalle.precio_unitario != null) { <small>{{ formatearPrecio(detalle.precio_unitario) }}</small> }</div>
+            @if (detalle.servido) {
+              <span class="collaboration-item-state delivered">ENTREGADO</span>
+            } @else if (detalle.llevando_por_id && detalle.llevando_por_id !== sesionSeleccionada()?.user?.id) {
+              <span class="collaboration-item-state carrying">LO LLEVA {{ detalle.llevando_por }}</span>
+            } @else if (accionSalidaInmediata(detalle); as accion) {
+              @if (puedeColaborarDetalle(fichaAyuda, detalle) || accion === 'entregar') {
+                <button type="button" [class.deliver-action]="accion === 'entregar'" [disabled]="!!procesando()" (click)="colaborar(detalle.id, accion)">{{ textoAccionSalidaInmediata(detalle) }}</button>
+              } @else { <span class="collaboration-item-state">EN PREPARACIÓN</span> }
+            }
+          </article>
+        }
+      </div>
+      <button type="button" class="collaboration-back-button" (click)="fichaColaboracionActivaId.set(null)">← VOLVER A TODOS LOS PEDIDOS</button>
+    }
+  </app-modal>
+
   @if (fichaAcciones(); as fichaMenu) {
     <div class="ticket-actions-backdrop" role="presentation" (click)="cerrarAccionesFicha()">
       <section class="ticket-actions-sheet" role="dialog" aria-modal="true" [attr.aria-label]="'Acciones de la ficha ' + fichaMenu.numero_orden" (click)="$event.stopPropagation()">
@@ -417,16 +461,17 @@
   }
 
   @if (esMesero()) {
+    @if (accionesRapidasAbiertas()) { <button type="button" class="quick-actions-backdrop" aria-label="Cerrar acciones rápidas" (click)="accionesRapidasAbiertas.set(false)"></button> }
     <div class="quick-actions-float" [style.top.px]="accionesRapidasY()" [class.is-open]="accionesRapidasAbiertas()">
       @if (accionesRapidasAbiertas()) {
         <section class="quick-actions-panel" role="dialog" aria-label="Acciones rápidas">
           <header><div><small>ACCESOS</small><strong>Acciones rápidas</strong></div><button type="button" aria-label="Cerrar acciones rápidas" (click)="accionesRapidasAbiertas.set(false)">×</button></header>
           <div class="quick-actions-list">
-            <button type="button" (click)="abrirBuscadorOrden()"><span class="quick-action-symbol"><app-icon name="search" [size]="20" /></span><span><b>Buscar pedido</b><small>Encontrar y editar una ficha</small></span><strong>›</strong></button>
+            <button type="button" (click)="abrirBuscadorColaboracion()"><span class="quick-action-symbol"><app-icon name="search" [size]="20" /></span><span><b>Buscar pedido</b><small>Ver responsable y colaborar</small></span><strong>›</strong></button>
             <button type="button" (click)="crearPreorden()"><span class="quick-action-symbol"><app-icon name="calendar" [size]="20" /></span><span><b>Crear preorden</b><small>Registrar un pedido programado</small></span><strong>›</strong></button>
             @if (sesionSeleccionada()) {
               <button type="button" class="quick-availability-action" [class.is-occupied]="!meseroDisponible()" [disabled]="cambiandoDisponibilidad()" (click)="cambiarDisponibilidad()">
-                <span class="quick-action-symbol"><span class="availability-dot"></span></span><span><b>{{ meseroDisponible() ? 'Estoy disponible' : 'Estoy ocupado' }}</b><small>{{ meseroDisponible() ? 'Presiona para pausar asignaciones' : 'Presiona para volver a recibir fichas' }}</small></span><strong>›</strong>
+                <span class="quick-action-symbol"><span class="availability-dot"></span></span><span><b>{{ meseroDisponible() ? 'Estoy disponible' : 'Estoy ocupado' }}</b><small>{{ meseroDisponible() ? 'Presiona para pausar asignaciones' : 'Presiona para volver a recibir fichas' }}</small></span>
               </button>
             }
           </div>

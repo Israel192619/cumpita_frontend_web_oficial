@@ -215,7 +215,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   ofertaAsistenteMesero = computed<OfertaAsistenteMesero | null>(() => {
     const sesion = this.sesionSeleccionada();
     const interfazOcupada = this.mostrarIngreso() || this.preordenesAbiertas() || this.solicitudesAbiertas()
-      || this.buscarOrdenAbierto() || this.selectorProductoAbierto() || this.confirmarCierre()
+      || this.buscarOrdenAbierto() || this.buscadorColaboracionAbierto() || this.selectorProductoAbierto() || this.confirmarCierre()
       || !!this.fichaALiberar() || !!this.fichaUbicacion() || !!this.fichaAcciones() || this.seleccionMesaAbierta()
       || this.salidaInmediataFichaId() !== null || this.accionesRapidasAbiertas();
     if (!this.confirmacionesAsistenteActivas || !this.esMesero() || !sesion
@@ -352,6 +352,28 @@ export class ServicioHome implements OnInit, OnDestroy {
   consultaOrden = signal('');
   resultadosOrden = signal<OrdenServicioResumen[]>([]);
   ordenSeleccionada = signal<OrdenServicioDetalle | null>(null);
+  buscadorColaboracionAbierto = signal(false);
+  consultaColaboracion = signal('');
+  fichaColaboracionActivaId = signal<number | null>(null);
+  fichasColaboracion = computed(() => {
+    const consulta = this.consultaColaboracion().trim().toLocaleLowerCase();
+    return this.todasFichas()
+      .filter(ficha => ficha.estado !== 'cancelado')
+      .filter(ficha => {
+        const texto = [ficha.numero_orden, ficha.cliente, ficha.mesa, ficha.mesero, this.estadoColaboracion(ficha)]
+          .filter(Boolean).join(' ').toLocaleLowerCase();
+        return !consulta || texto.includes(consulta);
+      })
+      .sort((a, b) => {
+        const cerradaA = a.estado === 'entregado' ? 1 : 0;
+        const cerradaB = b.estado === 'entregado' ? 1 : 0;
+        return cerradaA - cerradaB || b.id - a.id;
+      });
+  });
+  fichaColaboracionActiva = computed(() => {
+    const id = this.fichaColaboracionActivaId();
+    return id === null ? null : this.todasFichas().find(ficha => ficha.id === id) ?? null;
+  });
   productos = signal<Producto[]>([]);
   selectorProductoAbierto = signal(false);
   productoSeleccionado = signal<Producto | null>(null);
@@ -697,6 +719,49 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.resultadosOrden.set([]);
     this.ordenSeleccionada.set(null);
     this.consultaOrden.set('');
+  }
+
+  abrirBuscadorColaboracion(): void {
+    if (!this.sesionSeleccionada()) { this.toastr.warning('Selecciona una sesión de Mesero.'); return; }
+    this.accionesRapidasAbiertas.set(false);
+    this.consultaColaboracion.set('');
+    this.fichaColaboracionActivaId.set(null);
+    this.buscadorColaboracionAbierto.set(true);
+  }
+
+  cerrarBuscadorColaboracion(): void {
+    this.buscadorColaboracionAbierto.set(false);
+    this.consultaColaboracion.set('');
+    this.fichaColaboracionActivaId.set(null);
+  }
+
+  confirmarAyudaFicha(ficha: ServicioFicha): void {
+    if (ficha.estado === 'entregado') {
+      this.fichaColaboracionActivaId.set(ficha.id);
+      return;
+    }
+    const responsable = ficha.mesero || 'ningún mesero';
+    this.confirmDialog.confirm({
+      title: `Ayudar con la ficha #${ficha.numero_orden}`,
+      message: `Está asignada a ${responsable}. ¿Quieres abrirla para colaborar con los productos que estén listos?`,
+      confirmText: 'Sí, ayudar',
+      cancelText: 'Cancelar',
+    }).subscribe(confirmado => {
+      if (confirmado) this.fichaColaboracionActivaId.set(ficha.id);
+    });
+  }
+
+  estadoColaboracion(ficha: ServicioFicha): string {
+    if (ficha.estado === 'entregado') return 'Entregado';
+    const servidos = ficha.detalles.filter(detalle => detalle.servido).length;
+    if (servidos > 0) return 'Parcial';
+    if (ficha.todo_listo) return 'Listo';
+    return 'En preparación';
+  }
+
+  puedeColaborarDetalle(ficha: ServicioFicha, detalle: ServicioDetalle): boolean {
+    if (ficha.estado === 'entregado' || detalle.servido || detalle.llevando_por_id) return false;
+    return detalle.listo || esProductoSalidaInmediata(detalle.categoria, detalle.producto);
   }
 
   abrirOrdenDesdeFicha(ficha: ServicioFicha): void {
