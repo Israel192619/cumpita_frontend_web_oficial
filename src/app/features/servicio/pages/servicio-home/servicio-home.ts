@@ -366,6 +366,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   private ultimaDemanda = '';
   private reservaTimer?: ReturnType<typeof setInterval>;
   private ofertaTimer?: ReturnType<typeof setInterval>;
+  private actividadTimer?: ReturnType<typeof setInterval>;
   private catalogoSecuencia = 0;
   private destruido = false;
   readonly fechaHoy = this.fechaLocal(new Date());
@@ -489,6 +490,7 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.actualizarCatalogoSelector();
       }
     }, 60000);
+    this.actividadTimer = setInterval(() => this.registrarActividadServicio(), 30000);
     this.themeService.initialize();
     this.configuracion.cargar().subscribe({ error: () => undefined });
     document.addEventListener('pointerdown', this.habilitarAvisosSonoros, { once: true });
@@ -548,6 +550,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.destruido = true;
     if (this.reservaTimer) clearInterval(this.reservaTimer);
     if (this.ofertaTimer) clearInterval(this.ofertaTimer);
+    if (this.actividadTimer) clearInterval(this.actividadTimer);
     this.encolarReserva({ items: [], opciones: [], token: this.sesionSeleccionada()?.token });
     if (this.temporizadorBusquedaProducto) clearTimeout(this.temporizadorBusquedaProducto);
     this.temporizadoresSalida.forEach(temporizador => clearTimeout(temporizador));
@@ -1579,6 +1582,18 @@ export class ServicioHome implements OnInit, OnDestroy {
     }
   }
 
+  private registrarActividadServicio(): void {
+    if (this.cerrandoSesion || document.visibilityState !== 'visible') return;
+    const sesion = this.sesionSeleccionada();
+    if (!sesion) return;
+    this.servicio.registrarActividad(sesion.token).subscribe({
+      next: response => {
+        if (response.asignadas?.some(id => !this.misFichas().some(ficha => ficha.id === id))) this.cargar(false);
+      },
+      error: () => undefined,
+    });
+  }
+
   private requerirSesion(): ServicioSesion | null {
     const sesion = this.sesionSeleccionada();
     if (!sesion) {
@@ -1657,6 +1672,7 @@ export class ServicioHome implements OnInit, OnDestroy {
 
         if (evento.accion === 'tomada') {
           this.disponibles.update(fichas => fichas.filter(ficha => ficha.id !== ordenId));
+          if (sesion && Number(evento.mesero_id) === sesion.user.id) this.cargar(false);
           return;
         }
         if (evento.accion === 'entregada') {

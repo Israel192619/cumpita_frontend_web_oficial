@@ -49,6 +49,7 @@ export class ServicioService {
   reactivarSolicitud(id: number, token?: string) { return this.http.post(`${environment.apiUrl}/solicitudes-preorden/${id}/reactivar`, {}, this.opciones(token)); }
   disponibilidadSolicitud(id: number, token?: string) { return this.http.get<{ disponible: boolean; stock_disponible: boolean; hora_valida: boolean; hora_minima: string; faltantes: FaltanteSolicitud[] }>(`${environment.apiUrl}/solicitudes-preorden/${id}/disponibilidad`, this.opciones(token)); }
   cerrarSesion(token?: string, liberarFichas = false) { return this.http.post(`${this.api}/sesion/cerrar`, { liberar_fichas: liberarFichas }, this.opciones(token)); }
+  registrarActividad(token?: string) { return this.http.post<{ active: boolean; asignadas: number[] }>(`${this.api}/sesion/actividad`, {}, this.opciones(token)); }
   buscarOrdenes(q: string, token?: string) { return this.http.get<{ ordenes: OrdenServicioResumen[] }>(`${this.api}/ordenes/buscar`, { ...this.opciones(token), params: { q } }); }
   listarProductos(token?: string, reservaSesion?: string) { return this.http.get<{ productos: Producto[] }>(`${this.api}/productos`, { ...this.opciones(token), params: reservaSesion ? { reserva_sesion: reservaSesion } : {} }); }
   sincronizarReservas(sesion_id: string, items: { producto_id: number; cantidad: number }[], opciones: { modificador_opcion_id: number; cantidad: number }[], token?: string) {
