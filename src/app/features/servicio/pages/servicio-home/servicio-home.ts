@@ -217,7 +217,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     const interfazOcupada = this.mostrarIngreso() || this.preordenesAbiertas() || this.solicitudesAbiertas()
       || this.buscarOrdenAbierto() || this.selectorProductoAbierto() || this.confirmarCierre()
       || !!this.fichaALiberar() || !!this.fichaUbicacion() || !!this.fichaAcciones() || this.seleccionMesaAbierta()
-      || this.salidaInmediataFichaId() !== null;
+      || this.salidaInmediataFichaId() !== null || this.accionesRapidasAbiertas();
     if (!this.confirmacionesAsistenteActivas || !this.esMesero() || !sesion
       || this.fechaTablero() !== this.fechaHoy || this.loading() || interfazOcupada) return null;
     return seleccionarOfertaAsistenteMesero(
@@ -411,6 +411,12 @@ export class ServicioHome implements OnInit, OnDestroy {
   meseroDisponible = signal(true);
   ocupadoHasta = signal<number | null>(null);
   cambiandoDisponibilidad = signal(false);
+  accionesRapidasAbiertas = signal(false);
+  accionesRapidasY = signal(this.leerPosicionAccionesRapidas());
+  private inicioArrastreAccionesRapidasY: number | null = null;
+  private origenArrastreAccionesRapidasY = 0;
+  private accionesRapidasFueronArrastradas = false;
+  private ignorarSiguienteClickAccionesRapidas = false;
   private avisoFinOcupadoMostrado = false;
   minutosOcupadoRestantes = computed(() => {
     const hasta = this.ocupadoHasta();
@@ -671,6 +677,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   crearPreorden(): void {
+    this.accionesRapidasAbiertas.set(false);
     this.router.navigate(['/preordenes/nueva']);
   }
 
@@ -685,6 +692,7 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   abrirBuscadorOrden(): void {
     if (!this.sesionSeleccionada()) { this.toastr.warning('Selecciona una sesión de Mesero.'); return; }
+    this.accionesRapidasAbiertas.set(false);
     this.buscarOrdenAbierto.set(true);
     this.resultadosOrden.set([]);
     this.ordenSeleccionada.set(null);
@@ -1617,6 +1625,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   cambiarDisponibilidad(): void {
     const sesion = this.sesionSeleccionada();
     if (!sesion || this.cambiandoDisponibilidad()) return;
+    this.accionesRapidasAbiertas.set(false);
     const disponible = !this.meseroDisponible();
     this.cambiandoDisponibilidad.set(true);
     this.servicio.actualizarDisponibilidad(disponible, sesion.token).subscribe({
@@ -1642,6 +1651,58 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.meseroDisponible.set(estado.disponible || !hasta || hasta <= Date.now());
     this.ocupadoHasta.set(estado.disponible ? null : hasta);
     if (estado.disponible) this.avisoFinOcupadoMostrado = false;
+  }
+
+  alternarAccionesRapidas(): void {
+    if (this.ignorarSiguienteClickAccionesRapidas) {
+      this.ignorarSiguienteClickAccionesRapidas = false;
+      return;
+    }
+    this.accionesRapidasAbiertas.update(abiertas => !abiertas);
+  }
+
+  iniciarArrastreAccionesRapidas(event: PointerEvent): void {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    this.inicioArrastreAccionesRapidasY = event.clientY;
+    this.origenArrastreAccionesRapidasY = this.accionesRapidasY();
+    this.accionesRapidasFueronArrastradas = false;
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+  }
+
+  moverAccionesRapidas(event: PointerEvent): void {
+    if (this.inicioArrastreAccionesRapidasY === null) return;
+    const desplazamiento = event.clientY - this.inicioArrastreAccionesRapidasY;
+    if (Math.abs(desplazamiento) > 4) this.accionesRapidasFueronArrastradas = true;
+    this.accionesRapidasY.set(this.limitarPosicionAccionesRapidas(this.origenArrastreAccionesRapidasY + desplazamiento));
+    if (this.accionesRapidasFueronArrastradas) event.preventDefault();
+  }
+
+  terminarArrastreAccionesRapidas(event: PointerEvent): void {
+    if (this.inicioArrastreAccionesRapidasY === null) return;
+    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+    this.inicioArrastreAccionesRapidasY = null;
+    if (!this.accionesRapidasFueronArrastradas) return;
+    this.ignorarSiguienteClickAccionesRapidas = true;
+    try { localStorage.setItem('servicio_acciones_rapidas_y', String(this.accionesRapidasY())); } catch { /* Posición temporal si el navegador bloquea el almacenamiento. */ }
+  }
+
+  @HostListener('window:resize')
+  ajustarPosicionAccionesRapidas(): void {
+    this.accionesRapidasY.update(posicion => this.limitarPosicionAccionesRapidas(posicion));
+  }
+
+  private leerPosicionAccionesRapidas(): number {
+    if (typeof window === 'undefined') return 260;
+    try {
+      const guardada = Number(localStorage.getItem('servicio_acciones_rapidas_y'));
+      if (Number.isFinite(guardada) && guardada > 0) return this.limitarPosicionAccionesRapidas(guardada);
+    } catch { /* Usa la posición inicial si no hay almacenamiento. */ }
+    return this.limitarPosicionAccionesRapidas(Math.round(window.innerHeight * .55));
+  }
+
+  private limitarPosicionAccionesRapidas(posicion: number): number {
+    if (typeof window === 'undefined') return posicion;
+    return Math.min(Math.max(76, posicion), Math.max(76, window.innerHeight - 76));
   }
 
   private revisarFinOcupado(ahora: number): void {

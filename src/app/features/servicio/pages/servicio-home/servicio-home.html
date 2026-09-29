@@ -415,6 +415,34 @@
       </div>
     </app-modal>
   }
+
+  @if (esMesero()) {
+    <div class="quick-actions-float" [style.top.px]="accionesRapidasY()" [class.is-open]="accionesRapidasAbiertas()">
+      @if (accionesRapidasAbiertas()) {
+        <section class="quick-actions-panel" role="dialog" aria-label="Acciones rápidas">
+          <header><div><small>ACCESOS</small><strong>Acciones rápidas</strong></div><button type="button" aria-label="Cerrar acciones rápidas" (click)="accionesRapidasAbiertas.set(false)">×</button></header>
+          <div class="quick-actions-list">
+            <button type="button" (click)="abrirBuscadorOrden()"><span class="quick-action-symbol"><app-icon name="search" [size]="20" /></span><span><b>Buscar pedido</b><small>Encontrar y editar una ficha</small></span><strong>›</strong></button>
+            <button type="button" (click)="crearPreorden()"><span class="quick-action-symbol"><app-icon name="calendar" [size]="20" /></span><span><b>Crear preorden</b><small>Registrar un pedido programado</small></span><strong>›</strong></button>
+            @if (sesionSeleccionada()) {
+              <button type="button" class="quick-availability-action" [class.is-occupied]="!meseroDisponible()" [disabled]="cambiandoDisponibilidad()" (click)="cambiarDisponibilidad()">
+                <span class="quick-action-symbol"><span class="availability-dot"></span></span><span><b>{{ meseroDisponible() ? 'Estoy disponible' : 'Estoy ocupado' }}</b><small>{{ meseroDisponible() ? 'Presiona para pausar asignaciones' : 'Presiona para volver a recibir fichas' }}</small></span><strong>›</strong>
+              </button>
+            }
+          </div>
+        </section>
+      }
+      <button type="button" class="quick-actions-trigger" [class.is-open]="accionesRapidasAbiertas()"
+        [attr.aria-expanded]="accionesRapidasAbiertas()" aria-label="Acciones rápidas. Arrastra hacia arriba o abajo"
+        title="Acciones rápidas"
+        (pointerdown)="iniciarArrastreAccionesRapidas($event)" (pointermove)="moverAccionesRapidas($event)"
+        (pointerup)="terminarArrastreAccionesRapidas($event)" (pointercancel)="terminarArrastreAccionesRapidas($event)"
+        (click)="alternarAccionesRapidas()">
+        <span class="quick-actions-grip" aria-hidden="true">⋮</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M13 2 4.8 13.2c-.5.7 0 1.8.9 1.8H11l-1 7 8.2-11.2c.5-.7 0-1.8-.9-1.8H12l1-7Z"/></svg>
+      </button>
+    </div>
+  }
 </main>
 
 <app-mesas-modal [isOpen]="seleccionMesaAbierta()" [mesas]="mesasDisponibles()" [loading]="cargandoMesas()"
