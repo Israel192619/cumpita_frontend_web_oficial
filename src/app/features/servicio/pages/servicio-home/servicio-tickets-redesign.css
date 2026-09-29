@@ -27,10 +27,12 @@
 .ticket-head-customer strong { overflow: hidden; color: var(--color-text); font-size: clamp(1.3rem, 2vw, 1.75rem); font-weight: 950; line-height: 1.05; text-overflow: ellipsis; white-space: nowrap; }
 .ticket-head-customer small { color: var(--color-text-secondary) !important; font-size: 1rem !important; font-weight: 800 !important; }
 .ticket-head-customer small::before { content: ''; }
-.ticket-head-actions { position: relative; min-width: 0; }
-.ticket-more-button { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); color: var(--color-text); font-size: .82rem; font-weight: 950; letter-spacing: -.08em; cursor: pointer; }
-.ticket-head-actions .progress { position: absolute; top: 0; right: 44px; display: grid; place-items: center; width: 54px; min-width: 54px; height: 54px; padding: 0; border: 5px solid color-mix(in srgb, #20aaa5 72%, #dfe5e8); border-radius: 50%; background: var(--color-surface) !important; color: var(--color-text) !important; }
-.ticket-head-actions .progress.complete { border-color: var(--color-success); }
+.ticket-head-actions { position: static; min-width: 0; }
+.ticket-more-button { position: absolute; top: .4rem; right: .45rem; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); color: var(--color-text); font-size: .82rem; font-weight: 950; letter-spacing: -.08em; cursor: pointer; }
+.ticket-head-actions .progress { --progress-color: #20aaa5; position: absolute; top: 3rem; right: 3.25rem; display: grid; place-items: center; width: 54px; min-width: 54px; height: 54px; padding: 0; border: 0; border-radius: 50%; background: conic-gradient(var(--progress-color) var(--ticket-progress,0%),#dfe5e8 0) !important; color: var(--color-text) !important; }
+.ticket-head-actions .progress::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--color-surface); }
+.ticket-head-actions .progress.complete { --progress-color: var(--color-success); }
+.ticket-head-actions .progress b,.ticket-head-actions .progress small { position: relative; z-index: 1; }
 .ticket-head-actions .progress b { font-size: .95rem; line-height: 1; }
 .ticket-head-actions .progress small { color: var(--color-text-secondary) !important; font-size: .58rem; }
 .ticket-head-actions .service-table-action { position: absolute; right: 0; bottom: 0; min-width: 98px; padding: .42rem .5rem; border-color: var(--color-border); background: var(--color-hover); color: var(--color-text); font-size: .68rem; text-transform: uppercase; }
@@ -93,7 +95,8 @@
   .ticket-number > span { font-size: .58rem !important; }
   .ticket-head-customer strong { font-size: 1.25rem; }
   .ticket-head-customer small { font-size: .86rem !important; }
-  .ticket-head-actions .progress { right: 41px; width: 48px; min-width: 48px; height: 48px; border-width: 4px; }
+  .ticket-head-actions .progress { top: 3rem; right: 3rem; width: 48px; min-width: 48px; height: 48px; }
+  .ticket-head-actions .progress::before { inset: 4px; }
   .ticket-head-actions .service-table-action { min-width: 92px; padding: .35rem; font-size: .6rem; }
   .ticket-more-button { width: 34px; height: 34px; }
   .ticket-detail-meta { margin-left: 58px; padding-inline: .6rem; }
