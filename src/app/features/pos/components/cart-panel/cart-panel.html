@@ -428,7 +428,7 @@
         </div>
       </div>
 
-      <div modal-actions class="modifier-modal-actions">
+      <div class="modifier-modal-status" *ngIf="modifierProgressMessage() || modifierSelectionError() || modifierRemainingUnits() > 1">
         <p
           class="modifier-progress-message"
           *ngIf="modifierProgressMessage()"
@@ -449,6 +449,9 @@
             Aplicar a todas las restantes
           </button>
         </div>
+      </div>
+
+      <div modal-actions class="modifier-modal-actions">
         <div class="modifier-modal-actions-right">
           <app-button text="Cancelar" color="light" size="medium" [fullWidth]="true" [disabled]="modifierReservationPending()" (buttonClick)="closeModifierModal()" />
           <app-button [text]="getModifierActionLabel()" color="primary" size="medium" [fullWidth]="true" [loading]="modifierReservationPending()" (buttonClick)="saveModifierSelection()" />
