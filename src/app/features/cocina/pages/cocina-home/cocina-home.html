@@ -236,6 +236,10 @@
         <span *ngIf="avisoPreorden(orden) as aviso" class="ticket-preorder-start" [class.ticket-preorder-start--late]="orden.preorden_cliente_no_llego">{{ aviso }}</span>
         <span *ngIf="orden.estado !== 'preparando' && orden.estado !== 'pendiente'" class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
       </div>
+      <div class="ticket-service-owner" [class.ticket-service-owner--unassigned]="!orden.mesero">
+        <span>MESERO</span>
+        <strong>{{ orden.mesero?.name || 'Sin mesero asignado' }}</strong>
+      </div>
 
       <aside *ngIf="orden.observaciones" class="order-general-comment">
         <strong>Comentario general</strong>

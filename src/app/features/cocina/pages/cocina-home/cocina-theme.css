@@ -19,6 +19,7 @@
 .kds-ticket--asignada-salmon{border:3px solid #ef8354;box-shadow:0 0 0 2px color-mix(in srgb,#ef8354 24%,transparent)}
 .kds-ticket--asignada-verde{border:3px solid #2fbf71;box-shadow:0 0 0 2px color-mix(in srgb,#2fbf71 24%,transparent)}
 .ticket-assignment{position:absolute;left:.75rem;top:.65rem;padding:.18rem .42rem;border-radius:999px;background:var(--color-hover);color:var(--color-text-secondary);font-size:.61rem;font-weight:800}
+.ticket-service-owner{display:flex;align-items:center;justify-content:center;gap:.45rem;padding:.35rem .8rem;border-bottom:1px solid var(--color-border);background:color-mix(in srgb,#16a34a 12%,var(--color-surface));color:var(--color-text)}.ticket-service-owner span{font-size:.6rem;font-weight:900;letter-spacing:.09em;color:#15803d}.ticket-service-owner strong{font-size:.78rem}.ticket-service-owner--unassigned{background:var(--color-hover)}.ticket-service-owner--unassigned span,.ticket-service-owner--unassigned strong{color:var(--color-text-secondary)}
 .cancelled-stamp{border-color:var(--color-danger);color:var(--color-danger);background:color-mix(in srgb,var(--color-surface) 86%,transparent)}
 .ticket-cancelled-footer button{background:var(--color-danger);color:var(--color-on-brand)}
 

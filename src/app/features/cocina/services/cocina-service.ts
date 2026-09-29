@@ -67,6 +67,7 @@ export interface KdsOrden {
   tipo_orden: 'dine-in' | 'to-go' | 'delivery';
   estado: string;
   cliente?: { id: number; nombre: string; direccion?: string | null; referencia_ubicacion?: string | null; latitud?: number | null; longitud?: number | null; foto_local_url?: string | null } | null;
+  mesero?: { id: number; name: string } | null;
   mesa?: { id: number; numero: string } | null;
   detalles: KdsDetalle[];
   cambios_recientes?: KdsCambioOrden[];
