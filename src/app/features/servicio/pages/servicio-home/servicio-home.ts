@@ -407,6 +407,15 @@ export class ServicioHome implements OnInit, OnDestroy {
   private contextoAvisos?: AudioContext;
   notificacionesServicioActivas = signal(false);
   notificacionesServicioProcesando = signal(false);
+  meseroDisponible = signal(true);
+  ocupadoHasta = signal<number | null>(null);
+  cambiandoDisponibilidad = signal(false);
+  private avisoFinOcupadoMostrado = false;
+  minutosOcupadoRestantes = computed(() => {
+    const hasta = this.ocupadoHasta();
+    if (!hasta || this.meseroDisponible()) return 0;
+    return Math.max(0, Math.ceil((hasta - this.relojOfertas()) / 60000));
+  });
   permisoNotificaciones = signal<NotificationPermission>(typeof Notification === 'undefined' ? 'denied' : Notification.permission);
   private pushSubscriptionListener?: Subscription;
   private suscripcionPushActual: PushSubscription | null = null;
@@ -482,6 +491,7 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.ofertaTimer = setInterval(() => {
       const ahora = Date.now();
       this.relojOfertas.set(ahora);
+      this.revisarFinOcupado(ahora);
       if (this.disponibles().some(ficha => ficha.apoyo_hasta && new Date(ficha.apoyo_hasta).getTime() <= ahora)) this.cargar(false);
     }, 5000);
     this.reservaTimer = setInterval(() => {
@@ -983,6 +993,7 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.misFichas.set(this.ordenarPorLlegada(tablero.mis_fichas ?? []));
         this.misEntregadas.set(tablero.mis_entregadas ?? []);
         this.preordenesProgramadas.set(tablero.preordenes_programadas ?? []);
+        if (tablero.disponibilidad) this.aplicarDisponibilidad(tablero.disponibilidad);
         const fichaSalida = this.fichaSalidaInmediataActual();
         if (this.salidaInmediataFichaId() !== null && (!fichaSalida || !this.tieneSalidaInmediataServicio(fichaSalida))) {
           this.cerrarSalidaInmediata();
@@ -1019,6 +1030,9 @@ export class ServicioHome implements OnInit, OnDestroy {
     if (anterior) this.guardarTableroSesion(anterior);
     this.sesiones401Notificadas.delete(sesion.session_id);
     this.sesionSeleccionada.set(sesion);
+    this.meseroDisponible.set(true);
+    this.ocupadoHasta.set(null);
+    this.avisoFinOcupadoMostrado = false;
     const cache = this.tableroPorSesion.get(this.claveTableroSesion(sesion));
     this.misFichas.set(cache?.mis_fichas ?? []);
     this.misEntregadas.set(cache?.mis_entregadas ?? []);
@@ -1588,10 +1602,57 @@ export class ServicioHome implements OnInit, OnDestroy {
     if (!sesion) return;
     this.servicio.registrarActividad(sesion.token).subscribe({
       next: response => {
+        this.aplicarDisponibilidad(response);
         if (response.asignadas?.some(id => !this.misFichas().some(ficha => ficha.id === id))) this.cargar(false);
       },
       error: () => undefined,
     });
+  }
+
+  cambiarDisponibilidad(): void {
+    const sesion = this.sesionSeleccionada();
+    if (!sesion || this.cambiandoDisponibilidad()) return;
+    const disponible = !this.meseroDisponible();
+    this.cambiandoDisponibilidad.set(true);
+    this.servicio.actualizarDisponibilidad(disponible, sesion.token).subscribe({
+      next: response => {
+        this.cambiandoDisponibilidad.set(false);
+        this.aplicarDisponibilidad(response);
+        if (disponible) {
+          this.toastr.success('Ya puedes recibir nuevas fichas.');
+          if (response.asignadas?.length) this.cargar(false);
+        } else {
+          this.toastr.info('Conservas tus fichas actuales, pero no recibirás nuevas durante 10 minutos.');
+        }
+      },
+      error: error => {
+        this.cambiandoDisponibilidad.set(false);
+        this.toastr.error(error?.error?.message || 'No se pudo cambiar tu disponibilidad.');
+      },
+    });
+  }
+
+  private aplicarDisponibilidad(estado: { disponible: boolean; ocupado_hasta?: string | null }): void {
+    const hasta = estado.ocupado_hasta ? new Date(estado.ocupado_hasta).getTime() : null;
+    this.meseroDisponible.set(estado.disponible || !hasta || hasta <= Date.now());
+    this.ocupadoHasta.set(estado.disponible ? null : hasta);
+    if (estado.disponible) this.avisoFinOcupadoMostrado = false;
+  }
+
+  private revisarFinOcupado(ahora: number): void {
+    const hasta = this.ocupadoHasta();
+    if (!hasta || this.meseroDisponible()) return;
+    const restante = hasta - ahora;
+    if (restante <= 0) {
+      this.meseroDisponible.set(true);
+      this.ocupadoHasta.set(null);
+      this.avisoFinOcupadoMostrado = false;
+      this.toastr.info('Volviste a estar disponible para recibir fichas.');
+      this.registrarActividadServicio();
+    } else if (restante <= 60000 && !this.avisoFinOcupadoMostrado) {
+      this.avisoFinOcupadoMostrado = true;
+      this.toastr.warning('En 1 minuto volverás a recibir fichas automáticamente.');
+    }
   }
 
   private requerirSesion(): ServicioSesion | null {

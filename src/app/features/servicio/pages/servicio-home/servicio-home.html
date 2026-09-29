@@ -2,6 +2,14 @@
   <header class="service-header">
     <div class="brand"><span>{{ esAdministrador() ? 'ADMINISTRACIÓN' : esDespacho() ? 'DESPACHO' : 'MESERO' }}</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
     <div class="service-header-actions">
+      @if (sesionSeleccionada()) {
+        <button type="button" class="service-availability-toggle" [class.is-occupied]="!meseroDisponible()"
+          [disabled]="cambiandoDisponibilidad()" (click)="cambiarDisponibilidad()"
+          [attr.aria-pressed]="!meseroDisponible()">
+          <span class="availability-dot"></span>
+          <span><b>{{ meseroDisponible() ? 'DISPONIBLE' : 'OCUPADO' }}</b><small>{{ meseroDisponible() ? 'Recibiendo fichas' : minutosOcupadoRestantes() + ' min restantes' }}</small></span>
+        </button>
+      }
       @if (esMesero()) {
         <button type="button" class="service-notification-toggle" [class.is-active]="notificacionesServicioActivas()"
           [class.is-blocked]="permisoNotificaciones() === 'denied'"
