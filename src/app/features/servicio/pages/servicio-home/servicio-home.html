@@ -359,7 +359,7 @@
           <button type="button" (click)="confirmarAyudaFicha(ficha)">
             <span class="collaboration-order-number">#{{ ficha.numero_orden }}</span>
             <span class="collaboration-order-copy"><b>{{ ficha.cliente || 'Cliente sin nombre' }}</b><small>{{ ficha.mesa ? 'Mesa ' + ficha.mesa : etiquetaTipo(ficha) }}</small></span>
-            <span class="collaboration-order-owner"><small>RESPONSABLE</small><b>{{ ficha.mesero || 'Sin asignar' }}</b></span>
+            <span class="collaboration-order-owner"><small>RESPONSABLE</small><b>{{ responsableFicha(ficha) }}</b></span>
             <span class="collaboration-order-status" [class.is-complete]="ficha.estado === 'entregado'" [class.is-partial]="estadoColaboracion(ficha) === 'Parcial'">{{ estadoColaboracion(ficha) }}</span>
           </button>
         } @empty { <p class="empty-card">No hay pedidos que coincidan con la búsqueda.</p> }
@@ -370,7 +370,7 @@
         <div><small>FICHA</small><strong>#{{ fichaAyuda.numero_orden }}</strong></div>
         <div><small>CLIENTE</small><strong>{{ fichaAyuda.cliente || 'Sin nombre' }}</strong></div>
         <div><small>UBICACIÓN</small><strong>{{ fichaAyuda.mesa ? 'Mesa ' + fichaAyuda.mesa : etiquetaTipo(fichaAyuda) }}</strong></div>
-        <div><small>RESPONSABLE</small><strong>{{ fichaAyuda.mesero || 'Sin asignar' }}</strong></div>
+        <div><small>RESPONSABLE</small><strong>{{ responsableFicha(fichaAyuda) }}</strong></div>
       </div>
       <div class="collaboration-workspace-list">
         @for (detalle of fichaAyuda.detalles; track detalle.id) {

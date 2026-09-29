@@ -736,11 +736,11 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   confirmarAyudaFicha(ficha: ServicioFicha): void {
-    if (ficha.estado === 'entregado') {
+    if (ficha.estado === 'entregado' || this.esFichaPropia(ficha)) {
       this.fichaColaboracionActivaId.set(ficha.id);
       return;
     }
-    const responsable = ficha.mesero || 'ningún mesero';
+    const responsable = this.responsableFicha(ficha).toLocaleLowerCase();
     this.confirmDialog.confirm({
       title: `Ayudar con la ficha #${ficha.numero_orden}`,
       message: `Está asignada a ${responsable}. ¿Quieres abrirla para colaborar con los productos que estén listos?`,
@@ -757,6 +757,15 @@ export class ServicioHome implements OnInit, OnDestroy {
     if (servidos > 0) return 'Parcial';
     if (ficha.todo_listo) return 'Listo';
     return 'En preparación';
+  }
+
+  esFichaPropia(ficha: ServicioFicha): boolean {
+    const usuarioId = this.sesionSeleccionada()?.user.id;
+    return usuarioId != null && Number(ficha.mesero_id) === Number(usuarioId);
+  }
+
+  responsableFicha(ficha: ServicioFicha): string {
+    return this.esFichaPropia(ficha) ? 'Tú' : ficha.mesero || 'Sin asignar';
   }
 
   puedeColaborarDetalle(ficha: ServicioFicha, detalle: ServicioDetalle): boolean {
