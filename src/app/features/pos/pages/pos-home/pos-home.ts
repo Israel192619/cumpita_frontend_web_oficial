@@ -462,8 +462,10 @@ export class PosHome implements OnInit, OnDestroy {
     this.auth.me().subscribe({
       next: user => this.isCajero.set(['cajero', 'caja'].includes(normalizeAccessName(user.role?.nombre))),
     });
-    if (this.operationMode === 'preorden' && !this.isPhoneOrderMode) {
-      this.preorderDate.set(this.defaultPreorderDate());
+    if (this.operationMode === 'preorden') {
+      if (!this.isPhoneOrderMode) {
+        this.preorderDate.set(this.defaultPreorderDate());
+      }
     } else {
       this.refreshOrderLists(true, true);
       this.cargarCajaActual();
