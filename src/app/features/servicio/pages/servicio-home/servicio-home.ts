@@ -779,7 +779,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   abrirOrdenDesdeFicha(ficha: ServicioFicha): void {
-    this.buscarOrdenAbierto.set(true);
+    this.buscarOrdenAbierto.set(false);
     this.resultadosOrden.set([]);
     this.seleccionarOrden({
       id: ficha.id,
@@ -789,7 +789,7 @@ export class ServicioHome implements OnInit, OnDestroy {
       tipo_orden: ficha.tipo_orden,
       estado: '',
       puede_agregar: true,
-    });
+    }, true);
   }
 
   cerrarBuscadorOrden(): void {
@@ -916,10 +916,18 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.consultaOrdenCambios.next(valor.trim());
   }
 
-  seleccionarOrden(orden: OrdenServicioResumen): void {
+  seleccionarOrden(orden: OrdenServicioResumen, abrirProductos = false): void {
     this.procesando.set('cargar-orden');
     this.servicio.obtenerOrden(orden.id, this.sesionSeleccionada()?.token).subscribe({
-      next: response => { this.ordenSeleccionada.set(response.orden); this.procesando.set(null); },
+      next: response => {
+        this.ordenSeleccionada.set(response.orden);
+        this.procesando.set(null);
+        if (abrirProductos && response.orden.puede_agregar) {
+          this.abrirSelectorProducto();
+        } else if (abrirProductos) {
+          this.buscarOrdenAbierto.set(true);
+        }
+      },
       error: error => { this.procesando.set(null); this.toastr.error(error?.error?.message || 'No se pudo abrir la orden.'); },
     });
   }
