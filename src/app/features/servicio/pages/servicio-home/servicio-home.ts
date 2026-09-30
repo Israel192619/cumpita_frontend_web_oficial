@@ -1762,6 +1762,12 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.inicioArrastreAccionesRapidasY = null;
     if (!this.accionesRapidasFueronArrastradas) return;
     this.ignorarSiguienteClickAccionesRapidas = true;
+    // Algunos navegadores móviles no emiten el click posterior a un arrastre.
+    // Liberar el bloqueo al terminar este ciclo evita consumir el siguiente
+    // toque real del mesero; si el click del arrastre sí llega, se ignora antes.
+    window.setTimeout(() => {
+      this.ignorarSiguienteClickAccionesRapidas = false;
+    }, 0);
     try { localStorage.setItem('servicio_acciones_rapidas_y', String(this.accionesRapidasY())); } catch { /* Posición temporal si el navegador bloquea el almacenamiento. */ }
   }
 
