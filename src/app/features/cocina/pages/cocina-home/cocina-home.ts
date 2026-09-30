@@ -283,7 +283,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   private endpointPushRegistrado: string | null = null;
   verServidos = signal(false);
   detallesCompletadosAbiertos = signal<Record<number, boolean>>({});
-  objetivoManualId = signal<number | null>(null);
+  objetivoSeleccionadoId = signal<number | null>(null);
   objetivoConfirmacionRapidaId = signal<number | null>(null);
   progresoConfirmacionRapida = signal(0);
   colaAsistente = computed(() => construirColaAsistenteKds(this.ordenes()));
@@ -292,9 +292,9 @@ export class CocinaHome implements OnInit, OnDestroy {
   ));
   objetivoTeclado = computed(() => {
     if (this.verServidos()) return null;
-    const manual = this.ordenesTablero().find(orden => orden.id === this.objetivoManualId()
+    const seleccionada = this.ordenesTablero().find(orden => orden.id === this.objetivoSeleccionadoId()
       && this.detallesMarcablesConTeclado(orden).length > 0);
-    if (manual) return manual;
+    if (seleccionada) return seleccionada;
     const visibles = new Set(this.ordenesTablero().map(orden => orden.id));
     return this.colaAsistente()
       .map(tarea => tarea.orden)
@@ -1229,7 +1229,7 @@ export class CocinaHome implements OnInit, OnDestroy {
       const objetivoId = this.objetivoConfirmacionRapidaId();
       this.limpiarConfirmacionRapida();
       const objetivoActual = this.ordenes().find(item => item.id === objetivoId) ?? orden;
-      if (this.objetivoManualId() === objetivoId) this.objetivoManualId.set(null);
+      if (this.objetivoSeleccionadoId() === objetivoId) this.objetivoSeleccionadoId.set(null);
       if (this.estacionActual()?.codigo === 'PARRILLA' && 'vibrate' in navigator) navigator.vibrate(55);
       this.completarFichaConTeclado(objetivoActual);
     }, 30);
@@ -1240,13 +1240,15 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.limpiarConfirmacionRapida();
   }
 
-  fijarObjetivoManual(orden: KdsOrden, event?: Event): void {
-    event?.stopPropagation();
+  seleccionarObjetivoDesdeTarjeta(orden: KdsOrden, event: Event): void {
+    const elemento = event.target as Element | null;
+    if (elemento?.closest('button, input, label, a, select, textarea, [contenteditable="true"]')) return;
+    if (!this.puedeSeleccionarObjetivo(orden)) return;
     this.cancelarConfirmacionRapida();
-    this.objetivoManualId.update(actual => actual === orden.id ? null : orden.id);
+    this.objetivoSeleccionadoId.set(orden.id);
   }
 
-  puedeFijarObjetivo(orden: KdsOrden): boolean {
+  puedeSeleccionarObjetivo(orden: KdsOrden): boolean {
     return !this.verServidos() && this.detallesMarcablesConTeclado(orden).length > 0;
   }
 

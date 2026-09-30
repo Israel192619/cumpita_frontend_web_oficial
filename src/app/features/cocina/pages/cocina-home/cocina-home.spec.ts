@@ -114,7 +114,7 @@ describe('Sincronización del monitor de Cocina', () => {
       component.objetivoTeclado = () => orden;
       component.objetivoConfirmacionRapidaId = signal(null);
       component.progresoConfirmacionRapida = signal(0);
-      component.objetivoManualId = signal(null);
+      component.objetivoSeleccionadoId = signal(null);
       component.isLoading = () => false;
       component.verServidos = () => false;
       component.operacionMasivaActualizando = () => null;
@@ -153,7 +153,7 @@ describe('Sincronización del monitor de Cocina', () => {
       const orden = { id: 7, estado: 'preparando', detalles: [{ id: 71 }] };
       component.objetivoConfirmacionRapidaId = signal(null);
       component.progresoConfirmacionRapida = signal(0);
-      component.objetivoManualId = signal(null);
+      component.objetivoSeleccionadoId = signal(null);
       component.isLoading = () => false;
       component.verServidos = () => false;
       component.operacionMasivaActualizando = () => null;
@@ -170,6 +170,22 @@ describe('Sincronización del monitor de Cocina', () => {
 
       expect(component.completarFichaConTeclado).toHaveBeenCalledTimes(2);
     } finally { vi.useRealTimers(); }
+  });
+
+  it('selecciona una tarjeta completa sin interceptar sus controles internos', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    const orden = { id: 9 };
+    component.objetivoSeleccionadoId = signal(null);
+    component.puedeSeleccionarObjetivo = () => true;
+    component.cancelarConfirmacionRapida = vi.fn();
+    const evento = (controlInterno: boolean) => ({
+      target: { closest: () => controlInterno ? {} : null },
+    }) as any;
+
+    component.seleccionarObjetivoDesdeTarjeta(orden, evento(true));
+    expect(component.objetivoSeleccionadoId()).toBeNull();
+    component.seleccionarObjetivoDesdeTarjeta(orden, evento(false));
+    expect(component.objetivoSeleccionadoId()).toBe(9);
   });
 
   it('abre y cierra el conteo grande cuando existe producción pendiente', () => {
