@@ -138,6 +138,57 @@
 .collaboration-item-state.carrying { color: #1762ac; }
 .collaboration-back-button { width: 100%; min-height: 48px; margin-top: .8rem; border: 0; border-radius: 11px; background: var(--color-hover); color: var(--color-text); font-weight: 900; cursor: pointer; }
 
+/* Cabecera operativa del mesero: agrupa la información por decisión y evita
+   repetir las acciones que ya viven en el acceso rápido flotante. */
+.service-header--waiter { display: grid !important; align-items: stretch; gap: 13px; padding: 18px 20px; }
+.waiter-header-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
+.waiter-header-top .brand { min-width: 0; }
+.waiter-header-top .brand h1 { margin: 2px 0 0; font-size: clamp(1.8rem,4vw,2.45rem); line-height: 1; }
+.waiter-header-top .service-user-trigger { min-height: 52px; }
+.waiter-availability { width: 100%; min-height: 58px; justify-content: flex-start; padding: .55rem 1rem; border-width: 2px; }
+.waiter-availability .availability-dot { width: 14px; height: 14px; margin-right: 4px; }
+.waiter-availability b { font-size: .9rem; }
+.waiter-availability small { font-size: .72rem; }
+.waiter-header-controls { display: grid; grid-template-columns: minmax(220px,1fr) repeat(3,52px); gap: 9px; align-items: stretch; }
+.waiter-header-controls:has(.waiter-today) { grid-template-columns: minmax(190px,1fr) auto repeat(3,52px); }
+.waiter-date-filter { display: grid; grid-template-columns: auto auto minmax(0,1fr); align-items: center; gap: 9px; min-height: 52px; padding: 0 12px; border: 1px solid color-mix(in srgb,var(--brand-white) 32%,transparent); border-radius: 12px; background: color-mix(in srgb,var(--brand-white) 9%,transparent); color: var(--brand-white); }
+.waiter-date-filter > span { font-size: .75rem; font-weight: 950; letter-spacing: .08em; }
+.waiter-date-filter input { width: 100%; min-width: 0; min-height: 42px; padding: 0 7px; border: 0; background: transparent; color: var(--brand-white); font: inherit; font-size: .88rem; font-weight: 800; color-scheme: dark; }
+.waiter-date-filter input:focus { outline: 2px solid color-mix(in srgb,var(--brand-white) 70%,transparent); outline-offset: -3px; border-radius: 8px; }
+.waiter-header-icon { position: relative; display: grid; place-items: center; min-width: 52px; min-height: 52px; padding: 0; border: 1px solid color-mix(in srgb,var(--brand-white) 32%,transparent); border-radius: 12px; background: color-mix(in srgb,var(--brand-white) 9%,transparent); color: var(--brand-white); cursor: pointer; }
+.waiter-header-icon:hover:not(:disabled) { background: color-mix(in srgb,var(--brand-white) 17%,transparent); }
+.waiter-header-icon:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.waiter-header-icon.service-notification-toggle { min-height: 52px; padding: 0; }
+.waiter-header-icon.service-notification-toggle svg { width: 21px; height: 21px; }
+.waiter-header-icon.service-notification-toggle i { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border: 2px solid #4b2113; border-radius: 50%; background: var(--brand-orange); }
+.waiter-header-icon.service-notification-toggle.is-active i { background: #86efac; }
+.waiter-header-icon.service-notification-toggle.is-blocked i { background: #fecaca; }
+.waiter-header-icon:disabled { cursor: default; opacity: 1; }
+.waiter-today { width: auto; padding: 0 13px; font: inherit; font-size: .76rem; font-weight: 900; }
+.waiter-header-actions { display: grid; grid-template-columns: repeat(2,minmax(150px,280px)); gap: 9px; }
+.waiter-primary-action { display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 8px; min-height: 58px; padding: .55rem .8rem; border: 1px solid color-mix(in srgb,var(--brand-white) 32%,transparent); border-radius: 12px; background: color-mix(in srgb,var(--brand-white) 9%,transparent); color: var(--brand-white); font: inherit; font-weight: 900; text-align: left; cursor: pointer; }
+.waiter-primary-action:hover { border-color: color-mix(in srgb,var(--brand-orange) 70%,var(--brand-white)); background: color-mix(in srgb,var(--brand-orange) 20%,transparent); }
+.waiter-primary-action b { display: grid; min-width: 25px; height: 25px; place-items: center; padding: 0 6px; border-radius: 999px; background: var(--brand-orange); color: var(--brand-white); font-size: .72rem; }
+
+@media (max-width: 560px) {
+  .service-header--waiter { gap: 11px; padding: 16px; }
+  .waiter-header-top { align-items: flex-start; }
+  .waiter-header-top .brand h1 { font-size: 2rem; }
+  .waiter-header-top .service-user-copy small { display: none; }
+  .waiter-header-top .service-user-trigger { min-height: 46px; padding-right: .45rem; }
+  .waiter-header-top .service-user-avatar { width: 34px; height: 34px; flex-basis: 34px; }
+  .waiter-availability { min-height: 54px; }
+  .waiter-header-controls,.waiter-header-controls:has(.waiter-today) { grid-template-columns: minmax(0,1fr) repeat(3,48px); }
+  .waiter-header-controls:has(.waiter-today) .waiter-today { grid-column: 1/-1; grid-row: 2; min-height: 40px; }
+  .waiter-date-filter { min-height: 48px; padding: 0 9px; }
+  .waiter-date-filter > span { display: none; }
+  .waiter-date-filter { grid-template-columns: auto minmax(0,1fr); }
+  .waiter-date-filter input { font-size: .82rem; }
+  .waiter-header-icon,.waiter-header-icon.service-notification-toggle { min-width: 48px; min-height: 48px; }
+  .waiter-header-actions { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .waiter-primary-action { grid-template-columns: 24px minmax(0,1fr) auto; min-height: 54px; padding: .45rem .6rem; font-size: .8rem; }
+}
+
 
 @media (max-width: 560px) {
   .service-view-heading > div:first-child { display: none; }

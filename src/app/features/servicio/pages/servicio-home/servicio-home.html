@@ -1,44 +1,8 @@
 <main class="service-page">
-  <header class="service-header">
-    <div class="brand"><span>{{ esAdministrador() ? 'ADMINISTRACIÓN' : esDespacho() ? 'DESPACHO' : 'MESERO' }}</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
-    <div class="service-header-actions">
-      @if (sesionSeleccionada()) {
-        <button type="button" class="service-availability-toggle" [class.is-occupied]="!meseroDisponible()"
-          [disabled]="cambiandoDisponibilidad()" (click)="cambiarDisponibilidad()"
-          [attr.aria-pressed]="!meseroDisponible()">
-          <span class="availability-dot"></span>
-          <span><b>{{ meseroDisponible() ? 'DISPONIBLE' : 'OCUPADO' }}</b><small>{{ meseroDisponible() ? 'Recibiendo fichas' : minutosOcupadoRestantes() + ' min restantes' }}</small></span>
-        </button>
-      }
-      @if (esMesero()) {
-        <button type="button" class="service-notification-toggle" [class.is-active]="notificacionesServicioActivas()"
-          [class.is-blocked]="permisoNotificaciones() === 'denied'"
-          [disabled]="notificacionesServicioProcesando() || notificacionesServicioActivas()"
-          (click)="activarNotificacionesServicio()" [attr.aria-pressed]="notificacionesServicioActivas()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
-          <span>{{ textoNotificacionesServicio() }}</span>
-        </button>
-      }
-      <button type="button" class="service-theme-toggle" (click)="alternarPantallaCompleta()" [attr.aria-pressed]="pantallaCompleta()" [attr.aria-label]="pantallaCompleta() ? 'Salir de pantalla completa' : 'Pantalla completa'" [title]="pantallaCompleta() ? 'Salir de pantalla completa' : 'Pantalla completa'">
-        <app-icon [name]="pantallaCompleta() ? 'minimize' : 'maximize'" [size]="19" />
-      </button>
-      <button type="button" class="service-theme-toggle" (click)="themeService.toggle()" [attr.aria-label]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'" [title]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'">
-        <app-icon [name]="themeService.theme() === 'dark' ? 'sun' : 'moon'" [size]="19" />
-      </button>
-      <label class="service-date-filter">
-        <span>Fecha</span>
-        <input type="date" [value]="fechaTablero()" (change)="cambiarFechaTablero($any($event.target).value)" aria-label="Filtrar órdenes por fecha">
-      </label>
-      @if (fechaTablero() !== fechaHoy) { <app-button text="Hoy" color="secondary" (buttonClick)="volverAHoy()" /> }
-      <button type="button" class="preorders-button" (click)="abrirPreordenes()" [attr.aria-label]="'Ver ' + preordenesProgramadas().length + ' preórdenes'">
-        <app-icon name="calendar" [size]="18" /><span>Preórdenes</span><b>{{ preordenesProgramadas().length }}</b>
-      </button>
-      @if (esMesero()) { <button type="button" class="preorders-button requests-button" (click)="abrirSolicitudes()"><app-icon name="clipboard" [size]="18" /><span>Solicitudes</span><b>{{ solicitudes().length }}</b></button> }
-      @if (esMesero()) { <app-button text="+ Nueva preorden" (buttonClick)="crearPreorden()" /> }
-      @if (sesionSeleccionada()) { <app-button text="Buscar orden" color="secondary" (buttonClick)="abrirBuscadorOrden()" /> }
-      @if (permiteSesionesPin()) { <app-button text="+ Ingresar mesero" (buttonClick)="abrirIngreso()" /> }
-      @if (esAdministrador()) { <app-button text="← Volver a órdenes" color="secondary" (buttonClick)="volverAOrdenes()" /> }
-      @if (esMesero()) {
+  @if (esMesero()) {
+    <header class="service-header service-header--waiter">
+      <div class="waiter-header-top">
+        <div class="brand"><span>MESERO</span><h1>Servicio</h1></div>
         <div class="service-user-menu">
           <button type="button" class="service-user-trigger" [attr.aria-expanded]="menuUsuarioAbierto()" aria-controls="service-user-dropdown" (click)="menuUsuarioAbierto.update(abierto => !abierto)">
             <span class="service-user-avatar">
@@ -55,9 +19,62 @@
             </div>
           }
         </div>
-      } @else if (esDespacho()) { <app-button text="Cerrar sesión" color="danger" (buttonClick)="cerrarSesionAplicacion()" /> }
-    </div>
-  </header>
+      </div>
+
+      @if (sesionSeleccionada()) {
+        <button type="button" class="service-availability-toggle waiter-availability" [class.is-occupied]="!meseroDisponible()"
+          [disabled]="cambiandoDisponibilidad()" (click)="cambiarDisponibilidad()" [attr.aria-pressed]="!meseroDisponible()">
+          <span class="availability-dot"></span>
+          <span><b>{{ meseroDisponible() ? 'DISPONIBLE' : 'OCUPADO' }}</b><small>{{ meseroDisponible() ? 'Recibiendo fichas' : minutosOcupadoRestantes() + ' min restantes' }}</small></span>
+        </button>
+      }
+
+      <div class="waiter-header-controls">
+        <label class="service-date-filter waiter-date-filter">
+          <app-icon name="calendar" [size]="19" />
+          <span>{{ fechaTablero() === fechaHoy ? 'HOY' : 'FECHA' }}</span>
+          <input type="date" [value]="fechaTablero()" (change)="cambiarFechaTablero($any($event.target).value)" aria-label="Filtrar órdenes por fecha">
+        </label>
+        @if (fechaTablero() !== fechaHoy) { <button type="button" class="waiter-header-icon waiter-today" (click)="volverAHoy()">Hoy</button> }
+        <button type="button" class="waiter-header-icon service-notification-toggle" [class.is-active]="notificacionesServicioActivas()"
+          [class.is-blocked]="permisoNotificaciones() === 'denied'" [disabled]="notificacionesServicioProcesando() || notificacionesServicioActivas()"
+          (click)="activarNotificacionesServicio()" [attr.aria-pressed]="notificacionesServicioActivas()" [attr.aria-label]="textoNotificacionesServicio()" [title]="textoNotificacionesServicio()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+          <i aria-hidden="true"></i>
+        </button>
+        <button type="button" class="waiter-header-icon" (click)="themeService.toggle()" [attr.aria-label]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'" [title]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'">
+          <app-icon [name]="themeService.theme() === 'dark' ? 'sun' : 'moon'" [size]="20" />
+        </button>
+        <button type="button" class="waiter-header-icon" (click)="alternarPantallaCompleta()" [attr.aria-pressed]="pantallaCompleta()" [attr.aria-label]="pantallaCompleta() ? 'Salir de pantalla completa' : 'Pantalla completa'" [title]="pantallaCompleta() ? 'Salir de pantalla completa' : 'Pantalla completa'">
+          <app-icon [name]="pantallaCompleta() ? 'minimize' : 'maximize'" [size]="20" />
+        </button>
+      </div>
+
+      <div class="waiter-header-actions">
+        <button type="button" class="waiter-primary-action" (click)="abrirPreordenes()" [attr.aria-label]="'Ver ' + preordenesProgramadas().length + ' preórdenes'">
+          <app-icon name="calendar" [size]="20" /><span>Preórdenes</span><b>{{ preordenesProgramadas().length }}</b>
+        </button>
+        <button type="button" class="waiter-primary-action" (click)="abrirBuscadorOrden()">
+          <app-icon name="search" [size]="20" /><span>Buscar</span>
+        </button>
+      </div>
+    </header>
+  } @else {
+    <header class="service-header">
+      <div class="brand"><span>{{ esAdministrador() ? 'ADMINISTRACIÓN' : 'DESPACHO' }}</span><h1>Servicio</h1><p>Fichas listas para atender</p></div>
+      <div class="service-header-actions">
+        <button type="button" class="service-theme-toggle" (click)="alternarPantallaCompleta()" [attr.aria-pressed]="pantallaCompleta()" [attr.aria-label]="pantallaCompleta() ? 'Salir de pantalla completa' : 'Pantalla completa'" [title]="pantallaCompleta() ? 'Salir de pantalla completa' : 'Pantalla completa'"><app-icon [name]="pantallaCompleta() ? 'minimize' : 'maximize'" [size]="19" /></button>
+        <button type="button" class="service-theme-toggle" (click)="themeService.toggle()" [attr.aria-label]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'" [title]="themeService.theme() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'"><app-icon [name]="themeService.theme() === 'dark' ? 'sun' : 'moon'" [size]="19" /></button>
+        <label class="service-date-filter"><span>Fecha</span><input type="date" [value]="fechaTablero()" (change)="cambiarFechaTablero($any($event.target).value)" aria-label="Filtrar órdenes por fecha"></label>
+        @if (fechaTablero() !== fechaHoy) { <app-button text="Hoy" color="secondary" (buttonClick)="volverAHoy()" /> }
+        <button type="button" class="preorders-button" (click)="abrirPreordenes()" [attr.aria-label]="'Ver ' + preordenesProgramadas().length + ' preórdenes'"><app-icon name="calendar" [size]="18" /><span>Preórdenes</span><b>{{ preordenesProgramadas().length }}</b></button>
+        @if (sesionSeleccionada()) { <app-button text="Buscar orden" color="secondary" (buttonClick)="abrirBuscadorOrden()" /> }
+        @if (permiteSesionesPin()) { <app-button text="+ Ingresar mesero" (buttonClick)="abrirIngreso()" /> }
+        @if (esAdministrador()) { <app-button text="← Volver a órdenes" color="secondary" (buttonClick)="volverAOrdenes()" /> }
+        @if (esDespacho()) { <app-button text="Cerrar sesión" color="danger" (buttonClick)="cerrarSesionAplicacion()" /> }
+      </div>
+    </header>
+  }
 
   @if (preordenesEsperandoCliente().length) {
     <button type="button" class="preorder-arrival-alert" (click)="abrirPreordenes()">
