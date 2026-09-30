@@ -1132,7 +1132,11 @@ export class CocinaHome implements OnInit, OnDestroy {
   marcarServido(detalle: KdsDetalle, servido: boolean, permitirModoTeclado = false): void {
     if (this.soloLecturaCocina() && !permitirModoTeclado) return;
     const puedeCompletarBloqueadoEnCocina = permitirModoTeclado && this.estacionActual()?.codigo === 'COCINA';
-    if ((detalle.bloqueado && !puedeCompletarBloqueadoEnCocina) || this.estaDetalleActualizando(detalle.id)) return;
+    const puedeRevertirBloqueadoEnCocina = !servido
+      && detalle.estado_cocina === 'servido'
+      && this.estacionActual()?.codigo === 'COCINA';
+    if ((detalle.bloqueado && !puedeCompletarBloqueadoEnCocina && !puedeRevertirBloqueadoEnCocina)
+      || this.estaDetalleActualizando(detalle.id)) return;
     const estacionId = this.estacionActual()?.id;
     if (!estacionId) return;
     const orden = this.ordenes().find(item => item.detalles.some(actual => actual.id === detalle.id));

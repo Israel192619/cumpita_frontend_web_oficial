@@ -164,6 +164,26 @@ describe('Sincronización del monitor de Cocina', () => {
     expect(component.cocinaService.actualizarEstadoDetalle).toHaveBeenCalledWith(12, 1, 'servido');
   });
 
+  it('Cocina puede desmarcar su pescado servido aunque siga bloqueado por Parrilla', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    const pescado = { id: 12, estado_cocina: 'servido', bloqueado: true };
+    const orden = { id: 1, estado: 'preparando', detalles: [pescado] };
+    component.soloLecturaCocina = () => false;
+    component.estacionActual = () => ({ id: 1, codigo: 'COCINA' });
+    component.estaDetalleActualizando = () => false;
+    component.ordenes = signal([orden]);
+    component.actualizacionesLocales = new Map();
+    component.prepararSalidaOrden = vi.fn();
+    component.establecerEstadoDetalleLocal = vi.fn();
+    component.marcarDetallesActualizando = vi.fn();
+    component.cocinaService = { actualizarEstadoDetalle: vi.fn(() => of({ orden_estado: 'preparando' })) };
+    component.toastr = { warning: vi.fn() };
+
+    component.marcarServido(pescado, false);
+
+    expect(component.cocinaService.actualizarEstadoDetalle).toHaveBeenCalledWith(12, 1, 'pendiente');
+  });
+
   it('Espacio completa primero solo la sopa y deja pendiente el resto de Cocina', () => {
     const component = Object.create(CocinaHome.prototype) as any;
     const pescadoBloqueado = {
