@@ -124,10 +124,10 @@
     </button>
   </section>
 
-  <div *ngIf="objetivoTeclado() as objetivo" class="keyboard-finish-bar" role="status">
-    <span class="keyboard-finish-bar__key">ESPACIO</span>
+  <button *ngIf="objetivoTeclado() as objetivo" type="button" class="keyboard-finish-bar" [class.keyboard-finish-bar--grill]="estacionActual()?.codigo === 'PARRILLA'" [disabled]="!!operacionMasivaActualizando()" (click)="completarObjetivoRapido(objetivo)">
+    <span class="keyboard-finish-bar__key"><span class="keyboard-key-desktop">ESPACIO</span><span class="keyboard-key-mobile">TOCAR</span></span>
     <span><b>Terminar {{ estacionActual()?.nombre || 'estación' }} · Ficha #{{ objetivo.numero_orden || objetivo.id }}</b><small>{{ objetivo.cliente?.nombre || 'Cliente sin nombre' }} · después avanzará a la siguiente</small></span>
-  </div>
+  </button>
 
   <div *ngIf="resumenProduccionAbierto()" class="production-modal-backdrop" (click)="cerrarResumenProduccion()">
     <section class="production-modal" role="dialog" aria-modal="true" aria-labelledby="production-modal-title"

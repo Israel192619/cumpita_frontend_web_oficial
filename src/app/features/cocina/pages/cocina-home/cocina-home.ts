@@ -175,10 +175,8 @@ export class CocinaHome implements OnInit, OnDestroy {
     if (this.document.querySelector('[aria-modal="true"]')) return;
     const objetivo = this.objetivoTeclado();
     if (!objetivo || this.isLoading() || this.verServidos() || this.operacionMasivaActualizando()) return;
-    if (Date.now() - this.ultimaPulsacionTeclado < 1200) return;
     teclado.preventDefault();
-    this.ultimaPulsacionTeclado = Date.now();
-    this.completarFichaConTeclado(objetivo);
+    this.completarObjetivoRapido(objetivo);
   }
 
   ordenes = signal<KdsOrden[]>([]);
@@ -1196,6 +1194,14 @@ export class CocinaHome implements OnInit, OnDestroy {
       return;
     }
     this.marcarServidosMasivo(orden, detalles, true, `teclado:${orden.id}`, true);
+  }
+
+  completarObjetivoRapido(orden = this.objetivoTeclado()): void {
+    if (!orden || this.isLoading() || this.verServidos() || this.operacionMasivaActualizando()) return;
+    if (Date.now() - this.ultimaPulsacionTeclado < 1200) return;
+    this.ultimaPulsacionTeclado = Date.now();
+    if (this.estacionActual()?.codigo === 'PARRILLA' && 'vibrate' in navigator) navigator.vibrate(55);
+    this.completarFichaConTeclado(orden);
   }
 
   private detallesMarcablesConTeclado(orden: KdsOrden): KdsDetalle[] {

@@ -115,6 +115,7 @@ describe('Sincronización del monitor de Cocina', () => {
     component.operacionMasivaActualizando = () => null;
     component.ultimaPulsacionTeclado = 0;
     component.completarFichaConTeclado = vi.fn();
+    component.estacionActual = () => ({ codigo: 'COCINA' });
     const evento = (tagName: string, repeat = false) => ({
       target: { tagName, isContentEditable: false }, repeat,
       code: 'Space', key: ' ',
@@ -125,6 +126,22 @@ describe('Sincronización del monitor de Cocina', () => {
     component.completarConBarraEspaciadora(evento('INPUT'));
     component.completarConBarraEspaciadora(evento('BODY'));
     component.completarConBarraEspaciadora(evento('BODY'));
+
+    expect(component.completarFichaConTeclado).toHaveBeenCalledOnce();
+  });
+
+  it('permite terminar desde el botón táctil de Parrilla y evita doble toque', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    const orden = { id: 7, estado: 'preparando', detalles: [] };
+    component.isLoading = () => false;
+    component.verServidos = () => false;
+    component.operacionMasivaActualizando = () => null;
+    component.estacionActual = () => ({ codigo: 'PARRILLA' });
+    component.ultimaPulsacionTeclado = 0;
+    component.completarFichaConTeclado = vi.fn();
+
+    component.completarObjetivoRapido(orden);
+    component.completarObjetivoRapido(orden);
 
     expect(component.completarFichaConTeclado).toHaveBeenCalledOnce();
   });
