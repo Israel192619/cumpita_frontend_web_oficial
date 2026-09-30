@@ -2431,13 +2431,8 @@ export class PosHome implements OnInit, OnDestroy {
     this.isProcessingCheckout.set(true);
     this.posService.crearOrden(order, this.orderReservationSession()).subscribe({
       next: () => {
-        this.discardSavedDraft();
         this.isProcessingCheckout.set(false);
-        this.carrito.set([]);
-        this.selectedCliente.set(null);
-        this.selectedMesa.set(null);
-        this.preorderDate.set(this.defaultPreorderDate());
-        this.orderComment.set('');
+        this.finalizarVenta(false);
         this.toastr.success('Preorden programada correctamente.');
         this.router.navigate(['/servicio']);
       },
@@ -2490,12 +2485,8 @@ export class PosHome implements OnInit, OnDestroy {
     this.isProcessingCheckout.set(true);
     this.posService.crearOrden(order, this.orderReservationSession()).subscribe({
       next: () => {
-        this.discardSavedDraft();
         this.isProcessingCheckout.set(false);
-        this.carrito.set([]);
-        this.selectedCliente.set(null);
-        this.selectedMesa.set(null);
-        this.orderComment.set('');
+        this.finalizarVenta(false);
         this.toastr.success('Pedido enviado inmediatamente a producción y servicio.');
         this.router.navigate(['/servicio']);
       },
