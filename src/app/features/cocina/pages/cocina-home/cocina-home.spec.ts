@@ -91,6 +91,44 @@ describe('Asistente de Cocina y Parrilla', () => {
 });
 
 describe('Sincronización del monitor de Cocina', () => {
+  it('Espacio completa solamente los productos marcables de la ficha objetivo', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    const pendiente = { id: 11, estado_cocina: 'pendiente', bloqueado: false };
+    const bloqueado = { id: 12, estado_cocina: 'pendiente', bloqueado: true };
+    const orden = { id: 1, estado: 'preparando', detalles: [pendiente, bloqueado] };
+    component.estaDetalleActualizando = () => false;
+    component.marcarServido = vi.fn();
+
+    component.completarFichaConTeclado(orden);
+
+    expect(component.marcarServido).toHaveBeenCalledOnce();
+    expect(component.marcarServido).toHaveBeenCalledWith(pendiente, true, true);
+  });
+
+  it('ignora Espacio al escribir y bloquea pulsaciones repetidas', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    const orden = { id: 1, estado: 'preparando', detalles: [] };
+    component.document = { querySelector: () => null };
+    component.objetivoTeclado = () => orden;
+    component.isLoading = () => false;
+    component.verServidos = () => false;
+    component.operacionMasivaActualizando = () => null;
+    component.ultimaPulsacionTeclado = 0;
+    component.completarFichaConTeclado = vi.fn();
+    const evento = (tagName: string, repeat = false) => ({
+      target: { tagName, isContentEditable: false }, repeat,
+      code: 'Space', key: ' ',
+      altKey: false, ctrlKey: false, metaKey: false, shiftKey: false,
+      preventDefault: vi.fn(),
+    }) as any;
+
+    component.completarConBarraEspaciadora(evento('INPUT'));
+    component.completarConBarraEspaciadora(evento('BODY'));
+    component.completarConBarraEspaciadora(evento('BODY'));
+
+    expect(component.completarFichaConTeclado).toHaveBeenCalledOnce();
+  });
+
   it('abre y cierra el conteo grande cuando existe producción pendiente', () => {
     const component = Object.create(CocinaHome.prototype) as any;
     component.resumenProduccionAbierto = signal(false);

@@ -124,6 +124,11 @@
     </button>
   </section>
 
+  <div *ngIf="objetivoTeclado() as objetivo" class="keyboard-finish-bar" role="status">
+    <span class="keyboard-finish-bar__key">ESPACIO</span>
+    <span><b>Terminar {{ estacionActual()?.nombre || 'estación' }} · Ficha #{{ objetivo.numero_orden || objetivo.id }}</b><small>{{ objetivo.cliente?.nombre || 'Cliente sin nombre' }} · después avanzará a la siguiente</small></span>
+  </div>
+
   <div *ngIf="resumenProduccionAbierto()" class="production-modal-backdrop" (click)="cerrarResumenProduccion()">
     <section class="production-modal" role="dialog" aria-modal="true" aria-labelledby="production-modal-title"
       (click)="$event.stopPropagation()">
@@ -213,6 +218,7 @@
       [class.kds-ticket--asignada-verde]="orden.asignacion?.color === 'verde'"
       [class.kds-ticket--assistant-now]="prioridadAsistente(orden.id) === 1"
       [class.kds-ticket--assistant-next]="prioridadAsistente(orden.id) > 1"
+      [class.kds-ticket--keyboard-target]="objetivoTeclado()?.id === orden.id"
       [class.kds-ticket--ready-attention]="orden.detalles.some(detalle => detalle.listo_para_atender)">
       <div *ngIf="idsOrdenesSaliendo().has(orden.id)" class="ticket-completion-overlay" aria-hidden="true"><span>✓</span></div>
       <div *ngIf="orden.estado === 'cancelado'" class="cancelled-stamp">CANCELADO</div>

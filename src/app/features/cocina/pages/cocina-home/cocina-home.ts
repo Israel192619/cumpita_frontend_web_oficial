@@ -164,6 +164,23 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.elementRef.nativeElement.querySelector<HTMLButtonElement>('.kds-user-trigger')?.focus();
   }
 
+  @HostListener('document:keydown', ['$event'])
+  completarConBarraEspaciadora(event: Event): void {
+    const teclado = event as KeyboardEvent;
+    if (teclado.code !== 'Space' && teclado.key !== ' ') return;
+    if (teclado.repeat || teclado.altKey || teclado.ctrlKey || teclado.metaKey || teclado.shiftKey) return;
+    const elemento = teclado.target as HTMLElement | null;
+    const etiqueta = elemento?.tagName?.toLowerCase();
+    if (elemento?.isContentEditable || ['input', 'textarea', 'select'].includes(etiqueta ?? '')) return;
+    if (this.document.querySelector('[aria-modal="true"]')) return;
+    const objetivo = this.objetivoTeclado();
+    if (!objetivo || this.isLoading() || this.verServidos() || this.operacionMasivaActualizando()) return;
+    if (Date.now() - this.ultimaPulsacionTeclado < 1200) return;
+    teclado.preventDefault();
+    this.ultimaPulsacionTeclado = Date.now();
+    this.completarFichaConTeclado(objetivo);
+  }
+
   ordenes = signal<KdsOrden[]>([]);
   ordenesSaliendo = signal<KdsOrden[]>([]);
   private tableroDuranteSalida = signal<KdsOrden[]>([]);
@@ -188,6 +205,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   private recargaPedidosPendiente?: () => void;
   readonly identificarOrden = (_: number, orden: KdsOrden): number => orden.id;
   private readonly temporizadoresSalida = new Set<ReturnType<typeof setTimeout>>();
+  private ultimaPulsacionTeclado = 0;
   private estacionSesionId: number | null = null;
   private readonly claveAlertasPreorden = 'tonito-kds-preordenes-alertadas';
   private preordenesAlertadas = new Set<string>();
@@ -259,6 +277,15 @@ export class CocinaHome implements OnInit, OnDestroy {
   prioridadesAsistente = computed(() => new Map(
     this.colaAsistente().slice(0, 3).map((tarea, indice) => [tarea.orden.id, { prioridad: indice + 1, tarea }]),
   ));
+  objetivoTeclado = computed(() => {
+    if (this.verServidos()) return null;
+    const visibles = new Set(this.ordenesTablero().map(orden => orden.id));
+    return this.colaAsistente()
+      .map(tarea => tarea.orden)
+      .find(orden => visibles.has(orden.id) && this.detallesMarcablesConTeclado(orden).length > 0)
+      ?? this.ordenesTablero().find(orden => this.detallesMarcablesConTeclado(orden).length > 0)
+      ?? null;
+  });
 
   prioridadAsistente(ordenId: number): number {
     return this.prioridadesAsistente().get(ordenId)?.prioridad ?? 0;
@@ -1084,8 +1111,8 @@ export class CocinaHome implements OnInit, OnDestroy {
     };
   }
 
-  marcarServido(detalle: KdsDetalle, servido: boolean): void {
-    if (this.soloLecturaCocina()) return;
+  marcarServido(detalle: KdsDetalle, servido: boolean, permitirModoTeclado = false): void {
+    if (this.soloLecturaCocina() && !permitirModoTeclado) return;
     if (detalle.bloqueado || this.estaDetalleActualizando(detalle.id)) return;
     const estacionId = this.estacionActual()?.id;
     if (!estacionId) return;
@@ -1160,8 +1187,24 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.marcarServidosMasivo(orden, this.detallesMarcablesProducto(grupo), servido, `producto:${orden.id}:${grupo.clave}`);
   }
 
-  private marcarServidosMasivo(orden: KdsOrden, detalles: KdsDetalle[], servido: boolean, clave: string): void {
-    if (this.soloLecturaCocina()) return;
+  completarFichaConTeclado(orden: KdsOrden): void {
+    const detalles = this.detallesMarcablesConTeclado(orden)
+      .filter(detalle => !this.estaDetalleActualizando(detalle.id));
+    if (!detalles.length) return;
+    if (detalles.length === 1) {
+      this.marcarServido(detalles[0], true, true);
+      return;
+    }
+    this.marcarServidosMasivo(orden, detalles, true, `teclado:${orden.id}`, true);
+  }
+
+  private detallesMarcablesConTeclado(orden: KdsOrden): KdsDetalle[] {
+    if (orden.estado === 'cancelado' || this.esPreordenProgramada(orden)) return [];
+    return orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido' && !detalle.bloqueado);
+  }
+
+  private marcarServidosMasivo(orden: KdsOrden, detalles: KdsDetalle[], servido: boolean, clave: string, permitirModoTeclado = false): void {
+    if (this.soloLecturaCocina() && !permitirModoTeclado) return;
     const estacionId = this.estacionActual()?.id;
     const disponibles = detalles.filter(detalle => !this.estaDetalleActualizando(detalle.id));
     if (!estacionId || disponibles.length < 2 || this.operacionMasivaActualizando()) return;
