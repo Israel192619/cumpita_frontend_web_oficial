@@ -784,14 +784,10 @@ export class ServicioHome implements OnInit, OnDestroy {
       this.fichaColaboracionActivaId.set(ficha.id);
       return;
     }
-    if (!this.tieneAccionColaboracion(ficha)) {
-      this.toastr.info('Todavía no hay productos listos para llevar en esta ficha.');
-      return;
-    }
     const responsable = this.responsableFicha(ficha).toLocaleLowerCase();
     this.confirmDialog.confirm({
       title: `Ayudar con la ficha #${ficha.numero_orden}`,
-      message: `Está asignada a ${responsable}. ¿Quieres abrirla para colaborar con los productos que estén listos?`,
+      message: `Está asignada a ${responsable}. ¿Quieres abrirla para colaborar y marcar los productos que entregues?`,
       confirmText: 'Sí, ayudar',
       cancelText: 'Cancelar',
     }).subscribe(confirmado => {
@@ -1698,17 +1694,15 @@ export class ServicioHome implements OnInit, OnDestroy {
   confirmarEntregaCompleta(ficha: ServicioFicha): void {
     const sesion = this.requerirSesion();
     if (!sesion || this.entregasPendientes.has(ficha.id) || this.procesando() === `entregar-completa-${ficha.id}`) return;
-    if (!ficha.todo_listo) {
-      this.toastr.warning('Cocina o Parrilla aún tienen productos pendientes.');
-      return;
-    }
     if (this.tieneProductosEnCamino(ficha)) {
       this.toastr.warning('Hay productos que otro mesero está llevando.');
       return;
     }
     this.confirmDialog.confirm({
       title: `¿Entregar toda la ficha #${ficha.numero_orden}?`,
-      message: 'Se marcarán todos los productos y los cubiertos como entregados, y la ficha quedará cerrada.',
+      message: ficha.todo_listo
+        ? 'Se marcarán todos los productos y los cubiertos como entregados, y la ficha quedará cerrada.'
+        : 'También se marcarán como terminados en Cocina y Parrilla los productos pendientes. Luego se marcarán los productos, los cubiertos y la ficha como entregados.',
       confirmText: 'Sí, entregar todo',
       cancelText: 'Cancelar',
       confirmColor: 'success',
