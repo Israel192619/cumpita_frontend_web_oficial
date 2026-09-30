@@ -84,6 +84,7 @@ export interface Order {
   delivery_cambio_preparado_por?: number | null;
   delivery_cambio_preparado_por_nombre?: string | null;
   delivery_cambio_preparado_en?: string | null;
+  pedido_llamada_inmediato?: boolean;
 }
 
 export interface DeliveryChangeState {
@@ -112,6 +113,7 @@ export interface OrderPayload {
   total: number;
   observaciones?: string;
   reserva_sesion_id?: string;
+  pedido_llamada_inmediato?: boolean;
 }
 
 export interface InitialOrderPayment {
@@ -427,6 +429,7 @@ export class PosService {
       total: order.total,
       observaciones: normalizeOrderComment(order.observaciones, order.cliente_nombre) || undefined,
       reserva_sesion_id: order.reserva_sesion_id,
+      pedido_llamada_inmediato: order.pedido_llamada_inmediato,
       items: order.items.map(item => ({
         // Conserva el identificador al editar: el backend compara este detalle
         // con el existente en vez de borrar y crear toda la orden nuevamente.

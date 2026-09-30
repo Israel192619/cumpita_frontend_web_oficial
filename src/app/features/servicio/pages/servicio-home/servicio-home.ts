@@ -703,6 +703,11 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.router.navigate(['/preordenes/nueva']);
   }
 
+  tomarPedidoLlamada(): void {
+    this.accionesRapidasAbiertas.set(false);
+    this.router.navigate(['/preordenes/nueva'], { queryParams: { origen: 'llamada' } });
+  }
+
   cerrarSesionAplicacion(): void {
     this.menuUsuarioAbierto.set(false);
     if (this.esMesero()) {

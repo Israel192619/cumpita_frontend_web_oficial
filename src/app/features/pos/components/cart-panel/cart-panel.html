@@ -95,13 +95,13 @@
       </div>
 
       <div class="reservation-actions-group">
-        <button *ngIf="!showReservationControls()" type="button" class="btn btn-secondary btn-tiny reservation-toggle" (click)="toggleReservationControls()">
+        <button *ngIf="allowReservationControls() && !showReservationControls()" type="button" class="btn btn-secondary btn-tiny reservation-toggle" (click)="toggleReservationControls()">
           Programar preorden
         </button>
       </div>
     </div>
 
-    <div *ngIf="showReservationControls()" class="reservation-meta-card" [class.reservation-meta-card--editing]="showDesktopReservationEditor()">
+    <div *ngIf="allowReservationControls() && showReservationControls()" class="reservation-meta-card" [class.reservation-meta-card--editing]="showDesktopReservationEditor()">
       <div class="order-meta-row">
         <div class="order-meta-column">
           <app-date-picker

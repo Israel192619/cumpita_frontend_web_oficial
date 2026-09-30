@@ -131,6 +131,8 @@ export class CartPanelComponent {
   deletedItems = input<CartItem[]>([]);
   hasChanges = input<boolean>(false);
   operationMode = input<'pos' | 'preorden'>('pos');
+  primaryActionLabelOverride = input<string | null>(null);
+  allowReservationControls = input(true);
 
   quantityChanged = output<{ itemId: number; cantidad: number }>();
   itemRemoved = output<number>();
@@ -646,6 +648,7 @@ export class CartPanelComponent {
   }
 
   getPrimaryActionLabel(): string {
+    if (this.primaryActionLabelOverride()) return this.primaryActionLabelOverride()!;
     if (this.operationMode() === 'preorden') return this.isEditing() ? 'Guardar cambios' : 'Guardar preorden';
     if (!this.isEditing()) {
       return 'Cobrar · F9';

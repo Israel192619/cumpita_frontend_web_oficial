@@ -29,6 +29,7 @@ export class PosToolbarComponent implements OnInit, OnDestroy {
   cajaMontoEsperado = input(0);
   cajaPagosEfectivo = input(0);
   mode = input<'pos' | 'preorden'>('pos');
+  titleOverride = input('');
   searchValue = input('');
   showUserMenu = input(false);
 

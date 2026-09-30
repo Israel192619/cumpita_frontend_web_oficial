@@ -51,6 +51,7 @@
       <div class="pos-header-section">
         <app-pos-toolbar
           [mode]="operationMode"
+          [titleOverride]="isPhoneOrderMode ? 'Pedido por llamada' : ''"
           [showUserMenu]="isCajero()"
           [backLabel]="isCajero() ? 'Cerrar sesión' : 'Volver'"
           [theme]="themeService.theme()"
@@ -139,6 +140,8 @@
       <app-cart-panel
         (stockAdjusted)="onStockAdjusted()"
         [operationMode]="operationMode"
+        [primaryActionLabelOverride]="isPhoneOrderMode ? 'Continuar pedido' : null"
+        [allowReservationControls]="!isPhoneOrderMode"
         [items]="carrito()"
         [subtotal]="subtotal()"
         [total]="total()"
@@ -188,6 +191,27 @@
       />
     </div>
   </div>
+
+  <app-modal [open]="phoneOrderDecisionOpen()" title="¿Cuándo se atenderá?" size="small" panelClass="phone-order-decision-modal" (closed)="phoneOrderDecisionOpen.set(false); phoneSchedulingSelected.set(false)">
+    @if (!phoneSchedulingSelected()) {
+      <div class="phone-order-decision">
+        <p>El pedido ya está armado. Elige cómo debe entrar al sistema.</p>
+        <button type="button" class="phone-order-choice phone-order-choice--now" [disabled]="isProcessingCheckout()" (click)="guardarPedidoLlamadaAhora()">
+          <span>AHORA</span><strong>Atender inmediatamente</strong><small>Entra enseguida a Cocina, Parrilla y Servicio.</small>
+        </button>
+        <button type="button" class="phone-order-choice" [disabled]="isProcessingCheckout()" (click)="seleccionarProgramacionPedidoLlamada()">
+          <span>DESPUÉS</span><strong>Programar como preorden</strong><small>Elige la fecha y hora acordadas con el cliente.</small>
+        </button>
+      </div>
+    } @else {
+      <div class="phone-order-schedule">
+        <button type="button" class="phone-order-schedule-back" (click)="phoneSchedulingSelected.set(false)">← Cambiar decisión</button>
+        <label><span>Fecha y hora de la preorden</span><input type="datetime-local" [value]="preorderDate() ? preorderDate()!.slice(0, 16) : ''" (input)="actualizarFechaPedidoLlamada($any($event.target).value)" /></label>
+        <p>La ficha quedará programada y seguirá las reglas normales de preórdenes.</p>
+        <button type="button" class="phone-order-save" [disabled]="isProcessingCheckout() || !preorderDate()" (click)="guardarPedidoLlamadaProgramado()">GUARDAR PREORDEN</button>
+      </div>
+    }
+  </app-modal>
 
   <app-modal [open]="isProductSelectorOpen()" title="Agregar producto" size="full" (closed)="closeProductSelector()">
     <div class="mobile-product-selector">

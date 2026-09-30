@@ -468,7 +468,7 @@
           <header><div><small>ACCESOS</small><strong>Acciones rápidas</strong></div><button type="button" aria-label="Cerrar acciones rápidas" (click)="accionesRapidasAbiertas.set(false)">×</button></header>
           <div class="quick-actions-list">
             <button type="button" (click)="abrirBuscadorColaboracion()"><span class="quick-action-symbol"><app-icon name="search" [size]="20" /></span><span><b>Buscar pedido</b><small>Ver responsable y colaborar</small></span><strong>›</strong></button>
-            <button type="button" (click)="crearPreorden()"><span class="quick-action-symbol"><app-icon name="calendar" [size]="20" /></span><span><b>Crear preorden</b><small>Registrar un pedido programado</small></span><strong>›</strong></button>
+            <button type="button" (click)="tomarPedidoLlamada()"><span class="quick-action-symbol"><app-icon name="calendar" [size]="20" /></span><span><b>Pedido por llamada</b><small>Decidir al final si es ahora o programado</small></span><strong>›</strong></button>
             @if (sesionSeleccionada()) {
               <button type="button" class="quick-availability-action" [class.is-occupied]="!meseroDisponible()" [disabled]="cambiandoDisponibilidad()" (click)="cambiarDisponibilidad()">
                 <span class="quick-action-symbol"><span class="availability-dot"></span></span><span><b>{{ meseroDisponible() ? 'Estoy disponible' : 'Estoy ocupado' }}</b><small>{{ meseroDisponible() ? 'Presiona para pausar asignaciones' : 'Presiona para volver a recibir fichas' }}</small></span>

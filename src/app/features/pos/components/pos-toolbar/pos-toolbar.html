@@ -1,7 +1,7 @@
 <header class="pos-toolbar">
   <div class="toolbar-brand">
     <div class="toolbar-brand-row">
-      <h1>{{ mode() === 'preorden' ? 'Nueva preorden' : 'POS' }}</h1>
+      <h1>{{ titleOverride() || (mode() === 'preorden' ? 'Nueva preorden' : 'POS') }}</h1>
       @if (showUserMenu()) {
       <details class="pos-user-menu" #userMenu (keydown.escape)="userMenu.open = false">
         <summary class="pos-user-trigger">

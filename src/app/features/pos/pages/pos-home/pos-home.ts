@@ -57,6 +57,9 @@ export class PosHome implements OnInit, OnDestroy {
   searchFocusTarget = signal<'product' | 'client'>('product');
   @ViewChild(CartPanelComponent) private cartPanel?: CartPanelComponent;
   readonly operationMode: 'pos' | 'preorden';
+  readonly isPhoneOrderMode: boolean;
+  phoneOrderDecisionOpen = signal(false);
+  phoneSchedulingSelected = signal(false);
   private routeSubscription?: Subscription;
   private orderUpdatesSubscription?: Subscription;
   private preorderUpdatesSubscription?: Subscription;
@@ -391,6 +394,7 @@ export class PosHome implements OnInit, OnDestroy {
     readonly themeService: ThemeService
   ) {
     this.operationMode = this.route.snapshot.data['mode'] === 'preorden' ? 'preorden' : 'pos';
+    this.isPhoneOrderMode = this.operationMode === 'preorden' && this.route.snapshot.queryParamMap.get('origen') === 'llamada';
     effect(() => {
       const reservation = this.reservationDemand();
       const hasDemand = reservation.items.length > 0 || reservation.opciones.length > 0;
@@ -458,7 +462,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.auth.me().subscribe({
       next: user => this.isCajero.set(['cajero', 'caja'].includes(normalizeAccessName(user.role?.nombre))),
     });
-    if (this.operationMode === 'preorden') {
+    if (this.operationMode === 'preorden' && !this.isPhoneOrderMode) {
       this.preorderDate.set(this.defaultPreorderDate());
     } else {
       this.refreshOrderLists(true, true);
@@ -1523,6 +1527,12 @@ export class PosHome implements OnInit, OnDestroy {
     if (this.stopIfModifierStockIsInsufficient()) return;
 
     if (this.operationMode === 'preorden') {
+      if (this.isPhoneOrderMode) {
+        if (!this.validarPedidoLlamada()) return;
+        this.phoneSchedulingSelected.set(false);
+        this.phoneOrderDecisionOpen.set(true);
+        return;
+      }
       this.saveProgrammedPreorder();
       return;
     }
@@ -1597,7 +1607,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedCliente.set(null);
     this.selectedMesa.set(null);
     this.orderDate.set(null);
-    this.preorderDate.set(this.operationMode === 'preorden' ? this.defaultPreorderDate() : null);
+    this.preorderDate.set(this.operationMode === 'preorden' && !this.isPhoneOrderMode ? this.defaultPreorderDate() : null);
     this.orderComment.set('');
     this.editingOrder.set(null);
     this.isEditingOrder.set(false);
@@ -2269,12 +2279,12 @@ export class PosHome implements OnInit, OnDestroy {
   }
 
   private draftStorageKey(): string {
-    return `tonito-order-draft-v2:${this.operationMode}`;
+    return `tonito-order-draft-v2:${this.isPhoneOrderMode ? 'phone' : this.operationMode}`;
   }
 
   private legacyDraftStorageKeys(): string[] {
     const prefix = 'tonito-order-draft-v1:';
-    const suffix = `:${this.operationMode}`;
+    const suffix = `:${this.isPhoneOrderMode ? 'phone' : this.operationMode}`;
     return Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
       .filter((key): key is string => !!key && key.startsWith(prefix) && key.endsWith(suffix));
   }
@@ -2435,6 +2445,82 @@ export class PosHome implements OnInit, OnDestroy {
         this.toastr.error(error?.error?.message || 'No se pudo guardar la preorden.');
       },
     });
+  }
+
+  seleccionarProgramacionPedidoLlamada(): void {
+    if (!this.preorderDate()) this.preorderDate.set(this.defaultPreorderDate());
+    this.phoneSchedulingSelected.set(true);
+  }
+
+  guardarPedidoLlamadaProgramado(): void {
+    if (!this.validarPedidoLlamada()) return;
+    if (!this.preorderDate()) {
+      this.toastr.error('Selecciona la fecha y hora de la preorden.');
+      return;
+    }
+    this.phoneOrderDecisionOpen.set(false);
+    this.saveProgrammedPreorder();
+  }
+
+  guardarPedidoLlamadaAhora(): void {
+    if (!this.validarPedidoLlamada() || this.isProcessingCheckout()) return;
+    this.preorderDate.set(null);
+    const cliente = this.selectedCliente()!;
+    const order: Order = {
+      id: 0,
+      items: this.carrito(),
+      subtotal: this.subtotal(),
+      total: this.total(),
+      metodo_pago: 'efectivo',
+      estado: 'adeudado',
+      cliente_id: cliente.id,
+      cliente_nombre: cliente.nombre,
+      cliente_telefono: cliente.telefono,
+      tipo_orden: this.orderType(),
+      mesa_id: this.selectedMesa()?.id,
+      fecha_orden: this.orderDate() ?? null,
+      fecha_programada: null,
+      tipo_flujo: 'normal',
+      pedido_llamada_inmediato: true,
+      observaciones: this.orderComment().trim() || null,
+    };
+    this.phoneOrderDecisionOpen.set(false);
+    this.isProcessingCheckout.set(true);
+    this.posService.crearOrden(order, this.orderReservationSession()).subscribe({
+      next: () => {
+        this.discardSavedDraft();
+        this.isProcessingCheckout.set(false);
+        this.carrito.set([]);
+        this.selectedCliente.set(null);
+        this.selectedMesa.set(null);
+        this.orderComment.set('');
+        this.toastr.success('Pedido enviado inmediatamente a producción y servicio.');
+        this.router.navigate(['/servicio']);
+      },
+      error: error => {
+        if (this.handleCatalogConflict(error)) return;
+        this.isProcessingCheckout.set(false);
+        this.toastr.error(error?.error?.message || 'No se pudo guardar el pedido inmediato.');
+      },
+    });
+  }
+
+  actualizarFechaPedidoLlamada(valor: string): void {
+    this.preorderDate.set(valor ? `${valor}:00` : null);
+  }
+
+  private validarPedidoLlamada(): boolean {
+    if (this.stopIfModifierStockIsInsufficient()) return false;
+    if (!this.selectedCliente()) {
+      this.toastr.error('Selecciona un cliente para continuar.');
+      this.searchFocusTarget.set('client');
+      return false;
+    }
+    if (!this.carrito().length) {
+      this.toastr.error('Agrega al menos un producto.');
+      return false;
+    }
+    return true;
   }
 
   private defaultPreorderDate(): string {
@@ -2874,7 +2960,7 @@ export class PosHome implements OnInit, OnDestroy {
     this.selectedMesa.set(null);
     this.orderType.set('dine-in');
     this.orderDate.set(null);
-    this.preorderDate.set(this.operationMode === 'preorden' ? this.defaultPreorderDate() : null);
+    this.preorderDate.set(this.operationMode === 'preorden' && !this.isPhoneOrderMode ? this.defaultPreorderDate() : null);
     this.orderComment.set('');
     this.deletedItems.set([]);
     this.cancelacionInfo.set(null);
