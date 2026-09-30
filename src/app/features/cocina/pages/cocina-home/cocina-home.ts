@@ -98,7 +98,8 @@ export function construirColaAsistenteKds(ordenes: KdsOrden[], ahora = Date.now(
       const esperaMinutos = Math.max(0, Math.floor((ahora - fecha) / 60000));
       const esPreorden = orden.tipo_flujo === 'preorden' && orden.estado_preorden === 'activada';
       const tieneTrabajoListo = detalles.some(detalle => detalle.listo_para_atender);
-      const yaAvanzada = orden.detalles.some(detalle => detalle.estado_cocina === 'servido');
+      const yaAvanzada = orden.detalles.some(detalle => detalle.estado_cocina === 'servido'
+        && !esProductoSalidaInmediata(detalle.producto.categoria?.nombre, detalle.producto.nombre));
       const puntaje = esperaMinutos * 2
         + (esPreorden ? 110 : 0)
         + (tieneTrabajoListo ? 80 : 0)

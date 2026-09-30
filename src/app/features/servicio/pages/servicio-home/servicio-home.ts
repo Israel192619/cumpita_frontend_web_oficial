@@ -66,7 +66,8 @@ export function construirColaAsistenteServicio(
   const extras = (ficha: ServicioFicha) => {
     const espera = Math.max(0, Number(ficha.tiempo_espera_minutos || 0));
     const preorden = ficha.tipo_flujo === 'preorden' && ficha.estado_preorden === 'activada' ? 110 : 0;
-    const avanzada = ficha.detalles.some(detalle => !!detalle.servido) ? 30 : 0;
+    const avanzada = ficha.detalles.some(detalle => !!detalle.servido
+      && !esProductoSalidaInmediata(detalle.categoria, detalle.producto)) ? 30 : 0;
     return { espera, puntos: espera * 2 + preorden + avanzada };
   };
   const propias = vigentes(misFichas).flatMap<TareaAsistenteServicio>(ficha => {
@@ -799,7 +800,8 @@ export class ServicioHome implements OnInit, OnDestroy {
 
   estadoColaboracion(ficha: ServicioFicha): string {
     if (ficha.estado === 'entregado') return 'Entregado';
-    const servidos = ficha.detalles.filter(detalle => detalle.servido).length;
+    const servidos = ficha.detalles.filter(detalle => detalle.servido
+      && !esProductoSalidaInmediata(detalle.categoria, detalle.producto)).length;
     if (servidos > 0) return 'Parcial';
     if (ficha.todo_listo) return 'Listo';
     return 'En preparación';

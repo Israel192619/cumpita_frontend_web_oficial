@@ -42,6 +42,22 @@ describe('Asistente de Servicio', () => {
     expect(cola.find(tarea => tarea.ficha.id === propia.id)?.puntaje).toBe(16);
   });
 
+  it('no aumenta la prioridad parcial al servir una sopa o bebida', () => {
+    const conSopaServida = ficha({ id: 1, detalles: [
+      { id: 11, cantidad: 1, producto: 'Pescado', categoria: 'Pescados', opciones: [], listo: false, servido: false },
+      { id: 12, cantidad: 1, producto: 'Sopa de maní', categoria: 'Sopas', opciones: [], listo: true, servido: true },
+    ] });
+    const sinSalidaServida = ficha({ id: 2, detalles: [
+      { id: 21, cantidad: 1, producto: 'Pescado', categoria: 'Pescados', opciones: [], listo: false, servido: false },
+    ] });
+    const cola = construirColaAsistenteServicio([conSopaServida, sinSalidaServida], []);
+    const component = Object.create(ServicioHome.prototype) as ServicioHome;
+
+    expect(cola.find(tarea => tarea.ficha.id === conSopaServida.id)?.puntaje).toBe(16);
+    expect(cola.find(tarea => tarea.ficha.id === sinSalidaServida.id)?.puntaje).toBe(16);
+    expect(component.estadoColaboracion(conSopaServida)).toBe('En preparación');
+  });
+
   it('espera el pedido principal completo y conserva aparte la señal de sopa o bebida', () => {
     const propia = ficha({ detalles: [
       { id: 11, cantidad: 2, producto: 'Mocochinchi', categoria: 'Bebidas', opciones: [], listo: false, servido: false },

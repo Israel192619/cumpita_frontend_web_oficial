@@ -44,6 +44,22 @@ describe('Asistente de Cocina y Parrilla', () => {
     expect(construirColaAsistenteKds([gaseosa], new Date('2026-09-25T11:01:00').getTime())).toEqual([]);
   });
 
+  it('no aumenta la prioridad parcial al terminar una sopa o bebida', () => {
+    const pedido = orden(1, '2026-09-25T11:20:00');
+    pedido.detalles.push({
+      id: 12,
+      cantidad: 1,
+      estado_cocina: 'servido',
+      bloqueado: false,
+      producto: { id: 2, nombre: 'Sopa de maní', categoria: { id: 4, nombre: 'Sopas' } },
+    });
+
+    const tarea = construirColaAsistenteKds([pedido], new Date('2026-09-25T11:30:00').getTime())[0];
+
+    expect(tarea.tipo).toBe('espera');
+    expect(tarea.puntaje).toBe(20);
+  });
+
   it('coloca arriba el delivery programado cuando se activa tres minutos antes', () => {
     const normal = orden(1, '2026-09-25T11:00:00');
     const delivery = orden(2, '2026-09-25T11:20:00', 'pendiente', {
