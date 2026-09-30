@@ -1,5 +1,5 @@
 @if (open) {
-  <div class="modal-overlay" (mousedown)="onOverlay($event)" role="presentation">
+  <div class="modal-overlay" [style.top.px]="viewportTop()" [style.height.px]="viewportHeight()" (mousedown)="onOverlay($event)" role="presentation">
     <section class="modal-panel" [class]="'modal-panel size-' + size + (panelClass ? ' ' + panelClass : '')" role="dialog" aria-modal="true" [attr.aria-labelledby]="title ? titleId : null">
       <header class="modal-header">
         <div class="modal-heading"><ng-content select="[modal-prefix]"></ng-content>@if (title) { <h2 [id]="titleId">{{ title }}</h2> }</div>
