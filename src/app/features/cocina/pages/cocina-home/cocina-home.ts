@@ -1264,8 +1264,13 @@ export class CocinaHome implements OnInit, OnDestroy {
   private detallesMarcablesConTeclado(orden: KdsOrden): KdsDetalle[] {
     if (orden.estado === 'cancelado' || this.esPreordenProgramada(orden)) return [];
     const incluirBloqueados = this.estacionActual()?.codigo === 'COCINA';
-    return orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido'
+    const pendientes = orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido'
       && (incluirBloqueados || !detalle.bloqueado));
+    const salidasInmediatas = pendientes.filter(detalle => esProductoSalidaInmediata(
+      detalle.producto?.categoria?.nombre,
+      detalle.producto?.nombre,
+    ));
+    return salidasInmediatas.length ? salidasInmediatas : pendientes;
   }
 
   private marcarServidosMasivo(orden: KdsOrden, detalles: KdsDetalle[], servido: boolean, clave: string, permitirModoTeclado = false): void {

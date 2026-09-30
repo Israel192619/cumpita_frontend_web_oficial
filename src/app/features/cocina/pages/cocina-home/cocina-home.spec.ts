@@ -164,6 +164,32 @@ describe('Sincronización del monitor de Cocina', () => {
     expect(component.cocinaService.actualizarEstadoDetalle).toHaveBeenCalledWith(12, 1, 'servido');
   });
 
+  it('Espacio completa primero solo la sopa y deja pendiente el resto de Cocina', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    const pescadoBloqueado = {
+      id: 11,
+      estado_cocina: 'pendiente',
+      bloqueado: true,
+      producto: { nombre: 'Pescado desespinado', categoria: { nombre: 'Pescados' } },
+    };
+    const sopa = {
+      id: 12,
+      estado_cocina: 'pendiente',
+      bloqueado: false,
+      producto: { nombre: 'Sopa de maní', categoria: { nombre: 'Sopas' } },
+    };
+    const orden = { id: 1, estado: 'preparando', detalles: [pescadoBloqueado, sopa] };
+    component.estacionActual = () => ({ id: 1, codigo: 'COCINA' });
+    component.esPreordenProgramada = () => false;
+    component.estaDetalleActualizando = () => false;
+    component.marcarServido = vi.fn();
+
+    component.completarFichaConTeclado(orden);
+
+    expect(component.marcarServido).toHaveBeenCalledOnce();
+    expect(component.marcarServido).toHaveBeenCalledWith(sopa, true, true);
+  });
+
   it('ignora Espacio al escribir y exige mantenerlo durante 600 ms', () => {
     vi.useFakeTimers();
     try {
