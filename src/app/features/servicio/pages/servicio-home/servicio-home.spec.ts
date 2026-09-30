@@ -130,6 +130,17 @@ describe('Asistente de Servicio', () => {
     expect(seleccionarOfertaAsistenteMesero([ficha({ id: 1 }), ficha({ id: 2 })], [], [paraLlevar], 7, {}, 1000)).toBeNull();
   });
 
+  it('solo ofrece ayudar cuando existe algo que el mesero puede llevar o entregar', () => {
+    const component = Object.create(ServicioHome.prototype) as any;
+    component.sesionSeleccionada = signal({ user: { id: 7 } });
+    const preparando = ficha();
+    const listo = ficha({ detalles: [{ ...preparando.detalles[0], listo: true }] });
+    const reservado = ficha({ detalles: [{ ...preparando.detalles[0], llevando_por_id: 7 }] });
+    expect(component.tieneAccionColaboracion(preparando)).toBe(false);
+    expect(component.tieneAccionColaboracion(listo)).toBe(true);
+    expect(component.tieneAccionColaboracion(reservado)).toBe(true);
+  });
+
   it('hace una pausa antes de mostrar otra recomendación al mismo mesero', () => {
     const disponible = ficha({ id: 3 });
     expect(seleccionarOfertaAsistenteMesero([], [disponible], [disponible], 7, { '7:pausa': 2000 }, 1000)).toBeNull();

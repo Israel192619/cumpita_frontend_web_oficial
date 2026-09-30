@@ -772,8 +772,20 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   confirmarAyudaFicha(ficha: ServicioFicha): void {
-    if (ficha.estado === 'entregado' || this.esFichaPropia(ficha)) {
+    if (this.esFichaPropia(ficha)) {
+      this.cerrarBuscadorColaboracion();
+      this.viendoTodas.set(false);
+      this.viendoEntregadas.set(false);
+      this.fichaDesdeNotificacion = ficha.id;
+      window.setTimeout(() => this.enfocarFichaDesdeNotificacion(), 0);
+      return;
+    }
+    if (ficha.estado === 'entregado') {
       this.fichaColaboracionActivaId.set(ficha.id);
+      return;
+    }
+    if (!this.tieneAccionColaboracion(ficha)) {
+      this.toastr.info('Todavía no hay productos listos para llevar en esta ficha.');
       return;
     }
     const responsable = this.responsableFicha(ficha).toLocaleLowerCase();
@@ -807,6 +819,12 @@ export class ServicioHome implements OnInit, OnDestroy {
   puedeColaborarDetalle(ficha: ServicioFicha, detalle: ServicioDetalle): boolean {
     if (ficha.estado === 'entregado' || detalle.servido || detalle.llevando_por_id) return false;
     return detalle.listo || esProductoSalidaInmediata(detalle.categoria, detalle.producto);
+  }
+
+  tieneAccionColaboracion(ficha: ServicioFicha): boolean {
+    const usuarioId = this.sesionSeleccionada()?.user.id;
+    return ficha.detalles.some(detalle => this.puedeColaborarDetalle(ficha, detalle)
+      || (!detalle.servido && usuarioId != null && Number(detalle.llevando_por_id) === Number(usuarioId)));
   }
 
   abrirOrdenDesdeFicha(ficha: ServicioFicha): void {
