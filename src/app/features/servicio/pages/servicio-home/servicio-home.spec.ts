@@ -188,6 +188,19 @@ describe('Stock compartido de adicionales', () => {
     expect(component.misFichas()[0].listos).toBe(0);
     expect(component.misFichas()[0].detalles[0].servido).toBe(false);
   });
+  it('aplica la ficha completa recibida en tiempo real y muestra quien ayudó', () => {
+    const component = Object.create(ServicioHome.prototype) as any;
+    const anterior = { id: 1, detalles: [{ id: 42, servido: false }], listos: 0 };
+    const actualizada = { id: 1, detalles: [{ id: 42, servido: true, entregado_por: 'Belén' }], listos: 1 };
+    component.misFichas = signal([anterior]);
+    component.todasFichas = signal([anterior]);
+    component.disponibles = signal([]);
+    component.sesionSeleccionada = signal(null);
+    component.aplicarFichaTiempoReal(actualizada);
+    expect(component.misFichas()[0].detalles[0].servido).toBe(true);
+    expect(component.misFichas()[0].detalles[0].entregado_por).toBe('Belén');
+    expect(component.todasFichas()[0].listos).toBe(1);
+  });
   it('calcula platos por las presas disponibles, incluyendo pollo doble', () => {
     const component = Object.create(ServicioHome.prototype) as ServicioHome;
     const producto = {

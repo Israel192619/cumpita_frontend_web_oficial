@@ -1952,6 +1952,11 @@ export class ServicioHome implements OnInit, OnDestroy {
         if (evento.actividad && sesion && sesion.user.id === evento.mesero_id && evento.actividad.user_id !== sesion.user.id) {
           this.toastr.info(evento.actividad.mensaje);
         }
+        if (evento.accion === 'colaboracion' && evento.ficha) {
+          this.aplicarFichaTiempoReal(evento.ficha);
+          this.consumirActualizacionLocal(ordenId);
+          return;
+        }
         if (this.consumirActualizacionLocal(ordenId)) return;
         if (this.viendoTodas() || evento.accion === 'colaboracion' || evento.accion === 'adicional') { this.cargar(false); return; }
 
@@ -2048,6 +2053,16 @@ export class ServicioHome implements OnInit, OnDestroy {
     this.misFichas.update(actualizarFichas);
     this.todasFichas.update(actualizarFichas);
     this.disponibles.update(actualizarFichas);
+  }
+
+  private aplicarFichaTiempoReal(actualizada: ServicioFicha): void {
+    const reemplazar = (fichas: ServicioFicha[]): ServicioFicha[] => fichas.map(ficha =>
+      ficha.id === actualizada.id ? actualizada : ficha);
+    this.misFichas.update(reemplazar);
+    this.todasFichas.update(reemplazar);
+    this.disponibles.update(reemplazar);
+    const sesion = this.sesionSeleccionada();
+    if (sesion) this.guardarTableroSesion(sesion);
   }
 
   private actualizarCubiertosLocal(ordenId: number, entregados: boolean): void {
