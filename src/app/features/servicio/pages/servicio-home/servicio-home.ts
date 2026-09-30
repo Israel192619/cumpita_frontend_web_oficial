@@ -772,7 +772,9 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   confirmarAyudaFicha(ficha: ServicioFicha): void {
-    if (this.esFichaPropia(ficha)) {
+    // La lista propia es la fuente de verdad local. Al liberar una ficha puede
+    // quedar unos instantes una copia antigua con el mesero anterior en "Todas".
+    if (this.misFichas().some(item => item.id === ficha.id)) {
       this.cerrarBuscadorColaboracion();
       this.viendoTodas.set(false);
       this.viendoEntregadas.set(false);
@@ -1645,21 +1647,25 @@ export class ServicioHome implements OnInit, OnDestroy {
     const sesion = this.requerirSesion();
     if (!ficha || !sesion || this.procesando() === `liberar-${ficha.id}`) return;
     const indiceOriginal = this.misFichas().findIndex(item => item.id === ficha.id);
+    const fichaLiberada: ServicioFicha = { ...ficha, mesero: null, mesero_id: null };
     this.registrarActualizacionLocal(ficha.id);
     this.misFichas.update(fichas => fichas.filter(item => item.id !== ficha.id));
+    this.todasFichas.update(fichas => fichas.map(item => item.id === ficha.id ? fichaLiberada : item));
     this.disponibles.update(fichas => fichas.some(item => item.id === ficha.id)
-      ? this.ordenarPorLlegada(fichas)
-      : this.ordenarPorLlegada([...fichas, { ...ficha, mesero: null }]));
+      ? this.ordenarPorLlegada(fichas.map(item => item.id === ficha.id ? fichaLiberada : item))
+      : this.ordenarPorLlegada([...fichas, fichaLiberada]));
     this.fichaALiberar.set(null);
     this.procesando.set(`liberar-${ficha.id}`);
     this.servicio.liberar(ficha.id, sesion.token).subscribe({
       next: () => {
         this.procesando.set(null);
         this.toastr.success(`Ficha #${ficha.numero_orden} liberada.`);
+        this.cargar(false);
       },
       error: error => {
         this.descartarActualizacionLocal(ficha.id);
         this.disponibles.update(fichas => fichas.filter(item => item.id !== ficha.id));
+        this.todasFichas.update(fichas => fichas.map(item => item.id === ficha.id ? ficha : item));
         this.misFichas.update(fichas => {
           if (fichas.some(item => item.id === ficha.id)) return fichas;
           const restauradas = [...fichas];

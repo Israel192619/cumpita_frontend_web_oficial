@@ -1,5 +1,5 @@
 import { signal } from '@angular/core';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { Producto } from '../../../../core/models/producto';
 import { construirColaAsistenteServicio, seleccionarOfertaAsistenteMesero, ServicioHome } from './servicio-home';
 
@@ -155,6 +155,33 @@ describe('Asistente de Servicio', () => {
 });
 
 describe('Stock compartido de adicionales', () => {
+  it('elimina de inmediato el responsable de una ficha liberada en todas las vistas', () => {
+    const component = Object.create(ServicioHome.prototype) as any;
+    const asignada = {
+      id: 1, numero_orden: 10, estado: 'preparando', tipo_orden: 'dine-in',
+      mesero_id: 7, mesero: 'Marco', detalles: [], listos: 0, total_items: 0,
+      todo_listo: false, cubiertos_entregados: false,
+    };
+    component.fichaALiberar = signal(asignada);
+    component.procesando = signal(null);
+    component.misFichas = signal([asignada]);
+    component.todasFichas = signal([asignada]);
+    component.disponibles = signal([]);
+    component.requerirSesion = () => ({ token: 'mesero' });
+    component.registrarActualizacionLocal = () => undefined;
+    component.ordenarPorLlegada = (items: any[]) => items;
+    component.servicio = { liberar: () => of({}) };
+    component.toastr = { success: () => undefined, error: () => undefined };
+    component.cargar = () => undefined;
+
+    component.confirmarLiberacion();
+
+    expect(component.misFichas()).toHaveLength(0);
+    expect(component.todasFichas()[0].mesero_id).toBeNull();
+    expect(component.todasFichas()[0].mesero).toBeNull();
+    expect(component.disponibles()[0].mesero_id).toBeNull();
+  });
+
   it('pide confirmación para desmarcar lo mostrado aunque exista una copia anterior', () => {
     const component = Object.create(ServicioHome.prototype) as any;
     const respuesta = new Subject<boolean>();

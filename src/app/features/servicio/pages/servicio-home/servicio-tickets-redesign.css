@@ -135,6 +135,13 @@
 .collaboration-workspace-head > div { display: grid; gap: .1rem; min-width: 0; }
 .collaboration-workspace-head small { color: var(--color-text-secondary); font-size: .56rem; font-weight: 850; letter-spacing: .08em; }
 .collaboration-workspace-head strong { overflow: hidden; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.collaboration-cutlery-toggle { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: .65rem; width: 100%; min-height: 58px; margin-top: .7rem; padding: .55rem .75rem; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); color: var(--color-text); text-align: left; cursor: pointer; }
+.collaboration-cutlery-toggle > span:first-child { font-size: 1.25rem; }
+.collaboration-cutlery-toggle > span:nth-child(2) { display: grid; gap: .08rem; }
+.collaboration-cutlery-toggle small { color: var(--color-text-secondary); font-size: .66rem; font-weight: 650; }
+.collaboration-cutlery-toggle > strong { display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid var(--color-border); border-radius: 8px; }
+.collaboration-cutlery-toggle.checked { border-color: var(--color-success); background: color-mix(in srgb, var(--color-success) 9%, var(--color-surface)); }
+.collaboration-cutlery-toggle.checked > strong { border-color: var(--color-success); background: var(--color-success); color: #fff; }
 .collaboration-workspace-list { display: grid; gap: .55rem; max-height: min(55vh,540px); margin-top: .8rem; overflow-y: auto; }
 .collaboration-workspace-list article { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: .65rem; min-height: 68px; padding: .65rem .75rem; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
 .collaboration-workspace-list article.is-delivered { opacity: .68; }
@@ -142,6 +149,8 @@
 .collaboration-workspace-list article > div small { color: var(--color-text-secondary); }
 .collaboration-workspace-list article > button { min-height: 42px; padding: 0 .8rem; border: 0; border-radius: 9px; background: #ff4b0b; color: #fff; font-weight: 900; cursor: pointer; }
 .collaboration-workspace-list article > button.deliver-action { background: var(--color-success); }
+.collaboration-workspace-list article > button.collaboration-uncheck-action { display: grid; gap: .05rem; min-width: 118px; background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface)); color: var(--color-success); }
+.collaboration-uncheck-action small { font-size: .56rem; font-weight: 700; }
 .collaboration-item-state { max-width: 120px; color: var(--color-text-secondary); font-size: .62rem; font-weight: 900; text-align: right; }
 .collaboration-item-state.delivered { color: var(--color-success); }
 .collaboration-item-state.carrying { color: #1762ac; }

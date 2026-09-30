@@ -390,12 +390,23 @@
         <div><small>UBICACIÓN</small><strong>{{ fichaAyuda.mesa ? 'Mesa ' + fichaAyuda.mesa : etiquetaTipo(fichaAyuda) }}</strong></div>
         <div><small>RESPONSABLE</small><strong>{{ responsableFicha(fichaAyuda) }}</strong></div>
       </div>
+      @if (fichaAyuda.estado !== 'entregado') {
+        <button type="button" class="collaboration-cutlery-toggle" [class.checked]="fichaAyuda.cubiertos_entregados" [disabled]="procesando() === 'cubiertos-' + fichaAyuda.id" (click)="alternarCubiertos(fichaAyuda)">
+          <span aria-hidden="true">🍴</span>
+          <span><b>{{ fichaAyuda.cubiertos_entregados ? 'Cubiertos entregados' : 'Marcar cubiertos' }}</b><small>{{ fichaAyuda.cubiertos_entregados ? 'Presiona para desmarcar si fue un error' : 'Cualquier mesero puede confirmarlos' }}</small></span>
+          <strong>{{ fichaAyuda.cubiertos_entregados ? '✓' : '' }}</strong>
+        </button>
+      }
       <div class="collaboration-workspace-list">
         @for (detalle of fichaAyuda.detalles; track detalle.id) {
           <article [class.is-delivered]="detalle.servido">
             <div><strong>{{ detalle.cantidad }}× {{ detalle.producto }}</strong>@if (detalle.precio_unitario != null) { <small>{{ formatearPrecio(detalle.precio_unitario) }}</small> }</div>
             @if (detalle.servido) {
-              <span class="collaboration-item-state delivered">ENTREGADO</span>
+              @if (fichaAyuda.estado !== 'entregado') {
+                <button type="button" class="collaboration-uncheck-action" [disabled]="!!procesando() || confirmacionesPendientes().has(detalle.id)" (click)="confirmar(detalle.id, true)"><b>✓ ENTREGADO</b><small>Presiona para corregir</small></button>
+              } @else {
+                <span class="collaboration-item-state delivered">ENTREGADO</span>
+              }
             } @else if (detalle.llevando_por_id && detalle.llevando_por_id !== sesionSeleccionada()?.user?.id) {
               <span class="collaboration-item-state carrying">LO LLEVA {{ detalle.llevando_por }}</span>
             } @else if (accionSalidaInmediata(detalle); as accion) {
