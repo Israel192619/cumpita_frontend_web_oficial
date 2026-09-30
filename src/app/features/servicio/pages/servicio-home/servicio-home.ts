@@ -1695,6 +1695,62 @@ export class ServicioHome implements OnInit, OnDestroy {
     return ficha.tipo_orden === 'dine-in' ? 'En mesa' : ficha.tipo_orden === 'delivery' ? 'Delivery' : 'Para llevar';
   }
 
+  confirmarEntregaCompleta(ficha: ServicioFicha): void {
+    const sesion = this.requerirSesion();
+    if (!sesion || this.entregasPendientes.has(ficha.id) || this.procesando() === `entregar-completa-${ficha.id}`) return;
+    if (!ficha.todo_listo) {
+      this.toastr.warning('Cocina o Parrilla aún tienen productos pendientes.');
+      return;
+    }
+    if (this.tieneProductosEnCamino(ficha)) {
+      this.toastr.warning('Hay productos que otro mesero está llevando.');
+      return;
+    }
+    this.confirmDialog.confirm({
+      title: `¿Entregar toda la ficha #${ficha.numero_orden}?`,
+      message: 'Se marcarán todos los productos y los cubiertos como entregados, y la ficha quedará cerrada.',
+      confirmText: 'Sí, entregar todo',
+      cancelText: 'Cancelar',
+      confirmColor: 'success',
+    }).subscribe(confirmado => {
+      if (confirmado) this.entregarCompleta(ficha, sesion.token);
+    });
+  }
+
+  private entregarCompleta(ficha: ServicioFicha, token?: string): void {
+    if (this.entregasPendientes.has(ficha.id)) return;
+    const entregada: ServicioFicha = {
+      ...ficha,
+      estado: 'entregado',
+      cubiertos_entregados: true,
+      listos: ficha.total_items,
+      todo_listo: true,
+      entregada_en: new Date().toISOString(),
+      detalles: ficha.detalles.map(detalle => ({ ...detalle, listo: true, servido: true })),
+    };
+    this.entregasPendientes.add(ficha.id);
+    this.registrarActualizacionLocal(ficha.id);
+    this.procesando.set(`entregar-completa-${ficha.id}`);
+    this.servicio.entregarCompleta(ficha.id, token).subscribe({
+      next: () => this.animarSalidaFicha(ficha.id, () => {
+        this.entregasPendientes.delete(ficha.id);
+        this.misFichas.update(fichas => fichas.filter(item => item.id !== ficha.id));
+        this.todasFichas.update(fichas => fichas.filter(item => item.id !== ficha.id));
+        this.misEntregadas.update(fichas => fichas.some(item => item.id === ficha.id) ? fichas : [entregada, ...fichas]);
+        this.procesando.set(null);
+        this.toastr.success(`Ficha #${ficha.numero_orden}: productos, cubiertos y entrega confirmados.`);
+        this.cargar(false);
+      }),
+      error: error => {
+        this.entregasPendientes.delete(ficha.id);
+        this.descartarActualizacionLocal(ficha.id);
+        this.procesando.set(null);
+        this.toastr.error(error?.error?.message || 'No se pudo completar la entrega de la ficha.');
+        this.cargar(false);
+      },
+    });
+  }
+
   avisoDeliveryProgramado(ficha: ServicioFicha): string {
     if (!ficha.fecha_programada) return 'DELIVERY';
     const programada = new Date(ficha.fecha_programada);
@@ -1952,7 +2008,7 @@ export class ServicioHome implements OnInit, OnDestroy {
         if (evento.actividad && sesion && sesion.user.id === evento.mesero_id && evento.actividad.user_id !== sesion.user.id) {
           this.toastr.info(evento.actividad.mensaje);
         }
-        if (evento.accion === 'colaboracion' && evento.ficha) {
+        if ((evento.accion === 'colaboracion' || evento.accion === 'cubiertos') && evento.ficha) {
           this.aplicarFichaTiempoReal(evento.ficha);
           this.consumirActualizacionLocal(ordenId);
           return;

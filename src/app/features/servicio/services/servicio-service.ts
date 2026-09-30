@@ -43,6 +43,7 @@ export class ServicioService {
   actualizarUbicacionCliente(clienteId: number, data: FormData, token?: string) { return this.http.post<{ message: string; ubicacion_entrega: ServicioUbicacionEntrega }>(`${this.api}/clientes/${clienteId}/ubicacion`, data, this.opciones(token)); }
   colaborar(detalleId: number, accion: 'llevar' | 'cancelar' | 'entregar', token?: string) { return this.http.post(`${this.api}/detalles/${detalleId}/colaborar`, { accion }, this.opciones(token)); }
   entregar(id: number, token?: string) { return this.http.post(`${this.api}/fichas/${id}/entregar`, {}, this.opciones(token)); }
+  entregarCompleta(id: number, token?: string) { return this.http.post(`${this.api}/fichas/${id}/entregar-completa`, {}, this.opciones(token)); }
   activarPreorden(id: number, token?: string) { return this.http.post(`${this.api}/preordenes/${id}/activar`, {}, this.opciones(token)); }
   listarSolicitudes(token?: string) { return this.http.get<{ solicitudes: SolicitudPreorden[]; vencidas: SolicitudPreorden[] }>(`${environment.apiUrl}/solicitudes-preorden`, this.opciones(token)); }
   aceptarSolicitud(id: number, token?: string) { return this.http.post(`${environment.apiUrl}/solicitudes-preorden/${id}/aceptar`, {}, this.opciones(token)); }
