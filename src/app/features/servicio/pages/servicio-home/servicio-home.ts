@@ -447,6 +447,7 @@ export class ServicioHome implements OnInit, OnDestroy {
   });
   permisoNotificaciones = signal<NotificationPermission>(typeof Notification === 'undefined' ? 'denied' : Notification.permission);
   private pushSubscriptionListener?: Subscription;
+  private fichaDesdeNotificacion: number | null = null;
   private suscripcionPushActual: PushSubscription | null = null;
   private endpointPushRegistrado: string | null = null;
   private avisosSonorosHabilitados = false;
@@ -517,6 +518,8 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    const fichaNotificada = Number(this.route.snapshot.queryParamMap.get('ficha'));
+    this.fichaDesdeNotificacion = Number.isFinite(fichaNotificada) && fichaNotificada > 0 ? fichaNotificada : null;
     this.ofertaTimer = setInterval(() => {
       const ahora = Date.now();
       this.relojOfertas.set(ahora);
@@ -1125,6 +1128,7 @@ export class ServicioHome implements OnInit, OnDestroy {
         const sesionActual = this.sesionSeleccionada();
         if (sesionActual) this.guardarTableroSesion(sesionActual);
         this.loading.set(false);
+        this.enfocarFichaDesdeNotificacion();
       },
       error: error => {
         this.loading.set(false);
@@ -1261,6 +1265,21 @@ export class ServicioHome implements OnInit, OnDestroy {
         this.cargar(false);
       }
     });
+  }
+
+  private enfocarFichaDesdeNotificacion(): void {
+    const fichaId = this.fichaDesdeNotificacion;
+    if (!fichaId || !this.misFichas().some(ficha => ficha.id === fichaId)) return;
+    this.fichaDesdeNotificacion = null;
+    window.setTimeout(() => {
+      document.getElementById(`servicio-ficha-${fichaId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { ficha: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }, 80);
   }
 
   aceptarOfertaAsistente(oferta: OfertaAsistenteMesero): void {

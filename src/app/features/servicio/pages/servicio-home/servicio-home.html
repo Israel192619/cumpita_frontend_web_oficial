@@ -106,7 +106,7 @@
   @if (loading()) { <div class="loading">Actualizando fichas…</div> }
 
   <ng-template #fichaServicio let-ficha>
-          <article class="work-ticket"
+          <article class="work-ticket" [attr.id]="'servicio-ficha-' + ficha.id"
             [class.ticket-black-hole-exit]="fichasSaliendo().has(ficha.id)"
             [class.work-ticket--mesa]="ficha.tipo_orden === 'dine-in'"
             [class.work-ticket--llevar]="ficha.tipo_orden === 'to-go'"

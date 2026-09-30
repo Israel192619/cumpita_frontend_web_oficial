@@ -6,13 +6,18 @@ self.addEventListener('push', event => {
   if (!notification) return;
 
   event.waitUntil((async () => {
+    if (notification.close && notification.tag) {
+      const current = await self.registration.getNotifications({ tag: notification.tag });
+      current.forEach(item => item.close());
+      return;
+    }
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const targetVisible = windows.some(client => {
       if (client.visibilityState !== 'visible') return false;
       try { return new URL(client.url).pathname.startsWith(notification.matchPath); }
       catch { return false; }
     });
-    if (targetVisible) return;
+    if (targetVisible && !notification.showWhenVisible) return;
 
     await self.registration.showNotification(notification.title, {
       body: notification.body,
