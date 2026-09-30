@@ -606,7 +606,11 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   async activarNotificacionesServicio(): Promise<void> {
-    if (this.notificacionesServicioProcesando() || this.notificacionesServicioActivas()) return;
+    if (this.notificacionesServicioProcesando()) return;
+    if (this.notificacionesServicioActivas()) {
+      await this.desactivarNotificacionesServicio();
+      return;
+    }
     if (!this.swPush.isEnabled || typeof Notification === 'undefined') {
       this.toastr.warning('Instala Toñito como aplicación desde Chrome para activar los avisos.', 'Notificaciones no disponibles');
       return;
@@ -636,10 +640,34 @@ export class ServicioHome implements OnInit, OnDestroy {
   }
 
   textoNotificacionesServicio(): string {
-    if (this.notificacionesServicioProcesando()) return 'Activando…';
+    if (this.notificacionesServicioProcesando()) return this.notificacionesServicioActivas() ? 'Desactivando…' : 'Activando…';
     if (this.notificacionesServicioActivas()) return 'Avisos activos';
     if (this.permisoNotificaciones() === 'denied') return 'Avisos bloqueados';
     return 'Activar avisos';
+  }
+
+  private async desactivarNotificacionesServicio(): Promise<void> {
+    const subscription = this.suscripcionPushActual;
+    if (!subscription) {
+      this.endpointPushRegistrado = null;
+      this.notificacionesServicioActivas.set(false);
+      this.toastr.info('Este teléfono ya no recibirá avisos.', 'Avisos desactivados');
+      return;
+    }
+
+    this.notificacionesServicioProcesando.set(true);
+    try {
+      await firstValueFrom(this.servicio.eliminarNotificaciones(subscription.endpoint));
+      await this.swPush.unsubscribe();
+      this.suscripcionPushActual = null;
+      this.endpointPushRegistrado = null;
+      this.notificacionesServicioActivas.set(false);
+      this.toastr.info('Este teléfono ya no recibirá avisos de fichas nuevas.', 'Avisos desactivados');
+    } catch {
+      this.toastr.error('No se pudieron desactivar los avisos. Inténtalo nuevamente.');
+    } finally {
+      this.notificacionesServicioProcesando.set(false);
+    }
   }
 
   private async registrarSuscripcionServicio(subscription: PushSubscription): Promise<void> {

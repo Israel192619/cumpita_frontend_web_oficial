@@ -68,6 +68,9 @@ export class ServicioService {
   registrarNotificaciones(subscription: PushSubscriptionJSON) {
     return this.http.post<{ active: boolean; id: number }>(`${environment.apiUrl}/web-push/subscriptions`, { ...subscription, channel: 'SERVICIO' });
   }
+  eliminarNotificaciones(endpoint: string) {
+    return this.http.delete<{ active: boolean }>(`${environment.apiUrl}/web-push/subscriptions`, { body: { endpoint } });
+  }
 
   sesionesGuardadas(): ServicioSesion[] {
     const ahora = Date.now();

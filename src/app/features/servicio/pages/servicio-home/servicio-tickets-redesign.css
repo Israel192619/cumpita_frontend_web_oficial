@@ -162,6 +162,7 @@
 .waiter-header-icon.service-notification-toggle svg { width: 21px; height: 21px; }
 .waiter-header-icon.service-notification-toggle i { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border: 2px solid #4b2113; border-radius: 50%; background: var(--brand-orange); }
 .waiter-header-icon.service-notification-toggle.is-active i { background: #86efac; }
+.waiter-header-icon.service-notification-toggle.is-active { cursor: pointer; }
 .waiter-header-icon.service-notification-toggle.is-blocked i { background: #fecaca; }
 .waiter-header-icon:disabled { cursor: default; opacity: 1; }
 .waiter-today { width: auto; padding: 0 13px; font: inherit; font-size: .76rem; font-weight: 900; }
