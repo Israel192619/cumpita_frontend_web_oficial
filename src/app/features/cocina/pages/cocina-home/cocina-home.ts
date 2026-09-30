@@ -168,7 +168,7 @@ export class CocinaHome implements OnInit, OnDestroy {
   completarConBarraEspaciadora(event: Event): void {
     const teclado = event as KeyboardEvent;
     if (teclado.code !== 'Space' && teclado.key !== ' ') return;
-    if (teclado.repeat || teclado.altKey || teclado.ctrlKey || teclado.metaKey || teclado.shiftKey) return;
+    if (teclado.repeat || this.espacioPresionado || teclado.altKey || teclado.ctrlKey || teclado.metaKey || teclado.shiftKey) return;
     const elemento = teclado.target as HTMLElement | null;
     const etiqueta = elemento?.tagName?.toLowerCase();
     if (elemento?.isContentEditable || ['input', 'textarea', 'select'].includes(etiqueta ?? '')) return;
@@ -176,7 +176,17 @@ export class CocinaHome implements OnInit, OnDestroy {
     const objetivo = this.objetivoTeclado();
     if (!objetivo || this.isLoading() || this.verServidos() || this.operacionMasivaActualizando()) return;
     teclado.preventDefault();
-    this.completarObjetivoRapido(objetivo);
+    this.espacioPresionado = true;
+    this.iniciarConfirmacionRapida(objetivo);
+  }
+
+  @HostListener('document:keyup', ['$event'])
+  soltarBarraEspaciadora(event: Event): void {
+    const teclado = event as KeyboardEvent;
+    if (teclado.code !== 'Space' && teclado.key !== ' ') return;
+    if (this.espacioPresionado || this.objetivoConfirmacionRapidaId() !== null) teclado.preventDefault();
+    this.espacioPresionado = false;
+    this.cancelarConfirmacionRapida();
   }
 
   ordenes = signal<KdsOrden[]>([]);
@@ -203,7 +213,9 @@ export class CocinaHome implements OnInit, OnDestroy {
   private recargaPedidosPendiente?: () => void;
   readonly identificarOrden = (_: number, orden: KdsOrden): number => orden.id;
   private readonly temporizadoresSalida = new Set<ReturnType<typeof setTimeout>>();
-  private ultimaPulsacionTeclado = 0;
+  private readonly duracionConfirmacionRapidaMs = 600;
+  private temporizadorConfirmacionRapida?: ReturnType<typeof setInterval>;
+  private espacioPresionado = false;
   private estacionSesionId: number | null = null;
   private readonly claveAlertasPreorden = 'tonito-kds-preordenes-alertadas';
   private preordenesAlertadas = new Set<string>();
@@ -271,12 +283,18 @@ export class CocinaHome implements OnInit, OnDestroy {
   private endpointPushRegistrado: string | null = null;
   verServidos = signal(false);
   detallesCompletadosAbiertos = signal<Record<number, boolean>>({});
+  objetivoManualId = signal<number | null>(null);
+  objetivoConfirmacionRapidaId = signal<number | null>(null);
+  progresoConfirmacionRapida = signal(0);
   colaAsistente = computed(() => construirColaAsistenteKds(this.ordenes()));
   prioridadesAsistente = computed(() => new Map(
     this.colaAsistente().slice(0, 3).map((tarea, indice) => [tarea.orden.id, { prioridad: indice + 1, tarea }]),
   ));
   objetivoTeclado = computed(() => {
     if (this.verServidos()) return null;
+    const manual = this.ordenesTablero().find(orden => orden.id === this.objetivoManualId()
+      && this.detallesMarcablesConTeclado(orden).length > 0);
+    if (manual) return manual;
     const visibles = new Set(this.ordenesTablero().map(orden => orden.id));
     return this.colaAsistente()
       .map(tarea => tarea.orden)
@@ -514,6 +532,7 @@ export class CocinaHome implements OnInit, OnDestroy {
     if (this.sesionHeartbeat) clearInterval(this.sesionHeartbeat);
     if (this.actualizacionPreordenTimer) clearInterval(this.actualizacionPreordenTimer);
     if (this.sincronizacionTableroTimer) clearInterval(this.sincronizacionTableroTimer);
+    this.cancelarConfirmacionRapida();
     this.temporizadoresSalida.forEach(temporizador => clearTimeout(temporizador));
     this.temporizadoresCambios.forEach(temporizador => clearTimeout(temporizador));
     this.temporizadoresCambios.clear();
@@ -1196,12 +1215,46 @@ export class CocinaHome implements OnInit, OnDestroy {
     this.marcarServidosMasivo(orden, detalles, true, `teclado:${orden.id}`, true);
   }
 
-  completarObjetivoRapido(orden = this.objetivoTeclado()): void {
-    if (!orden || this.isLoading() || this.verServidos() || this.operacionMasivaActualizando()) return;
-    if (Date.now() - this.ultimaPulsacionTeclado < 1200) return;
-    this.ultimaPulsacionTeclado = Date.now();
-    if (this.estacionActual()?.codigo === 'PARRILLA' && 'vibrate' in navigator) navigator.vibrate(55);
-    this.completarFichaConTeclado(orden);
+  iniciarConfirmacionRapida(orden = this.objetivoTeclado()): void {
+    if (!orden || this.objetivoConfirmacionRapidaId() !== null || this.isLoading() || this.verServidos() || this.operacionMasivaActualizando()) return;
+    if (!this.detallesMarcablesConTeclado(orden).length) return;
+    this.objetivoConfirmacionRapidaId.set(orden.id);
+    this.progresoConfirmacionRapida.set(0);
+    const inicio = Date.now();
+    if (this.estacionActual()?.codigo === 'PARRILLA' && 'vibrate' in navigator) navigator.vibrate(15);
+    this.temporizadorConfirmacionRapida = setInterval(() => {
+      const progreso = Math.min(100, ((Date.now() - inicio) / this.duracionConfirmacionRapidaMs) * 100);
+      this.progresoConfirmacionRapida.set(progreso);
+      if (progreso < 100) return;
+      const objetivoId = this.objetivoConfirmacionRapidaId();
+      this.limpiarConfirmacionRapida();
+      const objetivoActual = this.ordenes().find(item => item.id === objetivoId) ?? orden;
+      if (this.objetivoManualId() === objetivoId) this.objetivoManualId.set(null);
+      if (this.estacionActual()?.codigo === 'PARRILLA' && 'vibrate' in navigator) navigator.vibrate(55);
+      this.completarFichaConTeclado(objetivoActual);
+    }, 30);
+  }
+
+  cancelarConfirmacionRapida(): void {
+    if (this.objetivoConfirmacionRapidaId() === null) return;
+    this.limpiarConfirmacionRapida();
+  }
+
+  fijarObjetivoManual(orden: KdsOrden, event?: Event): void {
+    event?.stopPropagation();
+    this.cancelarConfirmacionRapida();
+    this.objetivoManualId.update(actual => actual === orden.id ? null : orden.id);
+  }
+
+  puedeFijarObjetivo(orden: KdsOrden): boolean {
+    return !this.verServidos() && this.detallesMarcablesConTeclado(orden).length > 0;
+  }
+
+  private limpiarConfirmacionRapida(): void {
+    if (this.temporizadorConfirmacionRapida) clearInterval(this.temporizadorConfirmacionRapida);
+    this.temporizadorConfirmacionRapida = undefined;
+    this.objetivoConfirmacionRapidaId.set(null);
+    this.progresoConfirmacionRapida.set(0);
   }
 
   private detallesMarcablesConTeclado(orden: KdsOrden): KdsDetalle[] {

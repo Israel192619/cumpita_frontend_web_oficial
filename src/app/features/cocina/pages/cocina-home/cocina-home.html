@@ -124,9 +124,11 @@
     </button>
   </section>
 
-  <button *ngIf="objetivoTeclado() as objetivo" type="button" class="keyboard-finish-bar" [class.keyboard-finish-bar--grill]="estacionActual()?.codigo === 'PARRILLA'" [disabled]="!!operacionMasivaActualizando()" (click)="completarObjetivoRapido(objetivo)">
-    <span class="keyboard-finish-bar__key"><span class="keyboard-key-desktop">ESPACIO</span><span class="keyboard-key-mobile">TOCAR</span></span>
-    <span><b>Terminar {{ estacionActual()?.nombre || 'estación' }} · Ficha #{{ objetivo.numero_orden || objetivo.id }}</b><small>{{ objetivo.cliente?.nombre || 'Cliente sin nombre' }} · después avanzará a la siguiente</small></span>
+  <button *ngIf="objetivoTeclado() as objetivo" type="button" class="keyboard-finish-bar" [class.keyboard-finish-bar--grill]="estacionActual()?.codigo === 'PARRILLA'" [class.is-holding]="objetivoConfirmacionRapidaId() === objetivo.id" [disabled]="!!operacionMasivaActualizando()"
+    (pointerdown)="$event.preventDefault(); iniciarConfirmacionRapida(objetivo)" (pointerup)="cancelarConfirmacionRapida()" (pointercancel)="cancelarConfirmacionRapida()" (pointerleave)="cancelarConfirmacionRapida()">
+    <i class="keyboard-hold-progress" [style.width.%]="objetivoConfirmacionRapidaId() === objetivo.id ? progresoConfirmacionRapida() : 0"></i>
+    <span class="keyboard-finish-bar__key"><span class="keyboard-key-desktop">MANTÉN ESPACIO</span><span class="keyboard-key-mobile">MANTÉN</span></span>
+    <span><b>{{ objetivoConfirmacionRapidaId() === objetivo.id ? 'Sigue presionando' : 'Terminar ' + (estacionActual()?.nombre || 'estación') }} · Ficha #{{ objetivo.numero_orden || objetivo.id }}</b><small>{{ objetivoManualId() === objetivo.id ? 'Objetivo fijado' : (objetivo.cliente?.nombre || 'Cliente sin nombre') + ' · después avanzará a la siguiente' }}</small></span>
   </button>
 
   <div *ngIf="resumenProduccionAbierto()" class="production-modal-backdrop" (click)="cerrarResumenProduccion()">
@@ -219,6 +221,7 @@
       [class.kds-ticket--assistant-now]="prioridadAsistente(orden.id) === 1"
       [class.kds-ticket--assistant-next]="prioridadAsistente(orden.id) > 1"
       [class.kds-ticket--keyboard-target]="objetivoTeclado()?.id === orden.id"
+      [class.kds-ticket--manual-target]="objetivoManualId() === orden.id"
       [class.kds-ticket--ready-attention]="orden.detalles.some(detalle => detalle.listo_para_atender)">
       <div *ngIf="idsOrdenesSaliendo().has(orden.id)" class="ticket-completion-overlay" aria-hidden="true"><span>✓</span></div>
       <div *ngIf="orden.estado === 'cancelado'" class="cancelled-stamp">CANCELADO</div>
@@ -241,6 +244,7 @@
         <span *ngIf="orden.tipo_flujo === 'preorden'" class="ticket-preorder-badge">Preorden</span>
         <span *ngIf="avisoPreorden(orden) as aviso" class="ticket-preorder-start" [class.ticket-preorder-start--late]="orden.preorden_cliente_no_llego">{{ aviso }}</span>
         <span *ngIf="orden.estado !== 'preparando' && orden.estado !== 'pendiente'" class="ticket-state" [class.ticket-state--cancelled]="orden.estado === 'cancelado'">{{ orden.estado }}</span>
+        <button *ngIf="puedeFijarObjetivo(orden)" type="button" class="quick-target-button" [class.is-selected]="objetivoManualId() === orden.id" (click)="fijarObjetivoManual(orden, $event)">{{ objetivoManualId() === orden.id ? 'CANCELAR OBJETIVO' : 'FIJAR COMO OBJETIVO' }}</button>
       </div>
       <div class="ticket-service-owner" [class.ticket-service-owner--unassigned]="!orden.mesero">
         <span>MESERO</span>

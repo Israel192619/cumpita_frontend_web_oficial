@@ -105,45 +105,71 @@ describe('Sincronización del monitor de Cocina', () => {
     expect(component.marcarServido).toHaveBeenCalledWith(pendiente, true, true);
   });
 
-  it('ignora Espacio al escribir y bloquea pulsaciones repetidas', () => {
-    const component = Object.create(CocinaHome.prototype) as any;
-    const orden = { id: 1, estado: 'preparando', detalles: [] };
-    component.document = { querySelector: () => null };
-    component.objetivoTeclado = () => orden;
-    component.isLoading = () => false;
-    component.verServidos = () => false;
-    component.operacionMasivaActualizando = () => null;
-    component.ultimaPulsacionTeclado = 0;
-    component.completarFichaConTeclado = vi.fn();
-    component.estacionActual = () => ({ codigo: 'COCINA' });
-    const evento = (tagName: string, repeat = false) => ({
-      target: { tagName, isContentEditable: false }, repeat,
-      code: 'Space', key: ' ',
-      altKey: false, ctrlKey: false, metaKey: false, shiftKey: false,
-      preventDefault: vi.fn(),
-    }) as any;
+  it('ignora Espacio al escribir y exige mantenerlo durante 600 ms', () => {
+    vi.useFakeTimers();
+    try {
+      const component = Object.create(CocinaHome.prototype) as any;
+      const orden = { id: 1, estado: 'preparando', detalles: [{ id: 11 }] };
+      component.document = { querySelector: () => null };
+      component.objetivoTeclado = () => orden;
+      component.objetivoConfirmacionRapidaId = signal(null);
+      component.progresoConfirmacionRapida = signal(0);
+      component.objetivoManualId = signal(null);
+      component.isLoading = () => false;
+      component.verServidos = () => false;
+      component.operacionMasivaActualizando = () => null;
+      component.duracionConfirmacionRapidaMs = 600;
+      component.espacioPresionado = false;
+      component.detallesMarcablesConTeclado = () => orden.detalles;
+      component.ordenes = () => [orden];
+      component.completarFichaConTeclado = vi.fn();
+      component.estacionActual = () => ({ codigo: 'COCINA' });
+      const evento = (tagName: string, repeat = false) => ({
+        target: { tagName, isContentEditable: false }, repeat,
+        code: 'Space', key: ' ',
+        altKey: false, ctrlKey: false, metaKey: false, shiftKey: false,
+        preventDefault: vi.fn(),
+      }) as any;
 
-    component.completarConBarraEspaciadora(evento('INPUT'));
-    component.completarConBarraEspaciadora(evento('BODY'));
-    component.completarConBarraEspaciadora(evento('BODY'));
+      component.completarConBarraEspaciadora(evento('INPUT'));
+      component.completarConBarraEspaciadora(evento('BODY'));
+      vi.advanceTimersByTime(300);
+      expect(component.completarFichaConTeclado).not.toHaveBeenCalled();
+      component.soltarBarraEspaciadora(evento('BODY'));
+      vi.advanceTimersByTime(400);
+      expect(component.completarFichaConTeclado).not.toHaveBeenCalled();
 
-    expect(component.completarFichaConTeclado).toHaveBeenCalledOnce();
+      component.completarConBarraEspaciadora(evento('BODY'));
+      component.completarConBarraEspaciadora(evento('BODY', true));
+      vi.advanceTimersByTime(620);
+      expect(component.completarFichaConTeclado).toHaveBeenCalledOnce();
+    } finally { vi.useRealTimers(); }
   });
 
-  it('permite terminar desde el botón táctil de Parrilla y evita doble toque', () => {
-    const component = Object.create(CocinaHome.prototype) as any;
-    const orden = { id: 7, estado: 'preparando', detalles: [] };
-    component.isLoading = () => false;
-    component.verServidos = () => false;
-    component.operacionMasivaActualizando = () => null;
-    component.estacionActual = () => ({ codigo: 'PARRILLA' });
-    component.ultimaPulsacionTeclado = 0;
-    component.completarFichaConTeclado = vi.fn();
+  it('permite mantener el botón de Parrilla de nuevo sin espera artificial', () => {
+    vi.useFakeTimers();
+    try {
+      const component = Object.create(CocinaHome.prototype) as any;
+      const orden = { id: 7, estado: 'preparando', detalles: [{ id: 71 }] };
+      component.objetivoConfirmacionRapidaId = signal(null);
+      component.progresoConfirmacionRapida = signal(0);
+      component.objetivoManualId = signal(null);
+      component.isLoading = () => false;
+      component.verServidos = () => false;
+      component.operacionMasivaActualizando = () => null;
+      component.estacionActual = () => ({ codigo: 'PARRILLA' });
+      component.duracionConfirmacionRapidaMs = 600;
+      component.detallesMarcablesConTeclado = () => orden.detalles;
+      component.ordenes = () => [orden];
+      component.completarFichaConTeclado = vi.fn();
 
-    component.completarObjetivoRapido(orden);
-    component.completarObjetivoRapido(orden);
+      component.iniciarConfirmacionRapida(orden);
+      vi.advanceTimersByTime(620);
+      component.iniciarConfirmacionRapida(orden);
+      vi.advanceTimersByTime(620);
 
-    expect(component.completarFichaConTeclado).toHaveBeenCalledOnce();
+      expect(component.completarFichaConTeclado).toHaveBeenCalledTimes(2);
+    } finally { vi.useRealTimers(); }
   });
 
   it('abre y cierra el conteo grande cuando existe producción pendiente', () => {
