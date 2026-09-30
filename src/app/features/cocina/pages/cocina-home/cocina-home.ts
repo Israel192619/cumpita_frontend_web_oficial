@@ -1131,7 +1131,8 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   marcarServido(detalle: KdsDetalle, servido: boolean, permitirModoTeclado = false): void {
     if (this.soloLecturaCocina() && !permitirModoTeclado) return;
-    if (detalle.bloqueado || this.estaDetalleActualizando(detalle.id)) return;
+    const puedeCompletarBloqueadoEnCocina = permitirModoTeclado && this.estacionActual()?.codigo === 'COCINA';
+    if ((detalle.bloqueado && !puedeCompletarBloqueadoEnCocina) || this.estaDetalleActualizando(detalle.id)) return;
     const estacionId = this.estacionActual()?.id;
     if (!estacionId) return;
     const orden = this.ordenes().find(item => item.detalles.some(actual => actual.id === detalle.id));
@@ -1262,7 +1263,9 @@ export class CocinaHome implements OnInit, OnDestroy {
 
   private detallesMarcablesConTeclado(orden: KdsOrden): KdsDetalle[] {
     if (orden.estado === 'cancelado' || this.esPreordenProgramada(orden)) return [];
-    return orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido' && !detalle.bloqueado);
+    const incluirBloqueados = this.estacionActual()?.codigo === 'COCINA';
+    return orden.detalles.filter(detalle => detalle.estado_cocina !== 'servido'
+      && (incluirBloqueados || !detalle.bloqueado));
   }
 
   private marcarServidosMasivo(orden: KdsOrden, detalles: KdsDetalle[], servido: boolean, clave: string, permitirModoTeclado = false): void {

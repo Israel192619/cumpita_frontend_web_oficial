@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { signal } from '@angular/core';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { CocinaHome, compararLlegadaKds, conservarPosicionesSalida, construirColaAsistenteKds, fusionarPedidosKds } from './cocina-home';
 
 describe('Asistente de Cocina y Parrilla', () => {
@@ -107,11 +107,34 @@ describe('Asistente de Cocina y Parrilla', () => {
 });
 
 describe('Sincronización del monitor de Cocina', () => {
-  it('Espacio completa solamente los productos marcables de la ficha objetivo', () => {
+  it('Espacio completa en Cocina también su trabajo bloqueado por Parrilla', () => {
     const component = Object.create(CocinaHome.prototype) as any;
     const pendiente = { id: 11, estado_cocina: 'pendiente', bloqueado: false };
     const bloqueado = { id: 12, estado_cocina: 'pendiente', bloqueado: true };
     const orden = { id: 1, estado: 'preparando', detalles: [pendiente, bloqueado] };
+    component.estacionActual = () => ({ id: 1, codigo: 'COCINA' });
+    component.esPreordenProgramada = () => false;
+    component.estaDetalleActualizando = () => false;
+    component.marcarServidosMasivo = vi.fn();
+
+    component.completarFichaConTeclado(orden);
+
+    expect(component.marcarServidosMasivo).toHaveBeenCalledWith(
+      orden,
+      [pendiente, bloqueado],
+      true,
+      'teclado:1',
+      true,
+    );
+  });
+
+  it('Espacio en Parrilla continúa ignorando productos bloqueados', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    const pendiente = { id: 11, estado_cocina: 'pendiente', bloqueado: false };
+    const bloqueado = { id: 12, estado_cocina: 'pendiente', bloqueado: true };
+    const orden = { id: 1, estado: 'preparando', detalles: [pendiente, bloqueado] };
+    component.estacionActual = () => ({ id: 2, codigo: 'PARRILLA' });
+    component.esPreordenProgramada = () => false;
     component.estaDetalleActualizando = () => false;
     component.marcarServido = vi.fn();
 
@@ -119,6 +142,26 @@ describe('Sincronización del monitor de Cocina', () => {
 
     expect(component.marcarServido).toHaveBeenCalledOnce();
     expect(component.marcarServido).toHaveBeenCalledWith(pendiente, true, true);
+  });
+
+  it('un único producto bloqueado se completa solo en la estación Cocina', () => {
+    const component = Object.create(CocinaHome.prototype) as any;
+    const bloqueado = { id: 12, estado_cocina: 'pendiente', bloqueado: true };
+    const orden = { id: 1, estado: 'preparando', detalles: [bloqueado] };
+    component.soloLecturaCocina = () => true;
+    component.estacionActual = () => ({ id: 1, codigo: 'COCINA' });
+    component.estaDetalleActualizando = () => false;
+    component.ordenes = signal([orden]);
+    component.actualizacionesLocales = new Map();
+    component.prepararSalidaOrden = vi.fn();
+    component.establecerEstadoDetalleLocal = vi.fn();
+    component.marcarDetallesActualizando = vi.fn();
+    component.cocinaService = { actualizarEstadoDetalle: vi.fn(() => of({ orden_estado: 'preparando' })) };
+    component.toastr = { warning: vi.fn() };
+
+    component.marcarServido(bloqueado, true, true);
+
+    expect(component.cocinaService.actualizarEstadoDetalle).toHaveBeenCalledWith(12, 1, 'servido');
   });
 
   it('ignora Espacio al escribir y exige mantenerlo durante 600 ms', () => {
